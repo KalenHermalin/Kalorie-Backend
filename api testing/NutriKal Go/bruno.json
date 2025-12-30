@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "NutriKal Go",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}
