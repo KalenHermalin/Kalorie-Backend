@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432" # Accessible from your host machine
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  app:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    ports:
+      - "8080:8080" # Your API is now at localhost:8080
+    volumes:
+      - .:/app # Syncs your local code into the container
+
+
+volumes:
+  pg_data:

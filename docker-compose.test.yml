@@ -1,0 +1,15 @@
+services:
+  test-db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: kalen_test
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: nutrikal_test
+      # maps port 5433 on host to 5432 in docker container
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kalen_test -d nutrikal_test"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
