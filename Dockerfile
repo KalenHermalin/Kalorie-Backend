@@ -26,9 +26,9 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 WORKDIR /root/
 
+COPY --from=builder /app/migrations /root/migrations/
 # Copy the binary from the builder stage
 COPY --from=builder /app/main .
-COPY --from=builder /app/migrations .
 
 # Heroku will assign a dynamic $PORT; your code must use os.Getenv("PORT")
-CMD ["./main"]
+CMD ["ls", "./main"]

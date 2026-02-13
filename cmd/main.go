@@ -45,7 +45,7 @@ func main() {
 	if err := goose.SetDialect("postgres"); err != nil {
 		log.Fatal("Couldnt set goose dialect:", err.Error())
 	}
-	if err := goose.Up(db, "migrations"); err != nil {
+	if err := goose.Up(db, "./migrations"); err != nil {
 		log.Fatal("Migration failed:", err.Error())
 	}
 	userStore := store.NewPostgressUserStore(db)
