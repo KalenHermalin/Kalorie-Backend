@@ -24,6 +24,7 @@ FROM alpine:latest
 # Bring over the CA certificates so OAuth exchanges work
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
+EXPOSE 8080
 WORKDIR /root/
 
 COPY --from=builder /app/migrations /root/migrations/
