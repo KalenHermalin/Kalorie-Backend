@@ -28,7 +28,7 @@ WORKDIR /root/
 
 # Copy the binary from the builder stage
 COPY --from=builder /app/main .
-COPY --from=builder /app/migrations/
+COPY --from=builder /app/migrations .
 
 # Heroku will assign a dynamic $PORT; your code must use os.Getenv("PORT")
 CMD ["./main"]
