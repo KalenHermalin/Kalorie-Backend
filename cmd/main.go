@@ -93,7 +93,7 @@ func main() {
 	// Initalizing Application
 	app := application{
 		config: config{
-			addr:             ":" + addr,
+			addr:             "0.0.0.0:" + addr,
 			jwtAccessSecret:  jwtAccessSecret,
 			jwtRefreshSecret: jwtRefreshSecret,
 		},

@@ -31,4 +31,4 @@ COPY --from=builder /app/migrations /root/migrations/
 COPY --from=builder /app/main .
 
 # Heroku will assign a dynamic $PORT; your code must use os.Getenv("PORT")
-CMD ["ls", "./main"]
+CMD ["./main"]
