@@ -20,13 +20,10 @@ type geminiMealResponse struct {
 	Payload models.MealPayload `json:"payload"`
 }
 
-func NewGeminiProvider(ctx context.Context, apiKey *string, model string) (*GeminiProvider, error) {
+func NewGeminiProvider(ctx context.Context, apiKey string, model string) (*GeminiProvider, error) {
 
-	if apiKey == nil {
-		return nil, errors.New("No API Key Given")
-	}
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		APIKey:  *apiKey,
+		APIKey:  apiKey,
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {

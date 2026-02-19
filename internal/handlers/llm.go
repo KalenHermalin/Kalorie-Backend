@@ -23,7 +23,7 @@ func (handler *LLMHandler) AnalyzeFoodHandler(writer http.ResponseWriter, reques
 	writer.Header().Set("Content-Type", "application/json")
 
 	var requestData analayzeRequestPayload
-	if err := utils.DecodePayload(request, &requestData); err != nil {
+	if err := utils.DecodePayload(request.Body, &requestData); err != nil {
 		// Bad Request because all we did was decode it and got an error meaning invalid JSON
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 	}
@@ -42,7 +42,7 @@ func (handler *LLMHandler) AnalyzeLabelHandler(writer http.ResponseWriter, reque
 
 	var requestData analayzeRequestPayload
 
-	if err := utils.DecodePayload(request, &requestData); err != nil {
+	if err := utils.DecodePayload(request.Body, &requestData); err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 	}
 	ctx := request.Context()

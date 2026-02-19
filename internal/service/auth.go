@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"log"
+	"main/internal/apperrors"
 	"main/internal/auth"
 	"main/internal/models"
 	"time"
@@ -128,7 +128,6 @@ func (as *AuthService) SignIn(ctx context.Context, code, provider, verifier stri
 
 func (as *AuthService) ExchangeCode(ctx context.Context, code, provider, verifier string, platform *string) (*models.AuthPayload, error) {
 	if platform == nil {
-		log.Println("Platform is nil")
 		for _, p := range as.providers {
 			if p.GetProviderName() == provider {
 				auth, err := p.HandleCodeExchangeWithVerifier(ctx, code, verifier)
@@ -148,5 +147,5 @@ func (as *AuthService) ExchangeCode(ctx context.Context, code, provider, verifie
 			return auth, nil
 		}
 	}
-	return nil, errors.New("Provider is not available")
+	return nil, apperrors.ErrInvalidProvider
 }

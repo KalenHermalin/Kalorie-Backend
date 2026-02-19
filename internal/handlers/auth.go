@@ -31,7 +31,7 @@ type logOutRequestBody struct {
 func (ah *AuthHandler) HandleRefresh(writer http.ResponseWriter, request *http.Request) {
 
 	requestData := &logOutRequestBody{}
-	if err := utils.DecodePayload(request, requestData); err != nil {
+	if err := utils.DecodePayload(request.Body, requestData); err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -55,7 +55,7 @@ func (ah *AuthHandler) HandleLogOut(writer http.ResponseWriter, request *http.Re
 
 	// Get refresh token from request body
 	requestData := &logOutRequestBody{}
-	if err := utils.DecodePayload(request, requestData); err != nil {
+	if err := utils.DecodePayload(request.Body, requestData); err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -69,7 +69,7 @@ func (ah *AuthHandler) HandleLogOut(writer http.ResponseWriter, request *http.Re
 func (ah *AuthHandler) HandleLoginSignup(writer http.ResponseWriter, request *http.Request) {
 
 	var requestData authRequestBody
-	if err := utils.DecodePayload(request, &requestData); err != nil {
+	if err := utils.DecodePayload(request.Body, &requestData); err != nil {
 		// Bad Request because all we did was decode it and got an error meaning invalid JSON
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 		return

@@ -2,11 +2,12 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
+	"log/slog"
+	"main/internal/apperrors"
+	"main/internal/auth"
 	"main/internal/models"
+	"main/internal/utils"
 	"net/http"
 
 	"golang.org/x/oauth2"
@@ -39,8 +40,9 @@ type GitHubEmail struct {
 }
 
 func (gh *GitHubProvider) HandleCodeExchangeWithVerifier(ctx context.Context, code string, verifier string) (*models.AuthPayload, error) {
-	//TODO: Parent should handle validation of input to amke sure not empty
-	token, err := gh.config.Exchange(ctx, code, oauth2.VerifierOption(verifier))
+
+	// Only ever returns an apperror, can be instantly returned to handler
+	token, err := auth.ExchangeCode(ctx, code, verifier, *gh.config)
 	if err != nil {
 		return nil, err
 	}
@@ -49,35 +51,37 @@ func (gh *GitHubProvider) HandleCodeExchangeWithVerifier(ctx context.Context, co
 	// Get user ID
 	resp, err := client.Get("https://api.github.com/user")
 	if err != nil {
-		fmt.Printf("ERROR 1: %v", err)
-		return nil, err
+		slog.Error("Error: oauth2 user info", "error", err.Error())
+		return nil, apperrors.ErrUnexpectedAuth
 	}
-	defer resp.Body.Close()
 
 	gitPayload := &models.AuthPayload{}
-
-	err = json.NewDecoder(resp.Body).Decode(gitPayload)
-
+	err = utils.DecodePayload(resp.Body, gitPayload)
 	if err != nil {
-		return nil, err
+		slog.Error("Error: decoding user data", "error", err.Error())
+		return nil, apperrors.ErrUnexpectedAuth
 	}
 	// Getting Email
 	resp, err = client.Get("https://api.github.com/user/emails")
 	if err != nil {
-		return nil, err
+		slog.Error("Error: oauth2 user email info", "error", err.Error())
+		return nil, apperrors.ErrUnexpectedAuth
 	}
-	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		// Read the body as a string to see the actual error message from GitHub
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		fmt.Printf("GitHub API error (status %d): %s", resp.StatusCode, string(bodyBytes))
-		return nil, errors.New("TEST")
+
+		slog.Error("Error: oauth provider api error", "status", resp.StatusCode, "message", string(bodyBytes))
+		return nil, apperrors.ErrUnavailableAuthService
 	}
 	var emails []GitHubEmail
-	err = json.NewDecoder(resp.Body).Decode(&emails)
+	err = utils.DecodePayload(resp.Body, &emails)
+	//err = json.NewDecoder(resp.Body).Decode(&emails)
+	//defer resp.Body.Close()
+
 	if err != nil {
-		fmt.Printf("Error: %v", err)
-		return nil, err
+		slog.Error("Error: extracting oauth2 user email info", "error", err.Error())
+		return nil, apperrors.ErrUnexpectedAuth
 	}
 
 	// 2. Find the primary one

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"log/slog"
 	"main/internal/auth/providers"
 	"main/internal/handlers"
 	"main/internal/llm"
@@ -20,14 +21,20 @@ const MODEL string = "gemini-2.5-flash-lite"
 
 func main() {
 
+	handler := slog.NewJSONHandler(os.Stdout, nil)
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
 	// Setting Up LLM Provider, Service and Handler
-	apiKey, ok := os.LookupEnv("GEMINI_API_KEY")
+	apiKey, ok := os.LookupEnv("LLM_API_KEY")
 	if !ok {
-		log.Fatalln("Error getting LLM API Key from ENV")
+		slog.Error("Error: Missing env variable", "key", "LLM_API_KEY")
+		os.Exit(1)
+
 	}
-	gemini, err := llm.NewGeminiProvider(context.Background(), &apiKey, "gemini-flash-2.5")
+	gemini, err := llm.NewGeminiProvider(context.Background(), apiKey, "gemini-flash-2.5")
 	if err != nil {
-		log.Panic(err.Error())
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 	llmService := service.NewLLMService(gemini)
 	llmHandler := handlers.NewLLMHandler(*llmService)
@@ -35,38 +42,45 @@ func main() {
 	// Setting up User Store, Service and Handler
 	connString, ok := os.LookupEnv("DB_DNS")
 	if !ok {
-		log.Fatalln("Error getting DB Connection String from ENV")
+		slog.Error("Error: Missing env variable", "key", "DB_DNS")
+		os.Exit(1)
 	}
 	db, err := sql.Open("postgres", connString)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 	CheckDBConnection(db)
 	if err := goose.SetDialect("postgres"); err != nil {
 		log.Fatal("Couldnt set goose dialect:", err.Error())
 	}
 	if err := goose.Up(db, "./migrations"); err != nil {
-		log.Fatal("Migration failed:", err.Error())
+		slog.Error("Error: Migrations Failed", "message", err.Error())
+		os.Exit(1)
 	}
 	userStore := store.NewPostgressUserStore(db)
 	gitHubClientID, ok := os.LookupEnv("GIT_CLIENT_ID")
 	if !ok {
-		log.Panicln("Failed to get GIT Client ID from ENV")
+		slog.Error("Error: Missing env variable", "key", "GIT_CLIENT_ID")
+		os.Exit(1)
 	}
 	githubClientSecret, ok := os.LookupEnv("GIT_CLIENT_SECRET")
 	if !ok {
-		log.Panicln("Failed to get GIT Secert from ENV")
+		slog.Error("Error: Missing env variable", "key", "GIT_CLIENT_SECRET")
+		os.Exit(1)
 	}
 
 	githubAuth := auth.NewGitHubProvider(gitHubClientID, githubClientSecret, "nutrikal://", nil)
 
 	googleClientIDIos, ok := os.LookupEnv("GOOGLE_CLIENT_ID_IOS")
 	if !ok {
-		log.Panicln("Failed to get Google Client ID from ENV")
+		slog.Error("Error: Missing env variable", "key", "GOOGLE_CLIENT_ID_IOS")
+		os.Exit(1)
 	}
 	googleClientIdAndroid, ok := os.LookupEnv("GOOGLE_CLIENT_ID_ANDROID")
 	if !ok {
-		log.Panicln("Failed to get Google Client ID from ENV")
+		slog.Error("Error: Missing env variable", "key", "GOOGLE_CLIENT_ID_ANDROID")
+		os.Exit(1)
 	}
 	googleIosAuth := auth.NewGoogleProvider(googleClientIDIos, "", "com.googleusercontent.apps.725051057596-1jsdj1vob2v5mnrhbhi1moj8bfj12cqs://", "ios", nil)
 	googleAndroidAuth := auth.NewGoogleProvider(googleClientIdAndroid, "", "com.googleusercontent.apps.725051057596-gj4kl9f3c4f10cef513qsgahjppuhoqg://", "android", nil)
@@ -74,12 +88,14 @@ func main() {
 	jwtAccessSecret, ok := os.LookupEnv("JWT_ACCESS_SECRET")
 	if !ok {
 
-		log.Panicln("Failed to get JWT_SECERT from ENV")
+		slog.Error("Error: Missing env variable", "key", "JWT_ACCESS_SECRET")
+		os.Exit(1)
 	}
 	jwtRefreshSecret, ok := os.LookupEnv("JWT_REFRESH_SECRET")
 	if !ok {
 
-		log.Panicln("Failed to get JWT_SECERT from ENV")
+		slog.Error("Error: Missing env variable", "key", "JWT_REFRESH_SECRET")
+		os.Exit(1)
 	}
 	authService := service.NewAuthService(*userStore, jwtAccessSecret, jwtRefreshSecret, githubAuth, googleIosAuth, googleAndroidAuth)
 	authHandler := handlers.NewAuthHandler(*authService)
@@ -88,7 +104,8 @@ func main() {
 	systemHandler := handlers.NewSystemHander()
 	addr, ok := os.LookupEnv("PORT")
 	if !ok {
-		log.Panicln("Failed to get PORT from ENV")
+		slog.Error("Error: Missing env variable", "key", "PORT")
+		os.Exit(1)
 	}
 	// Initalizing Application
 	app := application{
@@ -114,11 +131,12 @@ func CheckDBConnection(db *sql.DB) {
 			connected = true
 			break
 		}
-		log.Println("Waiting For Database Conneciton...")
+		slog.Info("Waiting for database connection...")
 		time.Sleep(3 * time.Second)
 	}
 	if !connected {
-		log.Fatalln("Could not connect to database after 30 seconds. Exiting.")
+		slog.Error("Error: Could not connect to database after 30sec")
+		os.Exit(1)
 	}
 }
 
