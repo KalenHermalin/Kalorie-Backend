@@ -51,7 +51,7 @@ func (gh *GitHubProvider) HandleCodeExchangeWithVerifier(ctx context.Context, co
 	// Get user ID
 	resp, err := client.Get("https://api.github.com/user")
 	if err != nil {
-		slog.Error("Error: oauth2 user info", "error", err.Error())
+		slog.Error("Error: oauth2 user info", "provider", gh.GetProviderName(), "error", err.Error())
 		return nil, apperrors.ErrUnexpectedAuth
 	}
 
@@ -64,14 +64,14 @@ func (gh *GitHubProvider) HandleCodeExchangeWithVerifier(ctx context.Context, co
 	// Getting Email
 	resp, err = client.Get("https://api.github.com/user/emails")
 	if err != nil {
-		slog.Error("Error: oauth2 user email info", "error", err.Error())
+		slog.Error("Error: oauth2 user email info", "provider", gh.GetProviderName(), "error", err.Error())
 		return nil, apperrors.ErrUnexpectedAuth
 	}
 	if resp.StatusCode != http.StatusOK {
 		// Read the body as a string to see the actual error message from GitHub
 		bodyBytes, _ := io.ReadAll(resp.Body)
 
-		slog.Error("Error: oauth provider api error", "status", resp.StatusCode, "message", string(bodyBytes))
+		slog.Error("Error: oauth provider api error", "status", "provider", gh.GetProviderName(), resp.StatusCode, "message", string(bodyBytes))
 		return nil, apperrors.ErrUnavailableAuthService
 	}
 	var emails []GitHubEmail
@@ -80,7 +80,7 @@ func (gh *GitHubProvider) HandleCodeExchangeWithVerifier(ctx context.Context, co
 	//defer resp.Body.Close()
 
 	if err != nil {
-		slog.Error("Error: extracting oauth2 user email info", "error", err.Error())
+		slog.Error("Error: extracting oauth2 user email info", "provider", gh.GetProviderName(), "error", err.Error())
 		return nil, apperrors.ErrUnexpectedAuth
 	}
 

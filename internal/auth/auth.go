@@ -26,7 +26,8 @@ func GenerateAccessToken(userID int, email string, isPremium bool, secret string
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signedAccess, err := accessToken.SignedString([]byte(secret))
 	if err != nil {
-		return "", err
+		slog.Error("Error: jwt access token generation", "error", err.Error())
+		return "", apperrors.ErrInternalAuth
 	}
 
 	return signedAccess, err
@@ -44,10 +45,11 @@ func GenerateRefreshToken(userID int, expiresIn time.Time, secret string) (strin
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signedAccess, err := refreshToken.SignedString([]byte(secret))
 	if err != nil {
-		return "", err
+		slog.Error("Error: jwt refresh token generation", "error", err.Error())
+		return "", apperrors.ErrInternalAuth
 	}
 
-	return signedAccess, err
+	return signedAccess, nil
 }
 
 func ExchangeCode(ctx context.Context, code, verifier string, client oauth2.Config) (*oauth2.Token, error) {

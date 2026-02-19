@@ -2,9 +2,11 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
+	"log/slog"
+	"main/internal/apperrors"
+	"main/internal/auth"
 	"main/internal/models"
+	"main/internal/utils"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -37,10 +39,8 @@ type GoogleResponse struct {
 }
 
 func (gh *GoogleProvider) HandleCodeExchangeWithVerifier(ctx context.Context, code string, verifier string) (*models.AuthPayload, error) {
-	fmt.Printf("Verifier: %s\n", verifier)
-	token, err := gh.config.Exchange(ctx, code, oauth2.VerifierOption(verifier))
+	token, err := auth.ExchangeCode(ctx, code, verifier, *gh.config)
 	if err != nil {
-		fmt.Printf("Error: %v", err)
 		return nil, err
 	}
 	client := gh.config.Client(ctx, token)
@@ -48,21 +48,21 @@ func (gh *GoogleProvider) HandleCodeExchangeWithVerifier(ctx context.Context, co
 	// Get user ID
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
 	if err != nil {
-		fmt.Printf("ERROR 1: %v", err)
-		return nil, err
+		slog.Error("Error: oauth2 user info", "provider", gh.GetProviderName(), "error", err.Error())
+		return nil, apperrors.ErrUnexpectedAuth
+
 	}
-	defer resp.Body.Close()
 	googleResponse := &GoogleResponse{}
-	googlePayload := &models.AuthPayload{}
-
-	err = json.NewDecoder(resp.Body).Decode(googleResponse)
-
+	err = utils.DecodePayload(resp.Body, googleResponse)
 	if err != nil {
 		return nil, err
 	}
-	googlePayload.Provider = gh.GetProviderName()
-	googlePayload.Email = googleResponse.Email
-	googlePayload.ID = googleResponse.ID
+
+	googlePayload := &models.AuthPayload{
+		Provider: gh.GetProviderName(),
+		Email:    googleResponse.Email,
+		ID:       googleResponse.ID,
+	}
 	return googlePayload, nil
 }
 
