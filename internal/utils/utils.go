@@ -5,12 +5,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"net/http"
+	"io"
 	"strings"
 )
 
-func DecodePayload[T any](request *http.Request, payload T) error {
-	if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+func DecodePayload[T any](body io.ReadCloser, payload *T) error {
+	defer body.Close()
+
+	if err := json.NewDecoder(body).Decode(payload); err != nil {
 		return err
 	}
 	return nil

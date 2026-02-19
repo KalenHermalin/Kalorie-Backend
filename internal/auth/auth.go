@@ -1,10 +1,14 @@
 package auth
 
 import (
+	"context"
+	"log/slog"
+	"main/internal/apperrors"
 	"main/internal/models"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/oauth2"
 )
 
 func GenerateAccessToken(userID int, email string, isPremium bool, secret string) (string, error) {
@@ -44,4 +48,36 @@ func GenerateRefreshToken(userID int, expiresIn time.Time, secret string) (strin
 	}
 
 	return signedAccess, err
+}
+
+func ExchangeCode(ctx context.Context, code, verifier string, client oauth2.Config) (*oauth2.Token, error) {
+	token, err := client.Exchange(ctx, code, oauth2.VerifierOption(verifier))
+	if err != nil {
+		if re, ok := err.(*oauth2.RetrieveError); ok {
+			slog.Error("Error: oauth2 token exchange", "ErrorCode", re.ErrorCode, "Description", re.ErrorDescription)
+			switch re.ErrorCode {
+
+			case "invalid_grant", "access_denied":
+				//Please try again in a few
+				return nil, apperrors.ErrLoginFailed
+
+			case "unauthorized_client", "invalid_scope":
+				// internal server erro
+				return nil, apperrors.ErrInternalAuth
+
+			case "server_error", "temporarily_unavailable":
+				// auth provider temporarily down
+				return nil, apperrors.ErrUnavailableAuthService
+			default:
+				//unknown error
+				return nil, apperrors.ErrUnexpectedAuth
+
+			}
+
+		}
+		slog.Error("Error: Non oauth2", "error", err.Error())
+		return nil, apperrors.ErrInternalServer
+	}
+	return token, nil
+
 }
