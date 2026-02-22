@@ -88,4 +88,9 @@ var (
 		Message: "The provided request is invalid. Please refer to documentation!",
 		Status:  http.StatusBadRequest,
 	}
+	LLMErrNoFood = &AppError{
+		Code:    "ERR_LLM_NO_FOOD_FOUND",
+		Message: "The picture provided had no food in it. Please try again with food!",
+		Status:  http.StatusBadRequest,
+	}
 )

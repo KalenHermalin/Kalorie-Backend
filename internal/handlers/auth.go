@@ -65,7 +65,6 @@ func (ah *AuthHandler) HandleLogOut(writer http.ResponseWriter, request *http.Re
 	}
 	err := ah.auth.LogOut(request.Context(), userId, requestData.Refresh)
 	if err != nil {
-		// TODO: Depending on error, sign user out or deny signout, for now always deny signout
 		slog.Error("Error: deleting refresh token in database", "error", err.Error())
 		apperrors.WriteError(writer, *apperrors.AuthErrLogoutFailed)
 		return
@@ -101,7 +100,7 @@ func (ah *AuthHandler) HandleLoginSignup(writer http.ResponseWriter, request *ht
 
 		}
 		slog.Error("Error: Sign Up / Login Failed", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrInvalidRequest)
+		apperrors.WriteError(writer, *apperrors.ErrInternalServer)
 		return
 	}
 	writer.Header().Set("Content-Type", "application/json")

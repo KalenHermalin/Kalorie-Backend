@@ -2,6 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
+	"log/slog"
+	"main/internal/apperrors"
 	"main/internal/service"
 	"main/internal/utils"
 	"net/http"
@@ -25,13 +28,23 @@ func (handler *LLMHandler) AnalyzeFoodHandler(writer http.ResponseWriter, reques
 	var requestData analayzeRequestPayload
 	if err := utils.DecodePayload(request.Body, &requestData); err != nil {
 		// Bad Request because all we did was decode it and got an error meaning invalid JSON
-		http.Error(writer, err.Error(), http.StatusBadRequest)
+		slog.Error("Error: decoding analyze food body", "error", err.Error())
+		apperrors.WriteError(writer, *apperrors.ErrInvalidRequest)
+		return
 	}
 	// Retrieve request context to pass down
 	ctx := request.Context()
 	payload, err := handler.llmService.Provider.AnalyzePicture(ctx, requestData.Picture, utils.ANALYZEFOODSYSTEMPROMPT)
 	if err != nil {
-		http.Error(writer, "Error in serivce", http.StatusBadRequest)
+		var appErr *apperrors.AppError
+		if errors.As(err, &appErr) {
+			apperrors.WriteError(writer, *appErr)
+			return
+
+		}
+		slog.Error("Error: Analyze Food", "error", err.Error())
+		apperrors.WriteError(writer, *apperrors.ErrInternalServer)
+		return
 	}
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(payload)
@@ -43,12 +56,22 @@ func (handler *LLMHandler) AnalyzeLabelHandler(writer http.ResponseWriter, reque
 	var requestData analayzeRequestPayload
 
 	if err := utils.DecodePayload(request.Body, &requestData); err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		slog.Error("Error: decoding analyze label body", "error", err.Error())
+		apperrors.WriteError(writer, *apperrors.ErrInvalidRequest)
+		return
 	}
 	ctx := request.Context()
 	payload, err := handler.llmService.Provider.AnalyzeLabel(ctx, requestData.Picture, utils.ANALYZELABELSYSTEMPROMPT)
 	if err != nil {
-		http.Error(writer, "Error in service", http.StatusBadRequest)
+		var appErr *apperrors.AppError
+		if errors.As(err, &appErr) {
+			apperrors.WriteError(writer, *appErr)
+			return
+
+		}
+		slog.Error("Error: Analyze label", "error", err.Error())
+		apperrors.WriteError(writer, *apperrors.ErrInternalServer)
+		return
 	}
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(payload)
