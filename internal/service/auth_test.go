@@ -6,6 +6,7 @@ import (
 	"errors"
 	"main/internal/auth"
 	"main/internal/models"
+	"main/internal/utils"
 	"testing"
 	"time"
 
@@ -30,11 +31,10 @@ func (m *MockAuthProvider) HandleCodeExchangeWithVerifier(ctx context.Context, c
 	return m.payload, m.err
 }
 func (m *MockUserRepo) UpsertUserWithAuth(ctx context.Context, tx *sql.Tx, p *models.AuthPayload) (*models.User, error) {
-
 	return m.mockUser, m.mockErr
 }
 func (m *MockUserRepo) WithTx(ctx context.Context, fn func(*sql.Tx) error) error {
-	return nil
+	return fn(nil)
 }
 
 func (m *MockUserRepo) SaveRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId int, expiresAt time.Time) error {
@@ -48,7 +48,7 @@ func (m *MockUserRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh
 }
 func TestSignIn_FullFlow(t *testing.T) {
 	// 1. Setup mocks
-	mockUser := &models.User{ID: 1, Email: "kalen@laurier.ca"}
+	mockUser := &models.User{ID: 1, Email: "kalen@laurier.ca", CreatedAt: time.Now()}
 	repo := &MockUserRepo{mockUser: mockUser, mockRefresh: "fake_refresh_token"}
 
 	provider := &MockAuthProvider{
@@ -66,7 +66,7 @@ func TestSignIn_FullFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	if resp.AccessToken == "" {
+	if err = utils.CheckValidString(resp.AccessToken); err != nil {
 		t.Error("Access token should not be empty")
 	}
 	if resp.User.ID != mockUser.ID {

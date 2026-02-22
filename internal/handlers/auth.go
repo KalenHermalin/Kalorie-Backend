@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
+	"errors"
+	"log/slog"
+	"main/internal/apperrors"
 	"main/internal/middlewares"
 	"main/internal/service"
 	"main/internal/utils"
@@ -32,13 +34,14 @@ func (ah *AuthHandler) HandleRefresh(writer http.ResponseWriter, request *http.R
 
 	requestData := &logOutRequestBody{}
 	if err := utils.DecodePayload(request.Body, requestData); err != nil {
-		http.Error(writer, err.Error(), http.StatusBadRequest)
+		slog.Error("Error: decoding refresh request body", "error", err.Error())
+		apperrors.WriteError(writer, *apperrors.ErrInvalidRequest)
 		return
 	}
 	resp, err := ah.auth.RefreshAccessToken(request.Context(), requestData.Refresh)
 	if err != nil {
-		http.Error(writer, err.Error(), http.StatusBadRequest)
-		log.Printf("Error refreshing access token: %v\n", err)
+		slog.Error("Error: refreshing access token", "error", err.Error())
+		apperrors.WriteError(writer, *apperrors.AuthErrInvalidToken)
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
@@ -49,19 +52,23 @@ func (ah *AuthHandler) HandleLogOut(writer http.ResponseWriter, request *http.Re
 	// Get userId from auth middleware
 	userId, ok := request.Context().Value(middlewares.UserIDKey).(int)
 	if !ok {
-		http.Error(writer, "Unauthorzied", http.StatusUnauthorized)
+		apperrors.WriteError(writer, *apperrors.ErrUnauthoirized)
 		return
 	}
 
 	// Get refresh token from request body
 	requestData := &logOutRequestBody{}
 	if err := utils.DecodePayload(request.Body, requestData); err != nil {
-		http.Error(writer, err.Error(), http.StatusBadRequest)
+		slog.Error("Error: decoding logout request body", "error", err.Error())
+		apperrors.WriteError(writer, *apperrors.ErrInvalidRequest)
 		return
 	}
 	err := ah.auth.LogOut(request.Context(), userId, requestData.Refresh)
 	if err != nil {
-		log.Printf("Failed to delete refresh token: %v", err)
+		// TODO: Depending on error, sign user out or deny signout, for now always deny signout
+		slog.Error("Error: deleting refresh token in database", "error", err.Error())
+		apperrors.WriteError(writer, *apperrors.AuthErrLogoutFailed)
+		return
 	}
 	writer.WriteHeader(http.StatusOK)
 	writer.Write([]byte("Success"))
@@ -71,22 +78,33 @@ func (ah *AuthHandler) HandleLoginSignup(writer http.ResponseWriter, request *ht
 	var requestData authRequestBody
 	if err := utils.DecodePayload(request.Body, &requestData); err != nil {
 		// Bad Request because all we did was decode it and got an error meaning invalid JSON
-		http.Error(writer, err.Error(), http.StatusBadRequest)
+		slog.Error("Error: decoding login request body", "error", err.Error())
+		apperrors.WriteError(writer, *apperrors.ErrInvalidRequest)
 		return
 	}
 	if err := utils.CheckValidString(requestData.Code); err != nil {
-		http.Error(writer, err.Error(), http.StatusBadRequest)
+		slog.Error("Error: code is empty", "error", err.Error())
+		apperrors.WriteError(writer, *apperrors.ErrInvalidRequest)
 		return
 	}
 	if err := utils.CheckValidString(requestData.Provider); err != nil {
-		http.Error(writer, err.Error(), http.StatusBadRequest)
+		slog.Error("Error: provider is empty", "error", err.Error())
+		apperrors.WriteError(writer, *apperrors.ErrInvalidRequest)
 		return
 	}
 	resp, err := ah.auth.SignIn(request.Context(), requestData.Code, requestData.Provider, requestData.Verifier, requestData.Platform)
 	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		var appErr *apperrors.AppError
+		if errors.As(err, &appErr) {
+			apperrors.WriteError(writer, *appErr)
+			return
+
+		}
+		slog.Error("Error: Sign Up / Login Failed", "error", err.Error())
+		apperrors.WriteError(writer, *apperrors.ErrInvalidRequest)
+		return
 	}
 	writer.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(writer).Encode(resp) // Now 'resp' is used!
+	json.NewEncoder(writer).Encode(resp)
 
 }

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"main/internal/apperrors"
 	"main/internal/auth"
 	"main/internal/models"
@@ -42,7 +41,7 @@ func (as *AuthService) RefreshAccessToken(ctx context.Context, refresh string) (
 	})
 
 	if err != nil || !token.Valid {
-		return nil, errors.New("Refresh token is invlaid")
+		return nil, err
 	}
 
 	// 2. Start Transaction
@@ -108,6 +107,7 @@ func (as *AuthService) SignIn(ctx context.Context, code, provider, verifier stri
 		if err != nil {
 			return err
 		}
+
 		err = as.us.SaveRefreshToken(ctx, tx, refresh, user.ID, time.Now().Add(time.Hour*24*30))
 		if err != nil {
 			return err
@@ -147,5 +147,5 @@ func (as *AuthService) ExchangeCode(ctx context.Context, code, provider, verifie
 			return auth, nil
 		}
 	}
-	return nil, apperrors.ErrInvalidProvider
+	return nil, apperrors.AuthErrInvalidProvider
 }
