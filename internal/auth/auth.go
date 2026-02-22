@@ -27,7 +27,7 @@ func GenerateAccessToken(userID int, email string, isPremium bool, secret string
 	signedAccess, err := accessToken.SignedString([]byte(secret))
 	if err != nil {
 		slog.Error("Error: jwt access token generation", "error", err.Error())
-		return "", apperrors.ErrInternalAuth
+		return "", apperrors.AuthErrInternal
 	}
 
 	return signedAccess, err
@@ -46,9 +46,8 @@ func GenerateRefreshToken(userID int, expiresIn time.Time, secret string) (strin
 	signedAccess, err := refreshToken.SignedString([]byte(secret))
 	if err != nil {
 		slog.Error("Error: jwt refresh token generation", "error", err.Error())
-		return "", apperrors.ErrInternalAuth
+		return "", apperrors.AuthErrInternal
 	}
-
 	return signedAccess, nil
 }
 
@@ -61,18 +60,18 @@ func ExchangeCode(ctx context.Context, code, verifier string, client oauth2.Conf
 
 			case "invalid_grant", "access_denied":
 				//Please try again in a few
-				return nil, apperrors.ErrLoginFailed
+				return nil, apperrors.AuthErrLoginFailed
 
 			case "unauthorized_client", "invalid_scope":
 				// internal server erro
-				return nil, apperrors.ErrInternalAuth
+				return nil, apperrors.AuthErrInternal
 
 			case "server_error", "temporarily_unavailable":
 				// auth provider temporarily down
-				return nil, apperrors.ErrUnavailableAuthService
+				return nil, apperrors.AuthErrUnavailableService
 			default:
 				//unknown error
-				return nil, apperrors.ErrUnexpectedAuth
+				return nil, apperrors.AuthErrUnexpected
 
 			}
 

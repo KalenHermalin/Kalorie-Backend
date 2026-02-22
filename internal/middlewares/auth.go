@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	"context"
+	"main/internal/apperrors"
 	"main/internal/models"
 	"net/http"
 	"strings"
@@ -22,14 +23,14 @@ func Auth(jwtSecret string) func(http.Handler) http.Handler {
 			// 1. Get the Authorization header
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				http.Error(w, "Authorization header required", http.StatusUnauthorized)
+				apperrors.WriteError(w, *apperrors.ErrUnauthoirized)
 				return
 			}
 
 			// 2. Parse the Bearer token
 			parts := strings.Split(authHeader, " ")
 			if len(parts) != 2 || parts[0] != "Bearer" {
-				http.Error(w, "Invalid authorization format", http.StatusUnauthorized)
+				apperrors.WriteError(w, *apperrors.AuthErrInvalidFormat)
 				return
 			}
 
@@ -39,7 +40,7 @@ func Auth(jwtSecret string) func(http.Handler) http.Handler {
 				return []byte(jwtSecret), nil
 			})
 			if err != nil || !token.Valid {
-				http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
+				apperrors.WriteError(w, *apperrors.AuthErrInvalidToken)
 				return
 			}
 

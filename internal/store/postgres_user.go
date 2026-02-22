@@ -67,7 +67,6 @@ func (us postgressUserRepo) UpsertUserWithAuth(ctx context.Context, tx *sql.Tx, 
 	if err := tx.QueryRowContext(ctx, query, payload.Email).Scan(&user.ID, &user.Email, &user.CreatedAt); err != nil {
 		return nil, err
 	}
-
 	// 2. Upsert Provider Identity
 	providerQuery := `INSERT INTO provider_identities (user_id, provider, provider_user_id) 
                           VALUES ($1, $2, $3) 

@@ -39,6 +39,7 @@ type GoogleResponse struct {
 }
 
 func (gh *GoogleProvider) HandleCodeExchangeWithVerifier(ctx context.Context, code string, verifier string) (*models.AuthPayload, error) {
+	// Always returns an apperror so can return right away
 	token, err := auth.ExchangeCode(ctx, code, verifier, *gh.config)
 	if err != nil {
 		return nil, err
@@ -49,13 +50,15 @@ func (gh *GoogleProvider) HandleCodeExchangeWithVerifier(ctx context.Context, co
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
 	if err != nil {
 		slog.Error("Error: oauth2 user info", "provider", gh.GetProviderName(), "error", err.Error())
-		return nil, apperrors.ErrUnexpectedAuth
+		return nil, apperrors.AuthErrUnexpected
 
 	}
 	googleResponse := &GoogleResponse{}
 	err = utils.DecodePayload(resp.Body, googleResponse)
 	if err != nil {
-		return nil, err
+		slog.Error("Error: decoding user data", "error", err.Error())
+		return nil, apperrors.AuthErrUnexpected
+
 	}
 
 	googlePayload := &models.AuthPayload{
