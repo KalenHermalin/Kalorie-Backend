@@ -17,7 +17,7 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-const MODEL string = "gemini-2.5-flash-lite"
+const MODEL string = "gemini-2.5-flash"
 
 func main() {
 
