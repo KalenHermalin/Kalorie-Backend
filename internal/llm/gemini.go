@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"main/internal/models"
 	"strings"
 
@@ -26,6 +27,17 @@ func NewGeminiProvider(ctx context.Context, apiKey string, model string) (*Gemin
 		APIKey:  apiKey,
 		Backend: genai.BackendGeminiAPI,
 	})
+	it, err := client.Models.List(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	for {
+		m, err := it.Next(ctx)
+		if err != nil {
+			break
+		}
+		slog.Info("Available Model", "name", m.Name)
+	}
 	if err != nil {
 		return nil, err
 	}
