@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"google.golang.org/api/iterator"
 	"google.golang.org/genai"
-	"log/slog"
 	"main/internal/models"
 	"strings"
 )
