@@ -30,23 +30,6 @@ func NewGeminiProvider(ctx context.Context, apiKey string, model string) (*Gemin
 	if err != nil {
 		return nil, err
 	}
-	it, err := client.Models.List(ctx, nil)
-
-	slog.Info("Starting model discovery...")
-
-	for {
-		m, err := it.Next(ctx)
-		if err == iterator.Done { // You need "google.golang.org/api/iterator"
-			break
-		}
-		if err != nil {
-			slog.Error("Iteration error", "error", err)
-			break
-		}
-
-		// Log the specific Name field to see the exact string (e.g., "models/gemini-2.5-flash")
-		slog.Info("Found Model", "name", m.Name)
-	}
 	return &GeminiProvider{client: client, model: model}, nil
 }
 

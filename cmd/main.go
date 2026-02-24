@@ -31,7 +31,7 @@ func main() {
 		os.Exit(1)
 
 	}
-	gemini, err := llm.NewGeminiProvider(context.Background(), apiKey, "gemini-flash-2.5")
+	gemini, err := llm.NewGeminiProvider(context.Background(), apiKey, MODEL)
 	if err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)
