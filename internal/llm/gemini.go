@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"google.golang.org/api/iterator"
+	"google.golang.org/genai"
 	"log/slog"
 	"main/internal/models"
 	"strings"
-
-	"google.golang.org/genai"
 )
 
 type GeminiProvider struct {
@@ -27,21 +27,26 @@ func NewGeminiProvider(ctx context.Context, apiKey string, model string) (*Gemin
 		APIKey:  apiKey,
 		Backend: genai.BackendGeminiAPI,
 	})
-	it, err := client.Models.List(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
+	it, err := client.Models.List(ctx, nil)
+
+	slog.Info("Starting model discovery...")
+
 	for {
 		m, err := it.Next(ctx)
-		if err != nil {
+		if err == iterator.Done { // You need "google.golang.org/api/iterator"
 			break
 		}
-		slog.Info("Available Model", "name", m.Name)
-	}
-	if err != nil {
-		return nil, err
-	}
+		if err != nil {
+			slog.Error("Iteration error", "error", err)
+			break
+		}
 
+		// Log the specific Name field to see the exact string (e.g., "models/gemini-2.5-flash")
+		slog.Info("Found Model", "name", m.Name)
+	}
 	return &GeminiProvider{client: client, model: model}, nil
 }
 
