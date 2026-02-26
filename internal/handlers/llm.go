@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -8,6 +9,7 @@ import (
 	"main/internal/service"
 	"main/internal/utils"
 	"net/http"
+	"time"
 )
 
 type LLMHandler struct {
@@ -34,6 +36,8 @@ func (handler *LLMHandler) AnalyzeFoodHandler(writer http.ResponseWriter, reques
 	}
 	// Retrieve request context to pass down
 	ctx := request.Context()
+	ctx, cancel := context.WithTimeout(ctx, time.Second*15)
+	defer cancel()
 	payload, err := handler.llmService.Provider.AnalyzePicture(ctx, requestData.Picture, utils.ANALYZEFOODSYSTEMPROMPT)
 	if err != nil {
 		var appErr *apperrors.AppError
@@ -61,6 +65,9 @@ func (handler *LLMHandler) AnalyzeLabelHandler(writer http.ResponseWriter, reque
 		return
 	}
 	ctx := request.Context()
+	ctx, cancel := context.WithTimeout(ctx, time.Second*15)
+	defer cancel()
+
 	payload, err := handler.llmService.Provider.AnalyzeLabel(ctx, requestData.Picture, utils.ANALYZELABELSYSTEMPROMPT)
 	if err != nil {
 		var appErr *apperrors.AppError
