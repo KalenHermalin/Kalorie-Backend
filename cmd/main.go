@@ -17,10 +17,13 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-const MODEL string = "gemini-3-flash-preview"
-
 func main() {
+	model, ok := os.LookupEnv("LLM_MODEL")
+	if !ok {
 
+		slog.Error("Error: Missing env variable", "key", "LLM_MODEL")
+		os.Exit(1)
+	}
 	handler := slog.NewJSONHandler(os.Stdout, nil)
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
@@ -31,7 +34,7 @@ func main() {
 		os.Exit(1)
 
 	}
-	gemini, err := llm.NewGeminiProvider(context.Background(), apiKey, MODEL)
+	gemini, err := llm.NewGeminiProvider(context.Background(), apiKey, model)
 	if err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)
