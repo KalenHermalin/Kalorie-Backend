@@ -9,6 +9,7 @@ import (
 	"main/internal/models"
 	"main/internal/utils"
 	"net/http"
+	"strconv"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
@@ -38,6 +39,11 @@ type GitHubEmail struct {
 	Primary  bool   `json:"primary"`
 	Verified bool   `json:"verified"`
 }
+type initialGitPayload struct {
+	ID       int    `json:"id"`
+	Email    string `json:"email"`
+	Provider string `json:"provider"`
+}
 
 func (gh *GitHubProvider) HandleCodeExchangeWithVerifier(ctx context.Context, code string, verifier string) (*models.AuthPayload, error) {
 
@@ -55,7 +61,7 @@ func (gh *GitHubProvider) HandleCodeExchangeWithVerifier(ctx context.Context, co
 		return nil, apperrors.AuthErrUnexpected
 	}
 
-	gitPayload := &models.AuthPayload{}
+	gitPayload := &initialGitPayload{}
 	err = utils.DecodePayload(resp.Body, gitPayload)
 	if err != nil {
 		slog.Error("Error: decoding user data", "error", err.Error())
@@ -92,9 +98,11 @@ func (gh *GitHubProvider) HandleCodeExchangeWithVerifier(ctx context.Context, co
 			break
 		}
 	}
-	gitPayload.Email = primaryEmail
-	gitPayload.Provider = gh.GetProviderName()
-	return gitPayload, nil
+	authPayload := &models.AuthPayload{}
+	authPayload.Email = primaryEmail
+	authPayload.Provider = gh.GetProviderName()
+	authPayload.ID = strconv.Itoa(gitPayload.ID)
+	return authPayload, nil
 }
 
 func (gh *GitHubProvider) GetProviderName() string {
