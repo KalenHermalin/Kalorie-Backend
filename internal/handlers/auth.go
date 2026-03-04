@@ -42,6 +42,7 @@ func (ah *AuthHandler) HandleRefresh(writer http.ResponseWriter, request *http.R
 	if err != nil {
 		slog.Error("Error: refreshing access token", "error", err.Error())
 		apperrors.WriteError(writer, *apperrors.AuthErrInvalidToken)
+		return
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
