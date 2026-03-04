@@ -65,7 +65,7 @@ This endpoints takes in a valid refresh token and generates a new set of access 
 **Request Body:**
 ```JSON
 {
-    "refresh_token": string
+    "refresh": string
 }
 ```
 **Success (200 OK):** Returns a new auth response object containing the JWT access token and refresh token to be stored on client securely.  
