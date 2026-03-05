@@ -35,13 +35,21 @@ func (ah *AuthHandler) HandleRefresh(writer http.ResponseWriter, request *http.R
 	requestData := &logOutRequestBody{}
 	if err := utils.DecodePayload(request.Body, requestData); err != nil {
 		slog.Error("Error: decoding refresh request body", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrInvalidRequest)
+		apperrors.WriteError(writer, *apperrors.ErrBadRequestBody)
 		return
 	}
 	resp, err := ah.auth.RefreshAccessToken(request.Context(), requestData.Refresh)
 	if err != nil {
-		slog.Error("Error: refreshing access token", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.AuthErrInvalidToken)
+		// Error should always be an app error but just in case
+		var appErr *apperrors.AppError
+		if errors.As(err, &appErr) {
+			apperrors.WriteError(writer, *appErr)
+			return
+
+		}
+
+		slog.Error("Error: Sign Up / Login Failed", "error", err.Error())
+		apperrors.WriteError(writer, *apperrors.ErrInternalServer)
 		return
 	}
 
@@ -67,7 +75,16 @@ func (ah *AuthHandler) HandleLogOut(writer http.ResponseWriter, request *http.Re
 	err := ah.auth.LogOut(request.Context(), userId, requestData.Refresh)
 	if err != nil {
 		slog.Error("Error: deleting refresh token in database", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.AuthErrLogoutFailed)
+		var appErr *apperrors.AppError
+		if errors.As(err, &appErr) {
+			apperrors.WriteError(writer, *appErr)
+			return
+
+		}
+
+		slog.Error("logout had an error", "error", err.Error())
+		apperrors.WriteError(writer, *apperrors.NewAppError("ERR_LOGOUT_FAILED", "Unkown logout error occured. Please try again in a few", http.StatusInternalServerError))
+
 		return
 	}
 	writer.WriteHeader(http.StatusOK)

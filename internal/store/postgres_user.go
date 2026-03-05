@@ -27,9 +27,6 @@ func (us postgressUserRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, re
 
 	user := &models.User{}
 	err := tx.QueryRowContext(ctx, query, refresh).Scan(&user.ID, &user.Email)
-	if err == sql.ErrNoRows {
-		return nil, errors.New("Invalid refresh token")
-	}
 	if err != nil {
 		return nil, err
 	}

@@ -62,14 +62,14 @@ func ExchangeCode(ctx context.Context, code, verifier string, client oauth2.Conf
 
 			case "unauthorized_client", "invalid_scope":
 				// internal server erro
-				return nil, apperrors.AuthErrInternal
+				return nil, apperrors.ErrInternalServer
 
 			case "server_error", "temporarily_unavailable":
 				// auth provider temporarily down
 				return nil, apperrors.AuthErrUnavailableService
 			default:
 				//unknown error
-				return nil, apperrors.AuthErrUnexpected
+				return nil, re
 
 			}
 

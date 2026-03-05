@@ -30,7 +30,7 @@ func Auth(jwtSecret string) func(http.Handler) http.Handler {
 			// 2. Parse the Bearer token
 			parts := strings.Split(authHeader, " ")
 			if len(parts) != 2 || parts[0] != "Bearer" {
-				apperrors.WriteError(w, *apperrors.AuthErrInvalidFormat)
+				apperrors.WriteError(w, *apperrors.ErrInvalidTokenFormat)
 				return
 			}
 
@@ -40,7 +40,7 @@ func Auth(jwtSecret string) func(http.Handler) http.Handler {
 				return []byte(jwtSecret), nil
 			})
 			if err != nil || !token.Valid {
-				apperrors.WriteError(w, *apperrors.AuthErrInvalidToken)
+				apperrors.WriteError(w, *apperrors.ErrInvalidToken)
 				return
 			}
 

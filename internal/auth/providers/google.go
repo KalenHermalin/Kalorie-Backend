@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"log/slog"
-	"main/internal/apperrors"
 	"main/internal/auth"
 	"main/internal/models"
 	"main/internal/utils"
@@ -50,14 +49,14 @@ func (gh *GoogleProvider) HandleCodeExchangeWithVerifier(ctx context.Context, co
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
 	if err != nil {
 		slog.Error("Error: oauth2 user info", "provider", gh.GetProviderName(), "error", err.Error())
-		return nil, apperrors.AuthErrUnexpected
+		return nil, err
 
 	}
 	googleResponse := &GoogleResponse{}
 	err = utils.DecodePayload(resp.Body, googleResponse)
 	if err != nil {
 		slog.Error("Error: decoding user data", "error", err.Error())
-		return nil, apperrors.AuthErrUnexpected
+		return nil, err
 
 	}
 
