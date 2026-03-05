@@ -84,7 +84,6 @@ func (ah *AuthHandler) HandleLogOut(writer http.ResponseWriter, request *http.Re
 
 		slog.Error("logout had an error", "error", err.Error())
 		apperrors.WriteError(writer, *apperrors.NewAppError("ERR_LOGOUT_FAILED", "Unkown logout error occured. Please try again in a few", http.StatusInternalServerError))
-
 		return
 	}
 	writer.WriteHeader(http.StatusOK)
