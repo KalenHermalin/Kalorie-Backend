@@ -3,12 +3,14 @@ package service
 import (
 	"context"
 	"database/sql"
-	"github.com/golang-jwt/jwt/v5"
 	"log/slog"
 	"main/internal/apperrors"
 	"main/internal/auth"
 	"main/internal/models"
+	"net/http"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type AuthService struct {
@@ -26,7 +28,9 @@ func (as *AuthService) LogOut(ctx context.Context, userId int, token string) err
 
 	err := as.us.WithTx(ctx, func(tx *sql.Tx) error {
 		if err := as.us.DeleteRefreshToken(ctx, tx, token, userId); err != nil {
-			return err
+			slog.Error("DELETING_REFRESH_TOKEN", "error", err.Error())
+			return apperrors.NewAppError("ERR_DELETING_REFRESH_TOKEN", "error deleting refresh token: "+err.Error(), http.StatusInternalServerError)
+
 		}
 		return nil
 	})
@@ -41,7 +45,8 @@ func (as *AuthService) RefreshAccessToken(ctx context.Context, refresh string) (
 	})
 
 	if err != nil || !token.Valid {
-		return nil, apperrors.AuthErrInvalidToken
+		slog.Error("INVALID_TOKEN", "error", err.Error())
+		return nil, apperrors.ErrInvalidToken
 	}
 
 	// 2. Start Transaction
@@ -51,32 +56,35 @@ func (as *AuthService) RefreshAccessToken(ctx context.Context, refresh string) (
 		// 3. Verify token exists in DB for that UserID
 		user, err := as.us.FindRefreshToken(ctx, tx, refresh, claims.UserID)
 		if err != nil {
-			slog.Error("Error: Couldnt Find Refresh Token", "error", err.Error(), "userID", claims.UserID)
-			return apperrors.AuthErrInvalidToken
+			slog.Error("REFRESH_TOKEN_DOESNT_EXIST ", "error", err.Error(), "userID", claims.UserID)
+			return apperrors.ErrInvalidToken
 		}
 		// 4. Delete old token
 
 		err = as.us.DeleteRefreshToken(ctx, tx, refresh, claims.UserID)
 		if err != nil {
-			slog.Error("Error: Couldnt Delete Refresh Token", "error", err.Error(), "userID", claims.UserID)
-			return apperrors.AuthErrInvalidToken
+			slog.Error("REFRESH_TOKEN_DELETION_FAILED", "error", err.Error(), "userID", claims.UserID)
+			return apperrors.NewAppError("ERR_DELETING_REFRESH_TOKEN", "There was an error deleting the refresh token. Please try again in a few. If problem presists contact support.", http.StatusInternalServerError)
 		}
 		// 5. Generate new tokens
 		accessToken, err := auth.GenerateAccessToken(user.ID, user.Email, false, as.jwtAccessSecret)
 		if err != nil {
 
 			slog.Error("Error: Couldnt Generate Access Token", "error", err.Error(), "userID", claims.UserID)
-			return apperrors.AuthErrInternal
+			return apperrors.NewAppError("ERR_GENERATING_ACCESS_TOKEN", "There was an error generating access token. Please try again in a few. If problem presists contact support.", http.StatusInternalServerError)
+
 		}
 		refreshToken, err := auth.GenerateRefreshToken(user.ID, time.Now().Add(time.Hour*24*30), as.jwtRefreshSecret)
 		if err != nil {
 			slog.Error("Error: Couldnt Generate Refresh Token", "error", err.Error(), "userID", claims.UserID)
-			return apperrors.AuthErrInternal
+			return apperrors.NewAppError("ERR_GENERATING_ACCESS_TOKEN", "There was an error generating refresh token. Please try again in a few. If problem presists contact support.", http.StatusInternalServerError)
+
 		}
 		err = as.us.SaveRefreshToken(ctx, tx, refreshToken, user.ID, time.Now().Add(time.Hour*24*30))
 		if err != nil {
 			slog.Error("Error: Couldnt Save Refresh Token", "error", err.Error(), "userID", claims.UserID)
-			return apperrors.AuthErrInternal
+			return apperrors.NewAppError("ERR_SAVING_REFRESH_TOKEN", "There was an error saving refresh token. Please try again in a few. If problem presist contact support.", http.StatusInternalServerError)
+
 		}
 		resp.AccessToken = accessToken
 		resp.RefreshToken = refreshToken
@@ -92,8 +100,10 @@ func (as *AuthService) RefreshAccessToken(ctx context.Context, refresh string) (
 }
 func (as *AuthService) SignIn(ctx context.Context, code, provider, verifier string, platform *string) (*models.AuthResponse, error) {
 	// 1. Exchange the code for the AuthPayload (Email, ID, etc.)
+
 	payload, err := as.ExchangeCode(ctx, code, provider, verifier, platform)
 	if err != nil {
+		// Error is appError or generic
 		return nil, err
 	}
 	resp := &models.AuthResponse{}
@@ -102,25 +112,28 @@ func (as *AuthService) SignIn(ctx context.Context, code, provider, verifier stri
 		user, err := as.us.UpsertUserWithAuth(ctx, tx, payload)
 		if err != nil {
 			slog.Error("Error: Couldnt Upsert User", "error", err.Error(), "user_email", payload.Email)
-			return apperrors.AuthErrInternal
+			return apperrors.NewAppError("ERR_UPSERT_USER", "Error signing in, please try again later", http.StatusInternalServerError)
 		}
 
 		// 3. Generate the stateless JWT for the mobile app
 		accessToken, err := auth.GenerateAccessToken(user.ID, user.Email, false, as.jwtAccessSecret)
 		if err != nil {
 			slog.Error("Error: Couldnt Generate Access Token", "error", err.Error(), "userID", user.ID, "user_email", user.Email)
-			return apperrors.AuthErrInternal
+			return apperrors.NewAppError("ERR_GENERATING_ACCESS_TOKEN", "There was an error generating access token. Please try again in a few. If problem presists contact support.", http.StatusInternalServerError)
+
 		}
 		refresh, err := auth.GenerateRefreshToken(user.ID, time.Now().Add(time.Hour*24*30), as.jwtRefreshSecret)
 		if err != nil {
 			slog.Error("Error: Couldnt Generate Refresh Token", "error", err.Error(), "userID", user.ID, "user_email", user.Email)
-			return apperrors.AuthErrInternal
+			return apperrors.NewAppError("ERR_GENERATING_ACCESS_TOKEN", "There was an error generating refresh token. Please try again in a few. If problem presist contact support.", http.StatusInternalServerError)
+
 		}
 
 		err = as.us.SaveRefreshToken(ctx, tx, refresh, user.ID, time.Now().Add(time.Hour*24*30))
 		if err != nil {
 			slog.Error("Error: Couldnt Save Refresh Token", "error", err.Error(), "userID", user.ID, "user_email", user.Email)
-			return apperrors.AuthErrInternal
+			return apperrors.NewAppError("ERR_SAVING_REFRESH_TOKEN", "There was an error saving refresh token. Please try again in a few. If problem presist contact support.", http.StatusInternalServerError)
+
 		}
 		resp.AccessToken = accessToken
 		resp.RefreshToken = refresh
@@ -140,7 +153,7 @@ func (as *AuthService) ExchangeCode(ctx context.Context, code, provider, verifie
 	if platform == nil {
 		for _, p := range as.providers {
 			if p.GetProviderName() == provider {
-				// Already returns apperror due to helper function in /auth/auth.go
+				// returns both an appError and generic error
 				auth, err := p.HandleCodeExchangeWithVerifier(ctx, code, verifier)
 				if err != nil {
 					return nil, err
@@ -151,7 +164,7 @@ func (as *AuthService) ExchangeCode(ctx context.Context, code, provider, verifie
 	}
 	for _, p := range as.providers {
 		if p.GetProviderName() == provider && p.GetPlatform() == *platform {
-			// Already returns apperror due to helper function in /auth/auth.go
+			// returns both an appError and generic error
 			auth, err := p.HandleCodeExchangeWithVerifier(ctx, code, verifier)
 			if err != nil {
 				return nil, err
@@ -159,5 +172,5 @@ func (as *AuthService) ExchangeCode(ctx context.Context, code, provider, verifie
 			return auth, nil
 		}
 	}
-	return nil, apperrors.AuthErrInvalidProvider
+	return nil, apperrors.ErrInvalidProvider
 }

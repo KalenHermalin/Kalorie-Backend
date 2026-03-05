@@ -32,50 +32,41 @@ func WriteError(w http.ResponseWriter, appErr AppError) {
 }
 
 var (
+	ErrBadRequestBody = &AppError{
+		Code:    "ERR_BAD_REQUEST",
+		Message: "Error decoding request body",
+		Status:  http.StatusBadRequest,
+	}
 	ErrUnauthoirized = &AppError{
 		Code:    "ERR_UNAUTHORIZED",
 		Message: "You are not authorized. Please sign in!",
 		Status:  http.StatusUnauthorized,
 	}
-	AuthErrInvalidFormat = &AppError{
-		Code:    "ERR_INVALID_TOKEN_FORMAT",
-		Message: "Invalid authorization format.",
-		Status:  http.StatusUnauthorized,
-	}
-	AuthErrInvalidToken = &AppError{
+	ErrInvalidToken = &AppError{
 		Code:    "ERR_INVALID_TOKEN",
 		Message: "Token invalid or expired. Please try logging in again.",
 		Status:  http.StatusUnauthorized,
 	}
-	AuthErrInvalidProvider = &AppError{
+	ErrInvalidTokenFormat = &AppError{
+		Code:    "ERR_INVALID_TOKEN_FORMAT",
+		Message: "Token format is not correct. Expected:  `Authorization: Bearer <access_token>`",
+		Status:  http.StatusBadRequest,
+	}
+
+	ErrInvalidProvider = &AppError{
 		Code:    "ERR_INVALID_PROVIDER",
 		Message: "Invalid auth provider. Try another!",
 		Status:  http.StatusBadRequest,
 	}
-	AuthErrLogoutFailed = &AppError{
-		Code:    "ERR_LOGOUT_FAILED",
-		Message: "Logout failed. Please try again in a few.",
-		Status:  http.StatusInternalServerError,
-	}
 	AuthErrLoginFailed = &AppError{
 		Code:    "ERR_LOGIN_FAILED",
-		Message: "Login failed. Please try again in a few.",
+		Message: "Login failed with login provider. Please try again in a few.",
 		Status:  http.StatusBadRequest,
-	}
-	AuthErrInternal = &AppError{
-		Code:    "ERR_INTERNAL_AUTH",
-		Message: "Internal server authentication error. Please contact support!",
-		Status:  http.StatusInternalServerError,
 	}
 	AuthErrUnavailableService = &AppError{
 		Code:    "ERR_AUTH_SERVICE_UNAVAILABLE",
 		Message: "Authentication service temporarily unavailable. Please try again shortly.",
 		Status:  http.StatusServiceUnavailable,
-	}
-	AuthErrUnexpected = &AppError{
-		Code:    "ERR_UNEXPECTED_AUTH_ERROR",
-		Message: "An unexpected authentication error occurred.",
-		Status:  http.StatusInternalServerError,
 	}
 	ErrInternalServer = &AppError{
 		Code:    "ERR_INTERNAL_SERVER",
@@ -86,11 +77,6 @@ var (
 	ErrInvalidRequest = &AppError{
 		Code:    "ERR_INVALID_REQUEST",
 		Message: "The provided request is invalid. Please refer to documentation!",
-		Status:  http.StatusBadRequest,
-	}
-	LLMErrNoFood = &AppError{
-		Code:    "ERR_LLM_NO_FOOD_FOUND",
-		Message: "The picture provided had no food in it. Please try again with food!",
 		Status:  http.StatusBadRequest,
 	}
 )

@@ -58,20 +58,20 @@ func (gh *GitHubProvider) HandleCodeExchangeWithVerifier(ctx context.Context, co
 	resp, err := client.Get("https://api.github.com/user")
 	if err != nil {
 		slog.Error("Error: oauth2 user info", "provider", gh.GetProviderName(), "error", err.Error())
-		return nil, apperrors.AuthErrUnexpected
+		return nil, err
 	}
 
 	gitPayload := &initialGitPayload{}
 	err = utils.DecodePayload(resp.Body, gitPayload)
 	if err != nil {
 		slog.Error("Error: decoding user data", "error", err.Error())
-		return nil, apperrors.AuthErrUnexpected
+		return nil, err
 	}
 	// Getting Email
 	resp, err = client.Get("https://api.github.com/user/emails")
 	if err != nil {
 		slog.Error("Error: oauth2 user email info", "provider", gh.GetProviderName(), "error", err.Error())
-		return nil, apperrors.AuthErrUnexpected
+		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
 		// Read the body as a string to see the actual error message from GitHub
@@ -87,7 +87,7 @@ func (gh *GitHubProvider) HandleCodeExchangeWithVerifier(ctx context.Context, co
 
 	if err != nil {
 		slog.Error("Error: extracting oauth2 user email info", "provider", gh.GetProviderName(), "error", err.Error())
-		return nil, apperrors.AuthErrUnexpected
+		return nil, err
 	}
 
 	// 2. Find the primary one
