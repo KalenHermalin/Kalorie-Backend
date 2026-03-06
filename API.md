@@ -51,7 +51,6 @@ Note that provider can only be one of the setup providers. This include `github`
     "access_token": string,
     "refresh_token": string,
     "expires_in": number,
-    "user": { "id": number, "email": string, "created_at": string }
 }
 ```
 **Errors:**
@@ -74,7 +73,6 @@ This endpoints takes in a valid refresh token and generates a new set of access 
     "access_token": string,
     "refresh_token": string,
     "expires_in": number,
-    "user": { "id": number, "email": string, "created_at": string }
 }
 ```
 **Errors:**

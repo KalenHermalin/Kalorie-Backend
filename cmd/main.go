@@ -73,7 +73,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	githubAuth := auth.NewGitHubProvider(gitHubClientID, githubClientSecret, "nutrikal://", nil)
+	githubAuth := auth.NewGitHubProvider(gitHubClientID, githubClientSecret, "kalorie://", nil)
 
 	googleClientIDIos, ok := os.LookupEnv("GOOGLE_CLIENT_ID_IOS")
 	if !ok {
