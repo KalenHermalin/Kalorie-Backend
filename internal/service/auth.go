@@ -24,7 +24,7 @@ func NewAuthService(ur models.UserRepository, accessSecret, refreshSecret string
 	return &AuthService{us: ur, jwtAccessSecret: accessSecret, jwtRefreshSecret: refreshSecret, providers: auth}
 }
 
-func (as *AuthService) LogOut(ctx context.Context, userId int, token string) error {
+func (as *AuthService) LogOut(ctx context.Context, userId, token string) error {
 
 	err := as.us.WithTx(ctx, func(tx *sql.Tx) error {
 		if err := as.us.DeleteRefreshToken(ctx, tx, token, userId); err != nil {

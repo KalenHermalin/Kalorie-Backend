@@ -2,7 +2,7 @@
 -- +goose StatementBegin
 CREATE TABLE provider_identities (
 id SERIAL PRIMARY KEY,
-user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 provider TEXT NOT NULL,
 CONSTRAINT check_allowed_providers 
     CHECK (provider IN ('github', 'google', 'apple')),

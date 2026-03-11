@@ -79,4 +79,14 @@ var (
 		Message: "The provided request is invalid. Please refer to documentation!",
 		Status:  http.StatusBadRequest,
 	}
+	ErrMissingUserIdInContext = &AppError{
+		Code:    "ERR_MISSING_USER_ID",
+		Message: "Missing UserId from context",
+		Status:  http.StatusInternalServerError,
+	}
+	ErrUserSettingsMissing = &AppError{
+		Code:    "ERR_USER_SETTINGS_MISSING",
+		Message: "User Settings do not exist. Please contact support!",
+		Status:  http.StatusInternalServerError,
+	}
 )

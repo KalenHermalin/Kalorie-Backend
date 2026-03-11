@@ -37,18 +37,22 @@ func (m *MockUserRepo) WithTx(ctx context.Context, fn func(*sql.Tx) error) error
 	return fn(nil)
 }
 
-func (m *MockUserRepo) SaveRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId int, expiresAt time.Time) error {
+func (m *MockUserRepo) SaveRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string, expiresAt time.Time) error {
 	return nil
 }
-func (m *MockUserRepo) DeleteRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId int) error {
+func (m *MockUserRepo) DeleteRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string) error {
 	return nil
 }
-func (m *MockUserRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId int) (*models.User, error) {
+func (m *MockUserRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string) (*models.User, error) {
 	return nil, nil
 }
+
+func (us *MockUserRepo) UpdateUserSettings(ctx context.Context, tx *sql.Tx, userId string, settings *models.UserSettings) error
+
+func (us *MockUserRepo) GetUserSettings(ctx context.Context, tx *sql.Tx, userId string) (*models.UserSettings, error)
 func TestSignIn_FullFlow(t *testing.T) {
 	// 1. Setup mocks
-	mockUser := &models.User{ID: 1, Email: "kalen@laurier.ca", CreatedAt: time.Now()}
+	mockUser := &models.User{ID: "1", Email: "kalen@laurier.ca", CreatedAt: time.Now()}
 	repo := &MockUserRepo{mockUser: mockUser, mockRefresh: "fake_refresh_token"}
 
 	provider := &MockAuthProvider{
@@ -124,7 +128,7 @@ func TestGenerateJWT(t *testing.T) {
 	secret := "my-laurier-secret-123"
 	// We only need the secret for this test, so we can pass a nil repo
 
-	testUserID := 42
+	testUserID := "42"
 	testEmail := "kalen@laurier.ca"
 	testIsPremium := false
 

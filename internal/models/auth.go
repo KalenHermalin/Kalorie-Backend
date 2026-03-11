@@ -25,7 +25,7 @@ type AuthProvider interface {
 }
 
 type CustomClaimsAccess struct {
-	UserID int    `json:"sub"`
+	UserID string `json:"sub"`
 	Email  string `json:"email"`
 	// Future-proofing: add a field for subscription status
 	IsPremium bool `json:"is_premium"`
@@ -33,6 +33,6 @@ type CustomClaimsAccess struct {
 }
 
 type CustomClaimsRefresh struct {
-	UserID int `json:"sub"`
+	UserID string `json:"sub"`
 	jwt.RegisteredClaims
 }
