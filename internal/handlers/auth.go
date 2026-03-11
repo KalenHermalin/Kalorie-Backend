@@ -59,7 +59,7 @@ func (ah *AuthHandler) HandleRefresh(writer http.ResponseWriter, request *http.R
 
 func (ah *AuthHandler) HandleLogOut(writer http.ResponseWriter, request *http.Request) {
 	// Get userId from auth middleware
-	userId, ok := request.Context().Value(middlewares.UserIDKey).(int)
+	userId, ok := request.Context().Value(middlewares.UserIDKey).(string)
 	if !ok {
 		apperrors.WriteError(writer, *apperrors.ErrUnauthoirized)
 		return

@@ -11,7 +11,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func GenerateAccessToken(userID int, email string, isPremium bool, secret string) (string, error) {
+func GenerateAccessToken(userID string, email string, isPremium bool, secret string) (string, error) {
 	// 1. Create Access Token (JWT)
 	claims := models.CustomClaimsAccess{
 		UserID:    userID,
@@ -31,7 +31,7 @@ func GenerateAccessToken(userID int, email string, isPremium bool, secret string
 
 	return signedAccess, err
 }
-func GenerateRefreshToken(userID int, expiresIn time.Time, secret string) (string, error) {
+func GenerateRefreshToken(userID string, expiresIn time.Time, secret string) (string, error) {
 	// 1. Create Access Token (JWT)
 	claims := models.CustomClaimsRefresh{
 		UserID: userID,

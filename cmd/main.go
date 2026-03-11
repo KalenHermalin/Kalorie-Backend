@@ -100,7 +100,7 @@ func main() {
 		slog.Error("Error: Missing env variable", "key", "JWT_REFRESH_SECRET")
 		os.Exit(1)
 	}
-	authService := service.NewAuthService(*userStore, jwtAccessSecret, jwtRefreshSecret, githubAuth, googleIosAuth, googleAndroidAuth)
+	authService := service.NewAuthService(userStore, jwtAccessSecret, jwtRefreshSecret, githubAuth, googleIosAuth, googleAndroidAuth)
 	authHandler := handlers.NewAuthHandler(*authService)
 
 	// Setting up System Handler
