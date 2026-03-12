@@ -103,6 +103,9 @@ func main() {
 	authService := service.NewAuthService(userStore, jwtAccessSecret, jwtRefreshSecret, githubAuth, googleIosAuth, googleAndroidAuth)
 	authHandler := handlers.NewAuthHandler(*authService)
 
+	// Setting Up User Handler
+	userService := service.NewUserService(userStore)
+	userHandler := handlers.NewUserHandler(*userService)
 	// Setting up System Handler
 	systemHandler := handlers.NewSystemHander()
 	addr, ok := os.LookupEnv("PORT")
@@ -120,6 +123,7 @@ func main() {
 		authHandler:   *authHandler,
 		llmHandler:    *llmHandler,
 		systemHandler: *systemHandler,
+		userHandler:   *userHandler,
 	}
 	// Running Application
 	mux := app.mount()
