@@ -1,7 +1,7 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS user_settings (
-    user_id UUID PRIMARY KEY UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     units TEXT NOT NULL,
     calories_target INTEGER NOT NULL,
     protein_target INTEGER NOT NULL,

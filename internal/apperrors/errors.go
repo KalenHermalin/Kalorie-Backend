@@ -31,6 +31,8 @@ func WriteError(w http.ResponseWriter, appErr AppError) {
 	json.NewEncoder(w).Encode(appErr)
 }
 
+//TODO: App Errors should be for internal use in the service layer
+
 var (
 	ErrBadRequestBody = &AppError{
 		Code:    "ERR_BAD_REQUEST",
@@ -88,5 +90,15 @@ var (
 		Code:    "ERR_USER_SETTINGS_MISSING",
 		Message: "User Settings do not exist. Please contact support!",
 		Status:  http.StatusInternalServerError,
+	}
+	ErrSyncConflict = &AppError{
+		Code:    "ERR_SYNC_CONFLICT",
+		Message: "A newer version of this data already exists",
+		Status:  http.StatusConflict,
+	}
+	ErrNotModified = &AppError{
+		Code:    "ERR_NOT_MODIFIED",
+		Message: "The requested resournce wasnt modified since the date requested",
+		Status:  http.StatusNotModified,
 	}
 )

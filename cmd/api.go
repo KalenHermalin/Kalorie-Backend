@@ -15,6 +15,7 @@ type application struct {
 	authHandler   handlers.AuthHandler
 	llmHandler    handlers.LLMHandler
 	systemHandler handlers.SystemHandler
+	userHandler   handlers.UserHandler
 }
 
 type config struct {
@@ -39,7 +40,8 @@ func (app *application) mount() http.Handler {
 	})
 	mux.Route("/v1", func(r chi.Router) {
 		r.Use(middlewares.Auth(app.config.jwtAccessSecret))
-
+		r.Put("/settings/esync", app.userHandler.EgressSyncSettings)
+		r.Get("/settings/isync", app.userHandler.IngressSyncSettings)
 		r.Post("/analyze/food", app.llmHandler.AnalyzeFoodHandler)
 		r.Post("/analyze/label", app.llmHandler.AnalyzeLabelHandler)
 	})

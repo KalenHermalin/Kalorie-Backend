@@ -3,7 +3,7 @@
 This is an internal API for the Kalorie fitness tracking app. The server is built in Go and currently deployed on DIgitalOcean
 
 ## Connection Information
-**Base URL (dev:)** N/A
+**Base URL (dev:)** `localhost:8080/`
 **Base URL (Production):** `https://whale-app-2bxfv.ondigitalocean.app/`
 
 ## Authentication
@@ -97,6 +97,77 @@ Success
 - **400 Bad Request:** If the request body is invalid.
 - **401 Unauthorized:** If the user is token is invalid.
 - **500 Internal Server Error:** If there is an error deleting the token.
+
+### Settings Endpoints
+
+#### Egress Sync Settings (esync)
+**Path:** `PUT /v1/settings/esync`
+
+Pushes updated settings to the server on application close or pause. If the server already has a newer version, a conflict is returned with the latest settings.  
+
+**Request Body:**
+```JSON
+{
+    "settings": {
+        "units": string,
+        "calories_target": number,
+        "protein_target": number,
+        "carbs_target": number,
+        "fat_target": number,
+        "updated_at": string (ISO 8601 (RFC3339) timestamp),
+        "deleted_at": string | null,
+        "theme": string
+    }
+}
+```
+**Success (200 OK):** Returns a simple success status.
+```JSON
+{
+    "status": "success"
+}
+```
+**Conflict (409):** Returns the latest settings when a newer version already exists.
+```JSON
+{
+    "units": string,
+    "calories_target": number,
+    "protein_target": number,
+    "carbs_target": number,
+    "fat_target": number,
+    "updated_at": string (RFC3339 timestamp),
+    "deleted_at": string | null,
+    "theme": string
+}
+```
+**Errors:**
+- **400 Bad Request:** If the request body could not be decoded.
+- **401 Unauthorized:** If the access token is missing or invalid.
+- **409 Conflict:** If a newer version of settings already exists.
+- **500 Internal Server Error:** If there is an error updating or fetching settings.
+
+#### Ingress Sync Settings (isync)
+**Path:** `GET /v1/settings/isync?last_synced_at=<RFC3339 timestamp>`
+
+Fetches the most up-to-date settings based on the last synced date. If the server has a newer version, it is returned. If not, a 304 is returned.  
+
+**Success (200 OK):** Returns the latest settings payload.
+```JSON
+{
+    "units": string,
+    "calories_target": number,
+    "protein_target": number,
+    "carbs_target": number,
+    "fat_target": number,
+    "updated_at": string (RFC3339 timestamp),
+    "deleted_at": string | null,
+    "theme": string
+}
+```
+**Not Modified (304):** Returned when the server does not have a newer version.
+**Errors:**
+- **400 Bad Request:** If the last_synced_at query param is missing or invalid.
+- **401 Unauthorized:** If the access token is missing or invalid.
+- **500 Internal Server Error:** If there is an error fetching settings.
 
 ### Analysis Endpoints
 

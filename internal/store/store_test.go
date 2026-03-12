@@ -172,6 +172,7 @@ func TestUpdateUserSettingsSuccess(t *testing.T) {
 		if err != nil {
 
 			t.Errorf("%s", "Error retreiving new settings:"+err.Error())
+			return err
 		}
 
 		AssertSettingsEqual(t, settings, newSettings)

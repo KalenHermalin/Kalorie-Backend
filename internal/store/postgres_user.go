@@ -83,25 +83,6 @@ func (us *postgressUserRepo) UpsertUserWithAuth(ctx context.Context, tx *sql.Tx,
 	return &user, nil
 }
 
-func (us *postgressUserRepo) UpdateUserSettings(ctx context.Context, tx *sql.Tx, userId string, settings *models.UserSettings) error {
-
-	// 1. Upsert User (Update last_login if you have that column)
-	query := `UPDATE user_settings 
-          SET units = $2, calories_target = $3, protein_target = $4, carbs_target = $5, fat_target = $6, updated_at = $7, deleted_at = $8, theme = $9 
-          WHERE user_id = $1`
-	res, err := tx.ExecContext(ctx, query, userId, settings.Units, settings.CaloriesTarget, settings.ProteinTarget, settings.CarbsTarget, settings.FatTarget, settings.UpdatedAt, settings.DeletedAt, settings.Theme)
-	if err != nil {
-		return err
-	}
-
-	rowsAff, _ := res.RowsAffected()
-	if rowsAff == 0 {
-		return ErrNoRowsAffected
-	}
-	return nil
-
-}
-
 func (us *postgressUserRepo) UpsertUserWeightLog(ctx context.Context, tx *sql.Tx, userId string, payload *models.WeightLog) error {
 	query := `
         INSERT INTO weight_logs (id, user_id, weight_kg, log_date, updated_at, deleted_at)
@@ -192,6 +173,24 @@ func (us *postgressUserRepo) GetUserWeightLogs(ctx context.Context, tx *sql.Tx, 
 	return logs, nil
 }
 
+func (us *postgressUserRepo) UpdateUserSettings(ctx context.Context, tx *sql.Tx, userId string, settings *models.UserSettings) error {
+
+	// 1. Upsert User (Update last_login if you have that column)
+	query := `UPDATE user_settings 
+          SET units = $2, calories_target = $3, protein_target = $4, carbs_target = $5, fat_target = $6, updated_at = $7, deleted_at = $8, theme = $9 
+          WHERE user_id = $1 AND $7 > updated_at`
+	res, err := tx.ExecContext(ctx, query, userId, settings.Units, settings.CaloriesTarget, settings.ProteinTarget, settings.CarbsTarget, settings.FatTarget, settings.UpdatedAt, settings.DeletedAt, settings.Theme)
+	if err != nil {
+		return err
+	}
+
+	rowsAff, _ := res.RowsAffected()
+	if rowsAff == 0 {
+		return ErrNoRowsAffected
+	}
+	return nil
+
+}
 func (us *postgressUserRepo) GetUserSettings(ctx context.Context, tx *sql.Tx, userId string) (*models.UserSettings, error) {
 
 	query := `
@@ -219,6 +218,9 @@ WHERE user_id = $1;`
 		&settings.Theme,          // string
 	)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNoRowsAffected
+		}
 		return nil, err
 	}
 	return settings, nil
