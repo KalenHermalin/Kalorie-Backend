@@ -101,4 +101,9 @@ var (
 		Message: "The requested resournce wasnt modified since the date requested",
 		Status:  http.StatusNotModified,
 	}
+	ErrSoftWeightLog = &AppError{
+		Code:    "ERR_SOFT_UPSETING_WEIGHT_LOG",
+		Message: "There was an internal error updating some of yout weight logs",
+		Status:  http.StatusMultiStatus,
+	}
 )

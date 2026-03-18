@@ -161,7 +161,7 @@ func TestUpdateUserSettingsSuccess(t *testing.T) {
 			Units:          "metric",
 			Theme:          "dark",
 			UpdatedAt:      now,
-			DeletedAt:      sql.NullTime{Valid: false},
+			DeletedAt:      nil,
 		}
 		err = store.UpdateUserSettings(context.Background(), tx, user.ID, settings)
 		if err != nil {
@@ -208,7 +208,7 @@ func TestUpdateUserSettingsFailure(t *testing.T) {
 			Units:          "metric",
 			Theme:          "dark",
 			UpdatedAt:      time.Now().Add(time.Minute * 10),
-			DeletedAt:      sql.NullTime{Valid: false},
+			DeletedAt:      nil,
 		}
 		err = store.UpdateUserSettings(context.Background(), tx, "b38e5cee-8726-47cb-a4b6-755f8e521818", settings)
 		if err == nil {
@@ -234,12 +234,12 @@ func AssertSettingsEqual(t *testing.T, expected, actual *models.UserSettings) {
 		"UpdatedAt mismatch: expected %v, got %v", expected.UpdatedAt, actual.UpdatedAt)
 
 	// 3. Compare DeletedAt (sql.NullTime)
-	assert.Equal(t, expected.DeletedAt.Valid, actual.DeletedAt.Valid, "DeletedAt 'Valid' state mismatch")
+	assert.Equal(t, expected.DeletedAt != nil, actual.DeletedAt != nil, "DeletedAt 'Valid' state mismatch")
 
-	if expected.DeletedAt.Valid {
+	if expected.DeletedAt != nil {
 		// Only compare the time values if both are actually set (not NULL)
-		assert.True(t, expected.DeletedAt.Time.Truncate(time.Microsecond).Equal(actual.DeletedAt.Time.Truncate(time.Microsecond)),
-			"DeletedAt Time mismatch: expected %v, got %v", expected.DeletedAt.Time, actual.DeletedAt.Time)
+		assert.True(t, expected.DeletedAt.Truncate(time.Microsecond).Equal(actual.DeletedAt.Truncate(time.Microsecond)),
+			"DeletedAt Time mismatch: expected %v, got %v", expected.DeletedAt, actual.DeletedAt)
 	}
 }
 func TestUpsertUserWithAuth(t *testing.T) {
@@ -306,7 +306,7 @@ func TestUpsertUserWeightLog(t *testing.T) {
 			WeightKg:  55,
 			LogDate:   time.Now(),
 			UpdatedAt: time.Now(),
-			DeletedAt: sql.NullTime{Valid: false},
+			DeletedAt: nil,
 		}
 
 		// Test first weight log
@@ -322,7 +322,7 @@ func TestUpsertUserWeightLog(t *testing.T) {
 			WeightKg:  45,
 			LogDate:   time.Date(weightLog.LogDate.Year(), weightLog.LogDate.Month(), weightLog.LogDate.Day(), 0, 0, 0, 0, time.UTC),
 			UpdatedAt: time.Now().Add(time.Minute * 10),
-			DeletedAt: sql.NullTime{Valid: false},
+			DeletedAt: nil,
 		}
 		err = store.UpsertUserWeightLog(context.Background(), tx, user.ID, weightLog2)
 		if err != nil {

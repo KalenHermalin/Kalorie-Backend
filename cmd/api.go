@@ -40,8 +40,19 @@ func (app *application) mount() http.Handler {
 	})
 	mux.Route("/v1", func(r chi.Router) {
 		r.Use(middlewares.Auth(app.config.jwtAccessSecret))
-		r.Put("/settings/esync", app.userHandler.EgressSyncSettings)
-		r.Get("/settings/isync", app.userHandler.IngressSyncSettings)
+
+		r.Put("/settings/sync", app.userHandler.EgressSyncSettings)
+		r.Get("/settings/sync", app.userHandler.IngressSyncSettings)
+
+		r.Put("/weight-logs/sync", app.userHandler.EgressSyncWeightLogs)
+		r.Get("/weight-logs/sync", app.userHandler.IngressSyncWeightLogs)
+
+		r.Put("/food-logs/sync", app.userHandler.EgressSyncFoodLogs)
+		r.Get("/food-logs/sync", app.userHandler.IngressSyncFoodLogs)
+
+		r.Put("/exercise-logs/sync", app.userHandler.EgressSyncExerciseLogs)
+		r.Get("/exercise-logs/sync", app.userHandler.IngressSyncExerciseLogs)
+
 		r.Post("/analyze/food", app.llmHandler.AnalyzeFoodHandler)
 		r.Post("/analyze/label", app.llmHandler.AnalyzeLabelHandler)
 	})
