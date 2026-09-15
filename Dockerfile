@@ -1,35 +1,26 @@
-# Stage 1: Build
-# UPDATED: Using Go 1.25 for the build environment
-FROM golang:1.25-alpine AS builder
-
-# Install certificates so Go can verify Google/GitHub SSL connections
-RUN apk add --no-cache git ca-certificates
+# Stage 1: Build (install deps into a venv so the runtime image stays slim)
+FROM python:3.13-slim AS builder
 
 WORKDIR /app
 
-# Leverage Docker cache for dependencies
-COPY go.mod go.sum ./
-RUN go mod download
+RUN python -m venv /venv
+ENV PATH="/venv/bin:$PATH"
 
-# Copy source code
-COPY . .
-
-# Compile the binary
-# CGO_ENABLED=0 ensures a portable, static binary
-RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/...
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Stage 2: Runtime
-FROM alpine:latest
+FROM python:3.13-slim
 
-# Bring over the CA certificates so OAuth exchanges work
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+WORKDIR /app
+
+COPY --from=builder /venv /venv
+ENV PATH="/venv/bin:$PATH"
+
+COPY app ./app
+COPY migrations ./migrations
 
 EXPOSE 8080
-WORKDIR /root/
 
-COPY --from=builder /app/migrations /root/migrations/
-# Copy the binary from the builder stage
-COPY --from=builder /app/main .
-
-# Heroku will assign a dynamic $PORT; your code must use os.Getenv("PORT")
-CMD ["./main"]
+# Heroku will assign a dynamic $PORT; your code must use os.getenv("PORT")
+CMD ["python", "-m", "app.main"]
