@@ -1,4 +1,6 @@
 .git
-tmp
-bin
 .env
+__pycache__
+.venv
+.pytest_cache
+*.pyc
