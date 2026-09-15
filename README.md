@@ -21,7 +21,7 @@ Create a `.env` file in the repo root with the variables below.
 | Variable | Description |
 |---|---|
 | `PORT` | Port the API listens on |
-| `DB_DNS` | Postgres connection string, e.g. `postgresql://user:pass@db:5432/dbname` |
+| `DATABASE_URL` | Postgres connection string, e.g. `postgresql://user:pass@db:5432/dbname` (Heroku Postgres injects this automatically; `postgres://` URLs are normalized to `postgresql://` automatically too) |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Used by the `db` container in `docker-compose.dev.yml` |
 | `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | Secrets used to sign access/refresh tokens |
 | `GIT_CLIENT_ID` / `GIT_CLIENT_SECRET` | GitHub OAuth app credentials |
@@ -30,10 +30,10 @@ Create a `.env` file in the repo root with the variables below.
 | `APPLE_TEAM_ID` *(optional)* | Apple Developer Team ID |
 | `APPLE_KEY_ID` *(optional)* | Key ID of the Sign in with Apple private key |
 | `APPLE_PRIVATE_KEY` *(optional)* | The `.p8` private key content (PEM). If stored on one line, escape newlines as `\n` |
-
-Unlike the other credentials, the four `APPLE_*` vars are optional - if any are missing, the app still starts, it just won't register Apple as a login provider (`"provider": "apple"` on `/auth/login` returns `ERR_INVALID_PROVIDER` until all four are set).
 | `LLM_MODEL` | Gemini model name (e.g. `gemini-2.0-flash`) |
 | `LLM_API_KEY` | Gemini API key |
+
+Unlike the other credentials, the four `APPLE_*` vars are optional - if any are missing, the app still starts, it just won't register Apple as a login provider (`"provider": "apple"` on `/auth/login` returns `ERR_INVALID_PROVIDER` until all four are set).
 
 ## Running the dev server
 
@@ -43,7 +43,7 @@ Unlike the other credentials, the four `APPLE_*` vars are optional - if any are 
 
 This runs `docker compose -f docker-compose.dev.yml up`, which starts Postgres, runs migrations on boot, and serves the API at `http://localhost:8080` with live reload (the app restarts automatically on code changes).
 
-To run it outside Docker instead (with your own Postgres reachable via `DB_DNS`):
+To run it outside Docker instead (with your own Postgres reachable via `DATABASE_URL`):
 
 ```bash
 ./.venv/bin/python -m app.main
