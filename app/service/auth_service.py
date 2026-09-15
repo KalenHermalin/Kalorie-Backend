@@ -100,7 +100,7 @@ class AuthService:
             resp.access_token = access_token
             resp.refresh_token = refresh_token
             resp.expires_in = 900
-            resp.User = user
+            resp.user = user
 
         try:
             self.us.with_tx(txn)
@@ -157,7 +157,7 @@ class AuthService:
             resp.access_token = access_token
             resp.refresh_token = refresh
             resp.expires_in = 900
-            resp.User = user
+            resp.user = user
 
         try:
             self.us.with_tx(txn)

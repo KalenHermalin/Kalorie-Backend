@@ -128,7 +128,7 @@ def test_sign_in_full_flow():
     # 4. Assertions
     assert err is None, f"Expected no error, got {err}"
     utils.check_valid_string(resp.access_token)  # raises if empty
-    assert resp.User.id == mock_user.id
+    assert resp.user.id == mock_user.id
 
 
 def test_sign_in_database_failure():
