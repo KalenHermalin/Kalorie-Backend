@@ -12,7 +12,7 @@ def new_engine(conn_string: str) -> Engine:
     # Heroku Postgres (and some other providers) hand out `postgres://`
     # URLs - lib/pq accepted that scheme fine, but SQLAlchemy only
     # recognizes `postgresql://`. Normalize it rather than requiring
-    # DB_DNS to be rewritten wherever it's already configured.
+    # DATABASE_URL to be rewritten wherever it's already configured.
     if conn_string.startswith("postgres://"):
         conn_string = "postgresql://" + conn_string[len("postgres://"):]
     return create_engine(conn_string, future=True)
