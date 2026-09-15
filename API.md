@@ -51,13 +51,15 @@ Note that provider can only be one of the setup providers. This includes `github
     "access_token": string,
     "refresh_token": string,
     "expires_in": number,
-    "User": {
+    "user": {
         "id": string,
         "email": string,
         "created_at": string (RFC3339 timestamp)
     }
 }
 ```
+`user.created_at` is always the account's real creation timestamp on this endpoint (it comes from the row that was just inserted/updated).
+
 **Errors:**
 - **400 Bad Request:** If the body is invalid json, or if the code or provider is empty
 - **500 Internal Server Error:** Indicates an internal error with the auth service or auth providers
@@ -78,13 +80,15 @@ This endpoints takes in a valid refresh token and generates a new set of access 
     "access_token": string,
     "refresh_token": string,
     "expires_in": number,
-    "User": {
+    "user": {
         "id": string,
         "email": string,
         "created_at": string (RFC3339 timestamp)
     }
 }
 ```
+**Note:** unlike `/auth/login`, this endpoint does not re-fetch the account's creation timestamp from the database - `user.created_at` on a refresh response is always the zero-value Go timestamp (`"0001-01-01T00:00:00Z"`), not the account's real creation date. `user.id` and `user.email` are always accurate. Don't rely on `created_at` here if you need the real value; re-fetch it another way, or only trust it from `/auth/login`.
+
 **Errors:**
 - **400 Bad Request:** If the request body could not be decoded
 - **401 Unauthorized:** If the refresh token is expired, invalid or not found in database

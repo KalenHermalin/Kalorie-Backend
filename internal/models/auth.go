@@ -15,7 +15,12 @@ type AuthResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	ExpiresIn    int    `json:"expires_in"` // Standard naming convention
-	User         *User
+	// Explicit lowercase tag: without one, an untagged exported field
+	// serializes using its literal Go name ("User", capitalized),
+	// breaking the snake_case convention every other field here follows -
+	// and silently, since it's still valid JSON, just not what a client
+	// decoding a `user` field would ever see.
+	User *User `json:"user"`
 }
 type AuthProvider interface {
 	GetProviderName() string
