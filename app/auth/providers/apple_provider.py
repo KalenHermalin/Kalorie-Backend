@@ -13,7 +13,8 @@ to account for:
      send that as the client_secret.
   2. There's no userinfo endpoint. The user's id (`sub`) and email come
      from the `id_token` (a JWT) in the token response, which is verified
-     against Apple's published JWKS rather than trusted blindly.
+     against Apple's published JWKS (via app.auth.oidc, built on
+     Authlib's own JOSE implementation) rather than trusted blindly.
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ import jwt as pyjwt
 from authlib.integrations.requests_client import OAuth2Session
 
 from app import apperrors
+from app.auth.oidc import verify_id_token
 from app.auth.tokens import exchange_code
 from app.models.auth import AuthPayload, AuthProvider
 
@@ -59,7 +61,6 @@ class AppleProvider(AuthProvider):
         self._callback = callback
         self._platform = platform
         self._scopes = scopes
-        self._jwk_client = pyjwt.PyJWKClient(_APPLE_KEYS_URL)
 
     def _generate_client_secret(self) -> str:
         now = int(time.time())
@@ -90,14 +91,7 @@ class AppleProvider(AuthProvider):
         # Verify the id_token's signature against Apple's published JWKS
         # rather than trusting its claims blindly.
         try:
-            signing_key = self._jwk_client.get_signing_key_from_jwt(id_token)
-            claims = pyjwt.decode(
-                id_token,
-                signing_key.key,
-                algorithms=["RS256"],
-                audience=self._client_id,
-                issuer=_APPLE_ISSUER,
-            )
+            claims = verify_id_token(id_token, _APPLE_KEYS_URL, _APPLE_ISSUER, self._client_id)
         except Exception as e:
             log.error(f"Error: verifying apple id_token error={e}")
             raise apperrors.ErrInvalidToken
