@@ -2,10 +2,14 @@ package auth
 
 import (
 	"context"
+	"errors"
+	"io"
 	"log/slog"
+	"main/internal/apperrors"
 	"main/internal/auth"
 	"main/internal/models"
 	"main/internal/utils"
+	"net/http"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -52,12 +56,25 @@ func (gh *GoogleProvider) HandleCodeExchangeWithVerifier(ctx context.Context, co
 		return nil, err
 
 	}
+	if resp.StatusCode != http.StatusOK {
+		// A non-200 here (e.g. a bad/expired token) still has a JSON body,
+		// just not one with `sub`/`email` fields - decoding it below would
+		// otherwise silently succeed with a zero-value payload instead of
+		// surfacing an error.
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		slog.Error("Error: oauth provider api error", "provider", gh.GetProviderName(), "status", resp.StatusCode, "message", string(bodyBytes))
+		return nil, apperrors.AuthErrUnavailableService
+	}
 	googleResponse := &GoogleResponse{}
 	err = utils.DecodePayload(resp.Body, googleResponse)
 	if err != nil {
 		slog.Error("Error: decoding user data", "error", err.Error())
 		return nil, err
 
+	}
+	if googleResponse.ID == "" {
+		slog.Error("Error: google userinfo response missing sub", "provider", gh.GetProviderName())
+		return nil, errors.New("google userinfo response missing sub")
 	}
 
 	googlePayload := &models.AuthPayload{
