@@ -18,10 +18,12 @@ from dataclasses import dataclass
 import uvicorn
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.apperrors import AppError, ErrInternalServer
 from app.handlers.auth_handler import AuthHandler
+from app.handlers.docs_handler import DOCS_DIR, DocsHandler
 from app.handlers.llm_handler import LLMHandler
 from app.handlers.system_handler import SystemHandler
 from app.handlers.user_handler import UserHandler
@@ -44,6 +46,7 @@ class Application:
     llm_handler: LLMHandler
     system_handler: SystemHandler
     user_handler: UserHandler
+    docs_handler: DocsHandler
 
     def mount(self) -> FastAPI:
         app = FastAPI()
@@ -84,6 +87,15 @@ class Application:
         app.add_api_route("/auth/login", self.auth_handler.handle_login_signup, methods=["POST"])
         app.add_api_route("/auth/refresh", self.auth_handler.handle_refresh, methods=["POST"])
         app.add_api_route("/system/health", self.system_handler.health_handler, methods=["GET"])
+
+        # Static marketing/support/privacy pages (app/docs) - public, no auth.
+        app.add_api_route("/", self.docs_handler.index_page, methods=["GET"])
+        app.add_api_route("/index.html", self.docs_handler.index_page, methods=["GET"])
+        app.add_api_route("/support", self.docs_handler.support_page, methods=["GET"])
+        app.add_api_route("/support.html", self.docs_handler.support_page, methods=["GET"])
+        app.add_api_route("/privacy", self.docs_handler.privacy_page, methods=["GET"])
+        app.add_api_route("/privacy.html", self.docs_handler.privacy_page, methods=["GET"])
+        app.mount("/assets", StaticFiles(directory=DOCS_DIR / "assets"), name="docs-assets")
 
         async def logout_route(request: Request, auth_ctx: AuthContext = Depends(require_auth)):
             return await self.auth_handler.handle_log_out(request, auth_ctx)
