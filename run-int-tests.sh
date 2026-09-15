@@ -5,10 +5,10 @@
 docker compose -f docker-compose.test.yml up -d test-db
 
 # 2. Run the tests
-# pytest will enter app/store, run the `engine` fixture (migrations),
-# and then run the store integration tests.
-TEST_DB_URL="postgresql://kalen_test:password123@localhost:5433/nutrikal_test?sslmode=disable" \
-.venv/bin/pytest -v app/store/test_postgres_user.py
+# Go test will now enter internal/store, run TestMain (migrations), 
+# and then run your Upsert test.
+TEST_DB_URL="postgres://kalen_test:password123@localhost:5433/nutrikal_test?sslmode=disable&timezone=UTC" \
+go test -v ./internal/store/...
 
 # 3. Shutdown after finishing
 docker compose -f docker-compose.test.yml down
