@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.user import User
 
@@ -19,10 +19,19 @@ class AuthPayload(BaseModel):
 
 
 class AuthResponse(BaseModel):
+    # NOTE: the field is named `user` (not `User`) on purpose - Pydantic v2
+    # resolves the `User` type annotation lazily, and a field literally
+    # named `User` shadows the `User` type it's supposed to refer to,
+    # making Pydantic think the field's type is `None` (it then mis-
+    # serializes any real User value assigned to it). The alias below
+    # keeps the wire format identical to Go's (an untagged `User` field
+    # serializes as `"User"`, capitalized) without the name collision.
+    model_config = ConfigDict(populate_by_name=True)
+
     access_token: str = ""
     refresh_token: str = ""
     expires_in: int = 0  # Standard naming convention
-    User: Optional[User] = None
+    user: Optional[User] = Field(default=None, alias="User")
 
 
 class AuthProvider(ABC):
