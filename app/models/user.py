@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Callable, List, Optional, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -12,11 +12,21 @@ from sqlalchemy.orm import Session
 if TYPE_CHECKING:
     from app.models.auth import AuthPayload
 
+# Go's zero value for `time.Time{}` - "0001-01-01T00:00:00Z". Used as the
+# default for every field that was a plain `time.Time` (not `*time.Time`)
+# in the Go structs: those can never be JSON `null` in Go, only ever a
+# real (possibly zero-value) timestamp - unlike `deleted_at`, which was
+# always a `*time.Time` and is genuinely nullable. Getting this wrong
+# sends `null` for a field a strict client-side decoder expects to always
+# be a valid date string, which is exactly the kind of thing that breaks
+# decoding on the client with no server-side error to show for it.
+GO_ZERO_TIME = datetime(1, 1, 1, tzinfo=timezone.utc)
+
 
 class User(BaseModel):
     id: str = ""
     email: str = ""
-    created_at: Optional[datetime] = None
+    created_at: datetime = GO_ZERO_TIME
 
 
 class UserSettings(BaseModel):
@@ -25,7 +35,7 @@ class UserSettings(BaseModel):
     protein_target: int = 0
     carbs_target: int = 0
     fat_target: int = 0
-    updated_at: Optional[datetime] = None
+    updated_at: datetime = GO_ZERO_TIME
     deleted_at: Optional[datetime] = None
     theme: str = ""
 
@@ -33,16 +43,16 @@ class UserSettings(BaseModel):
 class WeightLog(BaseModel):
     id: str = ""
     weight_kg: float = 0
-    log_date: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    log_date: datetime = GO_ZERO_TIME
+    updated_at: datetime = GO_ZERO_TIME
     deleted_at: Optional[datetime] = None
 
 
 class ExerciseLog(BaseModel):
     id: str = ""
     exercise_id: str = ""
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime = GO_ZERO_TIME
+    updated_at: datetime = GO_ZERO_TIME
     deleted_at: Optional[datetime] = None
 
 
@@ -52,7 +62,7 @@ class ExerciseSet(BaseModel):
     set_number: int = 0
     weight: float = 0
     reps: int = 0
-    updated_at: Optional[datetime] = None
+    updated_at: datetime = GO_ZERO_TIME
     deleted_at: Optional[datetime] = None
 
 
@@ -67,8 +77,8 @@ class FoodLog(BaseModel):
     # NOTE: this is a plain string in the Go model too (not a datetime),
     # despite backing a TIMESTAMPTZ column - kept as-is.
     Time: str = ""
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime = GO_ZERO_TIME
+    updated_at: datetime = GO_ZERO_TIME
     deleted_at: Optional[datetime] = None
 
 
@@ -84,7 +94,7 @@ class FoodLogEntry(BaseModel):
     carbs: float = 0
     protein: float = 0
     quantity: float = 0
-    updated_at: Optional[datetime] = None
+    updated_at: datetime = GO_ZERO_TIME
     deleted_at: Optional[datetime] = None
 
 

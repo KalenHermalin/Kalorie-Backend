@@ -13,8 +13,31 @@ import pytest
 
 from app.auth import tokens as auth
 from app.models.auth import AuthPayload
-from app.models.user import UserSettings, WeightLog
+from app.models.user import GO_ZERO_TIME, UserSettings, WeightLog
 from app.store.postgres_user import NoRowsAffected
+
+
+def test_find_refresh_token_created_at_is_never_null(store):
+    """Regression test: find_refresh_token() never fetches created_at (same
+    as the Go version), and User.created_at must never serialize as JSON
+    null - Go's CreatedAt is a plain time.Time (not a pointer), so it's
+    always a real date string, defaulting to the zero-value one rather
+    than null. A client with a non-optional date field for this would
+    fail to decode the response entirely if this regresses."""
+    payload = AuthPayload(email="kalen@laurier.ca", id="12345", provider="github")
+
+    def txn(session):
+        user = store.upsert_user_with_auth(session, payload)
+        refresh = auth.generate_refresh_token(user.id, datetime.now(timezone.utc) + timedelta(days=30), "test")
+        store.save_refresh_token(session, refresh, user.id, datetime.now(timezone.utc) + timedelta(days=30))
+
+        found_user = store.find_refresh_token(session, refresh, user.id)
+        assert found_user.created_at == GO_ZERO_TIME
+        # the actual thing that matters: the wire format is a real date
+        # string, never JSON null.
+        assert found_user.model_dump(mode="json")["created_at"] == "0001-01-01T00:00:00Z"
+
+    store.with_tx(txn)
 
 
 def test_delete_refresh_token(store):
