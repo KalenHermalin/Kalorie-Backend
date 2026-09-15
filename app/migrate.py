@@ -10,6 +10,16 @@ on `;` the way a naive statement-splitter would.
 Applied filenames are tracked in a `schema_migrations` table, mirroring
 goose's own bookkeeping table, and only unapplied files are run - same
 "goose.Up" behaviour main.go relied on.
+
+One-time adoption case: a database that was previously migrated by the
+Go app's goose runner already has every table these migrations create,
+but our own `schema_migrations` starts out empty - naively "replaying"
+every migration against it would fail immediately (e.g. "relation users
+already exists"). If `schema_migrations` is empty AND goose's own
+`goose_db_version` bookkeeping table is present, that means goose
+already fully applied every migration up to the current migrations/
+folder, so we back-fill `schema_migrations` with every existing filename
+instead of re-running their SQL.
 """
 
 from __future__ import annotations
@@ -31,7 +41,17 @@ def _extract_up_script(sql_text: str) -> str:
     return _MARKER_RE.sub("", up_block).strip()
 
 
+def _goose_table_exists(conn) -> bool:
+    return bool(
+        conn.execute(
+            text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'goose_db_version')")
+        ).scalar()
+    )
+
+
 def run_migrations(engine: Engine, migrations_dir: str) -> None:
+    filenames = sorted(f for f in os.listdir(migrations_dir) if f.endswith(".sql"))
+
     with engine.begin() as conn:
         conn.execute(
             text(
@@ -45,7 +65,16 @@ def run_migrations(engine: Engine, migrations_dir: str) -> None:
         )
         applied = {row[0] for row in conn.execute(text("SELECT filename FROM schema_migrations"))}
 
-    filenames = sorted(f for f in os.listdir(migrations_dir) if f.endswith(".sql"))
+        if not applied and _goose_table_exists(conn):
+            # Adopting a database goose already fully migrated - record
+            # every migration as applied rather than replaying their SQL.
+            for filename in filenames:
+                conn.execute(
+                    text("INSERT INTO schema_migrations (filename) VALUES (:filename)"),
+                    {"filename": filename},
+                )
+            applied = set(filenames)
+
     for filename in filenames:
         if filename in applied:
             continue
