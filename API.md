@@ -43,7 +43,7 @@ This endpoint handles both registration and login. If the user doesn't exist, th
     "platform": "ios" | "android" (optional)
  }
  ```
-Note that provider can only be one of the setup providers. This includes `github` and `google`.
+Note that provider can only be one of the setup providers. This includes `github`, `google`, and `apple`. Like `github`, `apple` is a single provider (not split per-platform) - omit `platform` when using it.
 
 **Success (200 OK):** Returns a new auth response object containing the JWT access token and refresh token to be stored on client securely. 
 ```JSON

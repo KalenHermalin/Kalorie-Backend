@@ -10,6 +10,7 @@ import time
 from datetime import datetime, timezone
 
 from app.api import Application, Config
+from app.auth.providers.apple_provider import AppleProvider
 from app.auth.providers.github_provider import GitHubProvider
 from app.auth.providers.google_provider import GoogleProvider
 from app.db import check_db_connection, new_engine, new_session_factory
@@ -87,10 +88,24 @@ def main() -> None:
         google_client_id_android, "", "com.googleusercontent.apps.725051057596-gj4kl9f3c4f10cef513qsgahjppuhoqg://", "android", None
     )
 
+    apple_client_id = _require_env("APPLE_CLIENT_ID")
+    apple_team_id = _require_env("APPLE_TEAM_ID")
+    apple_key_id = _require_env("APPLE_KEY_ID")
+    apple_private_key = _require_env("APPLE_PRIVATE_KEY")
+
+    # Like GitHub, this is a single provider (not split per-platform like
+    # Google) - Apple issues one client id/key pair per app regardless of
+    # platform, so `platform` is left empty and clients should omit the
+    # `platform` field on `/auth/login` for provider "apple", same as they
+    # do for "github".
+    apple_auth = AppleProvider(apple_client_id, apple_team_id, apple_key_id, apple_private_key, "kalorie://")
+
     jwt_access_secret = _require_env("JWT_ACCESS_SECRET")
     jwt_refresh_secret = _require_env("JWT_REFRESH_SECRET")
 
-    auth_service = AuthService(user_store, jwt_access_secret, jwt_refresh_secret, github_auth, google_ios_auth, google_android_auth)
+    auth_service = AuthService(
+        user_store, jwt_access_secret, jwt_refresh_secret, github_auth, google_ios_auth, google_android_auth, apple_auth
+    )
     auth_handler = AuthHandler(auth_service)
 
     # Setting Up User Handler
