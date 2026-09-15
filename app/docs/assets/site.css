@@ -1,0 +1,113 @@
+/* Shared design tokens + layout primitives for the Kalorie marketing/docs pages. */
+
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --bg-element: #F0F0F3;
+  --card-bg: #ffffff;
+  --text: #000000;
+  --text-secondary: #60646C;
+  --accent: #3c87f7;
+  --accent-soft: rgba(60,135,247,0.12);
+  --border: rgba(228,228,231,0.8);
+  --ring-protein: #DC2626;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #000000;
+  --bg-element: #212225;
+  --card-bg: #18181b;
+  --text: #ffffff;
+  --text-secondary: #B0B4BA;
+  --accent-soft: rgba(60,135,247,0.18);
+  --border: rgba(63,63,70,0.6);
+  --ring-protein: #FF6B6B;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #000000;
+    --bg-element: #212225;
+    --card-bg: #18181b;
+    --text: #ffffff;
+    --text-secondary: #B0B4BA;
+    --accent-soft: rgba(60,135,247,0.18);
+    --border: rgba(63,63,70,0.6);
+    --ring-protein: #FF6B6B;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Spline Sans', Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+a { text-decoration: none; }
+
+.nav-bar { border-bottom: 1px solid var(--border); }
+.nav-inner {
+  max-width: 1120px; margin: 0 auto; padding: 18px 40px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand img { width: 32px; height: 32px; border-radius: 9px; display: block; }
+.brand span { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+.theme-toggle {
+  width: 40px; height: 40px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--bg-element); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; padding: 0; flex-shrink: 0;
+}
+.theme-toggle svg { stroke: var(--text); }
+
+footer.site-footer { border-top: 1px solid var(--border); }
+.footer-inner {
+  max-width: 1120px; margin: 0 auto; padding: 28px 40px; display: flex; align-items: center;
+  justify-content: space-between; flex-wrap: wrap; gap: 12px;
+}
+.footer-inner .copyright { font-size: 13px; color: var(--text-secondary); }
+.footer-links { display: flex; gap: 20px; }
+.footer-links a { font-size: 13px; color: var(--text-secondary); font-weight: 600; }
+.footer-links a:hover { color: var(--text); }
+
+.page-wrap { max-width: 680px; margin: 0 auto; padding: 56px 40px 72px; }
+.page-wrap h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 8px; color: var(--text); }
+.page-wrap .subtitle { color: var(--text-secondary); font-size: 16px; margin: 0 0 40px; line-height: 1.5; }
+.page-wrap .updated { color: var(--text-secondary); font-size: 14px; margin: 0 0 36px; }
+.page-wrap h2 { font-size: 18px; font-weight: 600; margin: 36px 0 10px; color: var(--text); }
+.page-wrap p, .page-wrap li { font-size: 15px; color: var(--text-secondary); line-height: 1.6; }
+.page-wrap ul { padding-left: 20px; margin: 10px 0; }
+.page-wrap li { margin-bottom: 6px; }
+.page-wrap a { color: var(--accent); font-weight: 600; }
+.page-wrap a:hover { text-decoration: underline; }
+
+.card {
+  background: var(--bg-element); border: 1px solid var(--border); border-radius: 20px;
+  padding: 24px; margin-bottom: 20px;
+}
+.card h2 { margin-top: 0; font-size: 17px; }
+.card p { margin: 0; }
+
+table.data-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+table.data-table th, table.data-table td {
+  text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top;
+}
+table.data-table th { color: var(--text-secondary); font-weight: 600; }
+table.data-table td { color: var(--text-secondary); }
+
+details.faq { border-bottom: 1px solid var(--border); padding: 16px 0; }
+details.faq:first-of-type { border-top: 1px solid var(--border); }
+details.faq summary {
+  cursor: pointer; font-weight: 600; font-size: 15px; list-style: none; color: var(--text);
+}
+details.faq summary::-webkit-details-marker { display: none; }
+details.faq summary::after { content: "+"; float: right; color: var(--text-secondary); }
+details.faq[open] summary::after { content: "\2212"; }
+details.faq p { color: var(--text-secondary); font-size: 15px; margin: 12px 0 0; line-height: 1.6; }
+
+@media (max-width: 640px) {
+  .nav-inner, .page-wrap, .footer-inner { padding-left: 20px; padding-right: 20px; }
+}

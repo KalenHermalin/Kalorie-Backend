@@ -15,6 +15,7 @@ from app.auth.providers.github_provider import GitHubProvider
 from app.auth.providers.google_provider import GoogleProvider
 from app.db import check_db_connection, new_engine, new_session_factory
 from app.handlers.auth_handler import AuthHandler
+from app.handlers.docs_handler import DocsHandler
 from app.handlers.llm_handler import LLMHandler
 from app.handlers.system_handler import SystemHandler
 from app.handlers.user_handler import UserHandler
@@ -63,7 +64,7 @@ def main() -> None:
     llm_handler = LLMHandler(llm_service)
 
     # Setting up User Store, Service and Handler
-    conn_string = _require_env("DB_DNS")
+    conn_string = _require_env("DATABASE_URL")
     try:
         engine = new_engine(conn_string)
     except Exception as e:
@@ -122,6 +123,8 @@ def main() -> None:
     user_handler = UserHandler(user_service)
     # Setting up System Handler
     system_handler = SystemHandler()
+    # Setting up Docs Handler (static marketing/support/privacy pages)
+    docs_handler = DocsHandler()
 
     addr = _require_env("PORT")
 
@@ -132,6 +135,7 @@ def main() -> None:
         llm_handler=llm_handler,
         system_handler=system_handler,
         user_handler=user_handler,
+        docs_handler=docs_handler,
     )
     # Running Application
     mux = app.mount()
