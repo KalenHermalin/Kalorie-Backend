@@ -88,24 +88,33 @@ def main() -> None:
         google_client_id_android, "", "com.googleusercontent.apps.725051057596-gj4kl9f3c4f10cef513qsgahjppuhoqg://", "android", None
     )
 
-    apple_client_id = _require_env("APPLE_CLIENT_ID")
-    apple_team_id = _require_env("APPLE_TEAM_ID")
-    apple_key_id = _require_env("APPLE_KEY_ID")
-    apple_private_key = _require_env("APPLE_PRIVATE_KEY")
+    # Unlike the other providers, Apple credentials are optional at boot:
+    # you may not have real ones yet, and there's no reason a missing/not-
+    # yet-configured Apple integration should keep the whole app from
+    # starting. If all four are set, Apple sign-in is wired in exactly like
+    # the others; otherwise it's just left out of `providers` and
+    # "provider": "apple" on /auth/login returns ERR_INVALID_PROVIDER until
+    # they're set.
+    apple_client_id = os.environ.get("APPLE_CLIENT_ID")
+    apple_team_id = os.environ.get("APPLE_TEAM_ID")
+    apple_key_id = os.environ.get("APPLE_KEY_ID")
+    apple_private_key = os.environ.get("APPLE_PRIVATE_KEY")
 
-    # Like GitHub, this is a single provider (not split per-platform like
-    # Google) - Apple issues one client id/key pair per app regardless of
-    # platform, so `platform` is left empty and clients should omit the
-    # `platform` field on `/auth/login` for provider "apple", same as they
-    # do for "github".
-    apple_auth = AppleProvider(apple_client_id, apple_team_id, apple_key_id, apple_private_key, "kalorie://")
+    providers = [github_auth, google_ios_auth, google_android_auth]
+    if apple_client_id and apple_team_id and apple_key_id and apple_private_key:
+        # Like GitHub, this is a single provider (not split per-platform
+        # like Google) - Apple issues one client id/key pair per app
+        # regardless of platform, so `platform` is left empty and clients
+        # should omit the `platform` field on `/auth/login` for provider
+        # "apple", same as they do for "github".
+        providers.append(AppleProvider(apple_client_id, apple_team_id, apple_key_id, apple_private_key, "kalorie://"))
+    else:
+        logging.warning("Apple auth not configured (missing one or more APPLE_* env vars) - skipping")
 
     jwt_access_secret = _require_env("JWT_ACCESS_SECRET")
     jwt_refresh_secret = _require_env("JWT_REFRESH_SECRET")
 
-    auth_service = AuthService(
-        user_store, jwt_access_secret, jwt_refresh_secret, github_auth, google_ios_auth, google_android_auth, apple_auth
-    )
+    auth_service = AuthService(user_store, jwt_access_secret, jwt_refresh_secret, *providers)
     auth_handler = AuthHandler(auth_service)
 
     # Setting Up User Handler

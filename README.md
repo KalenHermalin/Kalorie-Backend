@@ -26,10 +26,12 @@ Create a `.env` file in the repo root with the variables below.
 | `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | Secrets used to sign access/refresh tokens |
 | `GIT_CLIENT_ID` / `GIT_CLIENT_SECRET` | GitHub OAuth app credentials |
 | `GOOGLE_CLIENT_ID_IOS` / `GOOGLE_CLIENT_ID_ANDROID` | Google OAuth client IDs per platform |
-| `APPLE_CLIENT_ID` | Apple Services ID / app Bundle ID registered for Sign in with Apple |
-| `APPLE_TEAM_ID` | Apple Developer Team ID |
-| `APPLE_KEY_ID` | Key ID of the Sign in with Apple private key |
-| `APPLE_PRIVATE_KEY` | The `.p8` private key content (PEM). If stored on one line, escape newlines as `\n` |
+| `APPLE_CLIENT_ID` *(optional)* | Apple Services ID / app Bundle ID registered for Sign in with Apple |
+| `APPLE_TEAM_ID` *(optional)* | Apple Developer Team ID |
+| `APPLE_KEY_ID` *(optional)* | Key ID of the Sign in with Apple private key |
+| `APPLE_PRIVATE_KEY` *(optional)* | The `.p8` private key content (PEM). If stored on one line, escape newlines as `\n` |
+
+Unlike the other credentials, the four `APPLE_*` vars are optional - if any are missing, the app still starts, it just won't register Apple as a login provider (`"provider": "apple"` on `/auth/login` returns `ERR_INVALID_PROVIDER` until all four are set).
 | `LLM_MODEL` | Gemini model name (e.g. `gemini-2.0-flash`) |
 | `LLM_API_KEY` | Gemini API key |
 
