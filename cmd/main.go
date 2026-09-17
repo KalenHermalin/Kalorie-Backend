@@ -175,21 +175,3 @@ func CheckDBConnection(db *sql.DB) {
 		os.Exit(1)
 	}
 }
-
-type Nutrients struct {
-	Cal     uint16 `json:"cal"`
-	Carbs   uint16 `json:"carbs"`
-	Fat     uint16 `json:"fat"`
-	Protein uint16 `json:"protein"`
-}
-type Portion struct {
-	Label       string `json:"label"`
-	WeightGrams uint16 `json:"weight_grams"`
-}
-type searchResponse struct {
-	Source           string    `json:"source"`
-	ID               string    `json:"id"`
-	Name             string    `json:"name"`
-	NutrientsPer100g Nutrients `json:"nutrients"`
-	Portions         []Portion `json:"portions"`
-}

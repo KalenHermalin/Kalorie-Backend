@@ -54,7 +54,7 @@ func (as *AuthService) RefreshAccessToken(ctx context.Context, refresh string) (
 	err = as.us.WithTx(ctx, func(tx *sql.Tx) error {
 
 		// 3. Verify token exists in DB for that UserID
-		user, err := as.us.FindRefreshToken(ctx, tx, refresh, claims.UserID)
+		user, err := as.us.FindRefreshToken(ctx, tx, refresh)
 		if err != nil {
 			slog.Error("REFRESH_TOKEN_DOESNT_EXIST ", "error", err.Error(), "userID", claims.UserID)
 			return apperrors.ErrInvalidToken

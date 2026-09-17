@@ -43,7 +43,7 @@ func (m *MockUserRepo) SaveRefreshToken(ctx context.Context, tx *sql.Tx, refresh
 func (m *MockUserRepo) DeleteRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string) error {
 	return nil
 }
-func (m *MockUserRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string) (*models.User, error) {
+func (m *MockUserRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string) (*models.User, error) {
 	return nil, nil
 }
 

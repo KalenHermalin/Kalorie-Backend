@@ -27,7 +27,7 @@ func (us *postgressUserRepo) SaveRefreshToken(ctx context.Context, tx *sql.Tx, r
 	return err
 
 }
-func (us *postgressUserRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string) (*models.User, error) {
+func (us *postgressUserRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string) (*models.User, error) {
 	query := `
         SELECT u.id, u.email 
         FROM users u
@@ -94,7 +94,7 @@ func (us *postgressUserRepo) UpsertUserWeightLog(ctx context.Context, tx *sql.Tx
             deleted_at = EXCLUDED.deleted_at
         WHERE EXCLUDED.updated_at > weight_logs.updated_at;`
 
-	_, err := tx.ExecContext(ctx, query,
+	res, err := tx.ExecContext(ctx, query,
 		payload.ID,        // $1
 		userId,            // $2
 		payload.WeightKg,  // $3
@@ -106,6 +106,10 @@ func (us *postgressUserRepo) UpsertUserWeightLog(ctx context.Context, tx *sql.Tx
 		return err
 	}
 
+	rowsAff, _ := res.RowsAffected()
+	if rowsAff == 0 {
+		return ErrNoRowsAffected
+	}
 	return nil
 
 }
@@ -341,7 +345,7 @@ func (us *postgressUserRepo) GetUserExerciseLogById(ctx context.Context, tx *sql
     WHERE user_id = $1 and id = $2
     ORDER BY created_at DESC;` // Good practice to sort by date
 
-	var log *models.ExerciseLog
+	log := &models.ExerciseLog{}
 	err := tx.QueryRowContext(ctx, queryExerciseLog, userId, logId).Scan(
 		&log.ID,
 		&log.ExerciseId,
@@ -402,10 +406,10 @@ func (us *postgressUserRepo) GetUserExerciseSetsByLogId(ctx context.Context, tx 
 	if err != nil {
 		return nil, err
 	}
-
+	defer rows.Close()
 	for rows.Next() {
 		set := &models.ExerciseSet{}
-		rows.Scan(
+		scanErr := rows.Scan(
 			&set.ID,
 			&set.LogId,
 			&set.Set_number,
@@ -414,6 +418,14 @@ func (us *postgressUserRepo) GetUserExerciseSetsByLogId(ctx context.Context, tx 
 			&set.UpdatedAt,
 			&set.DeletedAt,
 		)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		sets = append(sets, set)
+	}
+
+	if rows.Err() != nil {
+		return nil, rows.Err()
 	}
 
 	return sets, nil

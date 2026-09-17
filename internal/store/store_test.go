@@ -3,13 +3,14 @@ package store
 import (
 	"context"
 	"database/sql"
-	_ "github.com/lib/pq" // Your Postgres driver
-	"github.com/stretchr/testify/assert"
 	"log"
 	"main/internal/auth"
 	"main/internal/models"
 	"testing"
 	"time"
+
+	_ "github.com/lib/pq" // Your Postgres driver
+	"github.com/stretchr/testify/assert"
 )
 
 var testDB *sql.DB
@@ -101,7 +102,7 @@ func TestRefreshRefreshToken(t *testing.T) {
 			return err
 		}
 
-		user, err = store.FindRefreshToken(context.Background(), tx, refresh, user.ID)
+		user, err = store.FindRefreshToken(context.Background(), tx, refresh)
 		if err != nil {
 			t.Errorf("Should have found token: %v", err)
 		}
@@ -110,7 +111,7 @@ func TestRefreshRefreshToken(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error: %v", err)
 		}
-		_, err = store.FindRefreshToken(context.Background(), tx, refresh, user.ID)
+		_, err = store.FindRefreshToken(context.Background(), tx, refresh)
 		if err == nil {
 			t.Error("Expected an error: token should not be findable after deleting")
 		}
@@ -123,7 +124,7 @@ func TestRefreshRefreshToken(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		_, err = store.FindRefreshToken(context.Background(), tx, refreshToken, user.ID)
+		_, err = store.FindRefreshToken(context.Background(), tx, refreshToken)
 		if err != nil {
 			t.Errorf("Error, refresh rotation failed to save")
 		}

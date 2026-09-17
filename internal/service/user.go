@@ -81,54 +81,56 @@ func (us *UserService) GetUserSettings(ctx context.Context, userId string, last_
 
 }
 
-func (us *UserService) UpsertUserWeightLogs(ctx context.Context, userId string, weightLogs []*models.WeightLog) (new_server_logs []*models.WeightLog, failed []*models.WeightLog, err error) {
+const MAXBATCHSIZE = 200
+
+func (us *UserService) UpsertUserWeightLogs(ctx context.Context, userId string, weightLogs []*models.WeightLog) (newServerLogs []*models.WeightLog, notSyncedLogs []string, err *apperrors.AppError) {
 	if weightLogs == nil {
 
 		slog.Error("Error: user serivce got nil weight log slice", "error", "userID", userId)
 		return nil, nil, apperrors.ErrInternalServer
 	}
-	recentServerLogs := []*models.WeightLog{}
-	failedUpsertLogs := []*models.WeightLog{}
-	us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
-		var upsertError error
-		failedCount := 0
-		for _, log := range weightLogs {
+	if len(weightLogs) > MAXBATCHSIZE {
+		return nil, nil, apperrors.NewAppError("ERR_BATCH_TOO_LARGE", "The batch size has a limit of 200 items", 400)
+	}
+	newServerLogs = []*models.WeightLog{}
+	notSyncedLogs = []string{}
+
+	for _, log := range weightLogs {
+		applied := false
+		var fetchErr error
+		var newerLog *models.WeightLog
+
+		transactionErr := us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
 			err := us.userStore.UpsertUserWeightLog(ctx, tx, userId, log)
 			if err != nil {
-				// Newer log data exist so we get it
-				newlog, err := us.userStore.GetUserWeightLogById(ctx, tx, userId, log.ID)
-				if err != nil {
-					slog.Error("Upsert did not work, caused get to fail, log is missing in db", "error", err.Error(), "user_id", userId, "log_id", log.ID)
-					failedCount++
-					upsertError = err
-					failedUpsertLogs = append(failedUpsertLogs, log)
-				} else if newlog != nil {
-					recentServerLogs = append(recentServerLogs, newlog)
-				}
+				applied = false
+			} else {
+				applied = true
+				return nil
 			}
-		}
-		if failedCount > 0 && failedCount < len(weightLogs) {
-			slog.Error("failed to sync logs", "failed_count", failedCount, "total_count", len(weightLogs), "error", upsertError)
-			// Some kind of error of something soft error
-			return apperrors.ErrSoftWeightLog
-		}
-		if failedCount == len(weightLogs) {
-			// Some kind of hard error?
-			slog.Error("failed to sync logs all logs", "failed_count", failedCount, "total_count", len(weightLogs), "error", upsertError)
-			return apperrors.NewAppError("ERR_UPSERTING_WEIGHT_LOG", "There was an internal error updating your weight logs", http.StatusInternalServerError)
+			newerLog, fetchErr = us.userStore.GetUserWeightLogById(ctx, tx, userId, log.ID)
+			return nil
+		})
 
+		/*
+			If the transaction itself failed for some reason
+			that is if beginTx/commit fuils due to connection drop or etc
+		*/
+		if transactionErr != nil {
+			notSyncedLogs = append(notSyncedLogs, log.ID)
+			continue
+		}
+		if applied {
+			continue
+		}
+		if fetchErr == nil && newerLog != nil {
+			newServerLogs = append(newServerLogs, newerLog)
+		} else {
+			notSyncedLogs = append(notSyncedLogs, log.ID)
 		}
 
-		return nil
-	})
-
-	if err != nil {
-		if errors.Is(err, apperrors.ErrSoftWeightLog) {
-			return recentServerLogs, failedUpsertLogs, err
-		}
-		return nil, failedUpsertLogs, err
 	}
-	return recentServerLogs, nil, nil
+	return newServerLogs, notSyncedLogs, nil
 
 }
 
