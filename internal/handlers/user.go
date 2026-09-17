@@ -30,6 +30,7 @@ func (uh *UserHandler) EgressSyncSettings(writer http.ResponseWriter, request *h
 	id, ok := request.Context().Value(middlewares.UserIDKey).(string)
 	if !ok {
 		apperrors.WriteError(writer, *apperrors.ErrMissingUserIdInContext)
+		return
 	}
 	var requestBody esyncSettingsbody
 	err := utils.DecodePayload(request.Body, &requestBody)
@@ -69,6 +70,7 @@ func (uh *UserHandler) IngressSyncSettings(writer http.ResponseWriter, request *
 	id, ok := request.Context().Value(middlewares.UserIDKey).(string)
 	if !ok {
 		apperrors.WriteError(writer, *apperrors.ErrMissingUserIdInContext)
+		return
 	}
 	last_synced := request.URL.Query().Get("last_synced_at")
 	var sinceTime *time.Time
@@ -105,14 +107,14 @@ type SyncWeightLogsRequestBody struct {
 }
 type SyncWeightLogsResponse struct {
 	NewLogs    []*models.WeightLog `json:"new_logs"`
-	FailedLogs []*models.WeightLog `json:"failed_logs"`
-	Err        error               `json:"error"`
+	FailedLogs []string            `json:"failed_logs"`
 }
 
 func (uh *UserHandler) EgressSyncWeightLogs(writer http.ResponseWriter, request *http.Request) {
 	id, ok := request.Context().Value(middlewares.UserIDKey).(string)
 	if !ok {
 		apperrors.WriteError(writer, *apperrors.ErrMissingUserIdInContext)
+		return
 	}
 	var requestBody SyncWeightLogsRequestBody
 	err := utils.DecodePayload(request.Body, &requestBody)
@@ -123,32 +125,18 @@ func (uh *UserHandler) EgressSyncWeightLogs(writer http.ResponseWriter, request 
 
 	}
 
-	successful, failed, err := uh.user.UpsertUserWeightLogs(request.Context(), id, requestBody.WeightLogs)
-	if err != nil {
-
-		if errors.Is(err, apperrors.ErrSoftWeightLog) {
-			writer.Header().Set("Content-Type", "application/json")
-			response := &SyncWeightLogsResponse{
-				NewLogs:    successful,
-				FailedLogs: failed,
-				Err:        err,
-			}
-			json.NewEncoder(writer).Encode(response)
-			return
-		}
-		var appErr *apperrors.AppError
-		if errors.As(err, &appErr) {
-			apperrors.WriteError(writer, *appErr)
-			return
-		}
-		apperrors.WriteError(writer, *apperrors.ErrInternalServer)
+	successful, failed, appErr := uh.user.UpsertUserWeightLogs(request.Context(), id, requestBody.WeightLogs)
+	if appErr != nil {
+		apperrors.WriteError(writer, *appErr)
 		return
 
 	}
+	if len(failed) != 0 {
+		writer.WriteHeader(207)
+	}
 	response := &SyncWeightLogsResponse{
 		NewLogs:    successful,
-		FailedLogs: nil,
-		Err:        nil,
+		FailedLogs: failed,
 	}
 	json.NewEncoder(writer).Encode(response)
 }
@@ -157,6 +145,7 @@ func (uh *UserHandler) IngressSyncWeightLogs(writer http.ResponseWriter, request
 	id, ok := request.Context().Value(middlewares.UserIDKey).(string)
 	if !ok {
 		apperrors.WriteError(writer, *apperrors.ErrMissingUserIdInContext)
+		return
 	}
 	last_synced := request.URL.Query().Get("last_synced_at")
 	var sinceTime *time.Time
@@ -211,6 +200,7 @@ func (uh *UserHandler) EgressSyncExerciseLogs(writer http.ResponseWriter, reques
 	id, ok := request.Context().Value(middlewares.UserIDKey).(string)
 	if !ok {
 		apperrors.WriteError(writer, *apperrors.ErrMissingUserIdInContext)
+		return
 	}
 	var requestBody SyncExerciseLogsRequestBody
 	err := utils.DecodePayload(request.Body, &requestBody)
@@ -256,6 +246,7 @@ func (uh *UserHandler) IngressSyncExerciseLogs(writer http.ResponseWriter, reque
 	id, ok := request.Context().Value(middlewares.UserIDKey).(string)
 	if !ok {
 		apperrors.WriteError(writer, *apperrors.ErrMissingUserIdInContext)
+		return
 	}
 	last_synced := request.URL.Query().Get("last_synced_at")
 	var sinceTime *time.Time
@@ -311,6 +302,7 @@ func (uh *UserHandler) EgressSyncFoodLogs(writer http.ResponseWriter, request *h
 	id, ok := request.Context().Value(middlewares.UserIDKey).(string)
 	if !ok {
 		apperrors.WriteError(writer, *apperrors.ErrMissingUserIdInContext)
+		return
 	}
 	var requestBody SyncFoodLogsRequestBody
 	err := utils.DecodePayload(request.Body, &requestBody)
@@ -356,6 +348,7 @@ func (uh *UserHandler) IngressSyncFoodLogs(writer http.ResponseWriter, request *
 	id, ok := request.Context().Value(middlewares.UserIDKey).(string)
 	if !ok {
 		apperrors.WriteError(writer, *apperrors.ErrMissingUserIdInContext)
+		return
 	}
 	last_synced := request.URL.Query().Get("last_synced_at")
 	var sinceTime *time.Time
