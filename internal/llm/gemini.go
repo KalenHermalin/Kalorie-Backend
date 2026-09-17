@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"google.golang.org/genai"
 	"main/internal/models"
 	"strings"
+
+	"google.golang.org/genai"
 )
 
 type GeminiProvider struct {
@@ -44,7 +45,7 @@ func (gm *GeminiProvider) AnalyzePicture(ctx context.Context, picture []byte, sy
 
 	}
 
-	result, err := gm.client.Models.GenerateContent(context.Background(), gm.model, []*genai.Content{{Parts: userParts}}, &genai.GenerateContentConfig{
+	result, err := gm.client.Models.GenerateContent(ctx, gm.model, []*genai.Content{{Parts: userParts}}, &genai.GenerateContentConfig{
 		SystemInstruction: &genai.Content{Parts: systemParts},
 		ResponseMIMEType:  `application/json`,
 		ResponseSchema: &genai.Schema{
@@ -100,7 +101,7 @@ func (gm *GeminiProvider) AnalyzeLabel(ctx context.Context, picture []byte, syst
 		}
 
 	}
-	result, err := gm.client.Models.GenerateContent(context.Background(), gm.model, []*genai.Content{{Parts: userParts}}, &genai.GenerateContentConfig{
+	result, err := gm.client.Models.GenerateContent(ctx, gm.model, []*genai.Content{{Parts: userParts}}, &genai.GenerateContentConfig{
 		SystemInstruction: &genai.Content{Parts: systemParts},
 		ResponseMIMEType:  `application/json`,
 		ResponseSchema: &genai.Schema{

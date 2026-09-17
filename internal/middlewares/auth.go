@@ -51,8 +51,8 @@ func Auth(jwtSecret string) func(http.Handler) http.Handler {
 		})
 	}
 }
-func GetUserID(ctx context.Context) int {
-	id, _ := ctx.Value(UserIDKey).(int)
+func GetUserID(ctx context.Context) string {
+	id, _ := ctx.Value(UserIDKey).(string)
 	return id
 }
 
