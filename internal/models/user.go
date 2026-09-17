@@ -80,17 +80,11 @@ type FullFoodLog struct {
 	FoodLogEntries []*FoodLogEntry `json:"food-log_entries"`
 }
 
-type Provider struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	UserID uint32 `json:"user_id"`
-}
-
 type UserRepository interface {
 	UpsertUserWithAuth(ctx context.Context, tx *sql.Tx, payload *AuthPayload) (*User, error)
 	DeleteRefreshToken(ctx context.Context, tx *sql.Tx, token string, userId string) error
 	SaveRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string, expiresAt time.Time) error
-	FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string) (*User, error)
+	FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string) (*User, error)
 
 	UpdateUserSettings(ctx context.Context, tx *sql.Tx, userId string, settings *UserSettings) error
 	GetUserSettings(ctx context.Context, tx *sql.Tx, userId string) (*UserSettings, error)

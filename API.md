@@ -1,10 +1,10 @@
 # Kalorie API Documentation
 ## Overview
-This is an internal API for the Kalorie fitness tracking app. The server is built in Go and currently deployed on DigitalOcean
+This is an internal API for the Kalorie fitness tracking app. The server is built in Go and currently deployed on Heroku
 
 ## Connection Information
 **Base URL (dev:)** `http://192.168.118.216:8080/`
-**Base URL (Production):** `https://whale-app-2bxfv.ondigitalocean.app/`
+**Base URL (Production):** `https://kalorie-c04921684a0b.herokuapp.com/`
 
 ## Authentication
 Most endpoints require a **JWT Access Token** to be sent in the header
@@ -194,7 +194,11 @@ Fetches the most up-to-date settings based on the last synced date. If the serve
 #### Egress Sync Weight Logs
 **Path:** `PUT /v1/weight-logs/sync`
 
-Pushes weight log updates to the server. The server will upsert each log by id and may return partial success when some logs fail.
+Pushes weight log updates to the server. Each log is upserted and judged independently (one log
+failing to sync has no effect on the others) - the response always reports exactly what happened
+to every log in the request, whether the overall result was a full or partial success.
+
+Limited to 200 logs per request - split larger batches into multiple requests.
 
 **Request Body:**
 ```JSON
@@ -210,7 +214,10 @@ Pushes weight log updates to the server. The server will upsert each log by id a
     ]
 }
 ```
-**Success (200 OK):** Returns new logs from the server, plus any failed client logs.
+**Success (200 OK):** Every log synced. Returns any logs the server had a newer version of than
+what the client sent (same conflict-resolution rule as ingress: whichever `updated_at` is newer
+wins) - these are the server's current copies, sent back so the client can update its own local
+state to match.
 ```JSON
 {
     "new_logs": [
@@ -222,22 +229,26 @@ Pushes weight log updates to the server. The server will upsert each log by id a
             "deleted_at": string | null
         }
     ],
-    "failed_logs": [
-        {
-            "id": string,
-            "weight_kg": number,
-            "log_date": string (RFC3339 timestamp),
-            "updated_at": string (RFC3339 timestamp),
-            "deleted_at": string | null
-        }
-    ],
-    "error": string | null
+    "failed_logs": []
+}
+```
+**Partial Success (207 Multi-Status):** One or more logs could not be synced at all (a real
+error, not just a newer-version conflict - those still go in `new_logs` as above). `failed_logs`
+is a list of the **ids** of the logs that need to be retried (not full log objects) - the client
+already has the full data for whatever it sent, so only the id is needed to know what to resend.
+```JSON
+{
+    "new_logs": [ ... ],
+    "failed_logs": ["<id>", "<id>"]
 }
 ```
 **Errors:**
-- **400 Bad Request:** If the request body could not be decoded.
+- **400 Bad Request:** If the request body could not be decoded, or if more than 200 logs were
+  submitted in one request (`ERR_BATCH_TOO_LARGE`).
 - **401 Unauthorized:** If the access token is missing or invalid.
-- **500 Internal Server Error:** If there is an error updating weight logs.
+- **500 Internal Server Error:** If there is an internal error unrelated to any specific log
+  (e.g. the request itself is invalid) - contrast with per-log failures, which are reported in
+  `failed_logs` on a `207` rather than failing the whole request.
 
 #### Ingress Sync Weight Logs
 **Path:** `GET /v1/weight-logs/sync?last_synced_at=<RFC3339 timestamp>`
