@@ -259,7 +259,6 @@ WHERE EXCLUDED.updated_at > exercise_logs.updated_at;`
 
 }
 
-// TODO: Fix like done for the food logs
 func (us *postgressUserRepo) GetUserExerciseLogs(ctx context.Context, tx *sql.Tx, userId string) ([]*models.FullExerciseLog, error) {
 	queryExerciseLog := `
     SELECT id, exercise_id, created_at, updated_at, deleted_at
@@ -269,7 +268,8 @@ func (us *postgressUserRepo) GetUserExerciseLogs(ctx context.Context, tx *sql.Tx
 
 	queryExerciseSet := `
     SELECT id, log_id, set_number, weight, reps, updated_at, deleted_at
-    FROM exercise_sets WHERE log_id = $1
+    FROM exercise_sets WHERE log_id = ANY($1) 
+	ORDER BY updated_at DESC;
     `
 	rows, err := tx.QueryContext(ctx, queryExerciseLog, userId)
 	if err != nil {
@@ -277,7 +277,6 @@ func (us *postgressUserRepo) GetUserExerciseLogs(ctx context.Context, tx *sql.Tx
 	}
 
 	var FullExerciselogs []*models.FullExerciseLog
-	var ExerciseLog []*models.ExerciseLog
 	for rows.Next() {
 		log := &models.ExerciseLog{}
 		err := rows.Scan(
@@ -290,42 +289,45 @@ func (us *postgressUserRepo) GetUserExerciseLogs(ctx context.Context, tx *sql.Tx
 		if err != nil {
 			return nil, err
 		}
-		ExerciseLog = append(ExerciseLog, log)
+		fullLog := models.FullExerciseLog{ExerciseLog: log, ExerciseSets: nil}
+		FullExerciselogs = append(FullExerciselogs, &fullLog)
 
 	}
 	rows.Close()
-	for _, log := range ExerciseLog {
+	logIds := []string{}
+	logMap := map[string][]*models.ExerciseSet{}
+	for _, log := range FullExerciselogs {
+		logIds = append(logIds, log.ExerciseLog.ID)
+		logMap[log.ExerciseLog.ID] = []*models.ExerciseSet{}
 
-		rows, err = tx.QueryContext(ctx, queryExerciseSet, log.ID)
+	}
+	rows, err = tx.QueryContext(ctx, queryExerciseSet, logIds)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		entry := &models.ExerciseSet{}
+		err := rows.Scan(
+			&entry.ID,
+			&entry.LogId,
+			&entry.Set_number,
+			&entry.Weight,
+			&entry.Reps,
+			&entry.UpdatedAt,
+			&entry.DeletedAt,
+		)
+
 		if err != nil {
 			return nil, err
 		}
-		var ExerciseLogSets []*models.ExerciseSet
 
-		for rows.Next() {
-			entry := &models.ExerciseSet{}
-			err := rows.Scan(
-				&entry.ID,
-				&entry.LogId,
-				&entry.Set_number,
-				&entry.Weight,
-				&entry.Reps,
-				&entry.UpdatedAt,
-				entry.DeletedAt,
-			)
+		logMap[entry.LogId] = append(logMap[entry.LogId], entry)
+	}
+	rows.Close()
 
-			if err != nil {
-				return nil, err
-			}
-			ExerciseLogSets = append(ExerciseLogSets, entry)
-
-		}
-		rows.Close()
-		fullLog := &models.FullExerciseLog{
-			ExerciseLog:  log,
-			ExerciseSets: ExerciseLogSets,
-		}
-		FullExerciselogs = append(FullExerciselogs, fullLog)
+	for _, full := range FullExerciselogs {
+		full.ExerciseSets = logMap[full.ExerciseLog.ID]
 
 	}
 
@@ -373,6 +375,7 @@ DO UPDATE SET
     set_number = EXCLUDED.set_number,
     reps = EXCLUDED.reps,
     updated_at = EXCLUDED.updated_at,
+	weight = EXCLUDED.weight,
     deleted_at = EXCLUDED.deleted_at
 WHERE EXCLUDED.updated_at > exercise_sets.updated_at;`
 
@@ -469,7 +472,7 @@ func (us *postgressUserRepo) GetUserFoodLogs(ctx context.Context, tx *sql.Tx, us
     ORDER BY created_at DESC;` // Good practice to sort by date
 	queryFoodLogEntries := `
     SELECT id, log_id, food_id, food_name, serving_id, quantity, unit, cal, fat, carbs, protein, updated_at, deleted_at
-    FROM food_log_items WHERE log_id = $1
+    FROM food_log_items WHERE log_id = ANY($1);
 `
 
 	rows, err := tx.QueryContext(ctx, queryFoodLog, userId)
@@ -478,7 +481,6 @@ func (us *postgressUserRepo) GetUserFoodLogs(ctx context.Context, tx *sql.Tx, us
 	}
 
 	var FullFoodLogs []*models.FullFoodLog
-	var foodLog []*models.FoodLog
 	for rows.Next() {
 		log := &models.FoodLog{}
 		err := rows.Scan(
@@ -492,49 +494,53 @@ func (us *postgressUserRepo) GetUserFoodLogs(ctx context.Context, tx *sql.Tx, us
 		if err != nil {
 			return nil, err
 		}
-		foodLog = append(foodLog, log)
+		fullLog := models.FullFoodLog{FoodLog: log, FoodLogEntries: nil}
+		FullFoodLogs = append(FullFoodLogs, &fullLog)
 
 	}
 	rows.Close()
-	for _, log := range foodLog {
 
-		rows, err = tx.QueryContext(ctx, queryFoodLogEntries, log.ID)
+	logIds := []string{}
+
+	logMap := map[string][]*models.FoodLogEntry{}
+
+	for _, log := range FullFoodLogs {
+		logIds = append(logIds, log.FoodLog.ID)
+		logMap[log.FoodLog.ID] = []*models.FoodLogEntry{}
+	}
+
+	rows, err = tx.QueryContext(ctx, queryFoodLogEntries, logIds)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		entry := &models.FoodLogEntry{}
+		err := rows.Scan(
+			&entry.ID,
+			&entry.LogId,
+			&entry.FoodId,
+			&entry.FoodName,
+			&entry.ServingId,
+			&entry.Quantity,
+			&entry.Unit,
+			&entry.Cal,
+			&entry.Fat,
+			&entry.Carbs,
+			&entry.Protein,
+			&entry.UpdatedAt,
+			&entry.DeletedAt,
+		)
+
 		if err != nil {
 			return nil, err
 		}
-		var foodLogEntries []*models.FoodLogEntry
+		logMap[entry.LogId] = append(logMap[entry.LogId], entry)
 
-		for rows.Next() {
-			entry := &models.FoodLogEntry{}
-			err := rows.Scan(
-				&entry.ID,
-				&entry.LogId,
-				&entry.FoodId,
-				&entry.FoodName,
-				&entry.ServingId,
-				&entry.Quantity,
-				&entry.Unit,
-				&entry.Cal,
-				&entry.Fat,
-				&entry.Carbs,
-				&entry.Protein,
-				&entry.UpdatedAt,
-				&entry.DeletedAt,
-			)
-
-			if err != nil {
-				return nil, err
-			}
-			foodLogEntries = append(foodLogEntries, entry)
-
-		}
-		rows.Close()
-		fullLog := &models.FullFoodLog{
-			FoodLog:        log,
-			FoodLogEntries: foodLogEntries,
-		}
-		FullFoodLogs = append(FullFoodLogs, fullLog)
-
+	}
+	rows.Close()
+	for _, full := range FullFoodLogs {
+		full.FoodLogEntries = logMap[full.FoodLog.ID]
 	}
 
 	// Check for errors that occurred during iteration
@@ -622,15 +628,15 @@ func (us *postgressUserRepo) GetUserFoodLogEntriesByLogId(ctx context.Context, t
     SELECT id, log_id, food_id, food_name, serving_id, quantity, unit, cal, fat, carbs, protein, updated_at, deleted_at
     FROM food_log_items WHERE log_id = $1
 `
-	var entry []*models.FoodLogEntry
+	var entries []*models.FoodLogEntry
 	rows, err := tx.QueryContext(ctx, queryFoodLogEntries, logId)
 	if err != nil {
 		return nil, err
 	}
-
+	defer rows.Close()
 	for rows.Next() {
 		entry := &models.FoodLogEntry{}
-		rows.Scan(
+		scanErr := rows.Scan(
 			&entry.ID,
 			&entry.LogId,
 			&entry.FoodId,
@@ -643,11 +649,18 @@ func (us *postgressUserRepo) GetUserFoodLogEntriesByLogId(ctx context.Context, t
 			&entry.Carbs,
 			&entry.Protein,
 			&entry.UpdatedAt,
-			entry.DeletedAt,
+			&entry.DeletedAt,
 		)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		entries = append(entries, entry)
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
 	}
 
-	return entry, nil
+	return entries, nil
 
 }
 
