@@ -2,20 +2,18 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"log"
 	"log/slog"
-	"main/internal/auth/providers"
+	auth "main/internal/auth/providers"
+	"main/internal/database"
 	"main/internal/handlers"
 	"main/internal/llm"
 	"main/internal/models"
 	"main/internal/service"
 	"main/internal/store"
 	"os"
-	"time"
 
 	_ "github.com/lib/pq" // The underscore is required
-	"github.com/pressly/goose/v3"
 )
 
 func main() {
@@ -44,24 +42,8 @@ func main() {
 	llmHandler := handlers.NewLLMHandler(*llmService)
 
 	// Setting up User Store, Service and Handler
-	connString, ok := os.LookupEnv("DATABASE_URL")
-	if !ok {
-		slog.Error("Error: Missing env variable", "key", "DATABASE_URL")
-		os.Exit(1)
-	}
-	db, err := sql.Open("postgres", connString)
-	if err != nil {
-		slog.Error(err.Error())
-		os.Exit(1)
-	}
-	CheckDBConnection(db)
-	if err := goose.SetDialect("postgres"); err != nil {
-		log.Fatal("Couldnt set goose dialect:", err.Error())
-	}
-	if err := goose.Up(db, "./migrations"); err != nil {
-		slog.Error("Error: Migrations Failed", "message", err.Error())
-		os.Exit(1)
-	}
+
+	db := database.ConnectDatabase()
 	userStore := store.NewPostgressUserStore(db)
 	gitHubClientID, ok := os.LookupEnv("GIT_CLIENT_ID")
 	if !ok {
@@ -157,21 +139,4 @@ func main() {
 	// Running Application
 	mux := app.mount()
 	log.Fatal(app.run(mux))
-}
-
-func CheckDBConnection(db *sql.DB) {
-	connected := false
-	for range 10 {
-		err := db.Ping()
-		if err == nil {
-			connected = true
-			break
-		}
-		slog.Info("Waiting for database connection...")
-		time.Sleep(3 * time.Second)
-	}
-	if !connected {
-		slog.Error("Error: Could not connect to database after 30sec")
-		os.Exit(1)
-	}
 }
