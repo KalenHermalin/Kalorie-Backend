@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"os"
 	"time"
+
+	_ "github.com/lib/pq" // The underscore is required
 )
 
 func ConnectDatabase() *sql.DB {
