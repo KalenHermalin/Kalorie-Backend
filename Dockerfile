@@ -16,7 +16,9 @@ COPY . .
 
 # Compile the binary
 # CGO_ENABLED=0 ensures a portable, static binary
-RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/...
+RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/.
+RUN CGO_ENABLED=0 GOOS=linux go build -o migrate ./cmd/migrate/.
+
 
 # Stage 2: Runtime
 FROM alpine:latest
@@ -31,6 +33,7 @@ COPY --from=builder /app/migrations /root/migrations/
 COPY --from=builder /app/docs /root/docs/
 # Copy the binary from the builder stage
 COPY --from=builder /app/main .
+COPY --from=builder /app/migrate .
 
 # Heroku will assign a dynamic $PORT; your code must use os.Getenv("PORT")
 CMD ["./main"]
