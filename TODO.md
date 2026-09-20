@@ -59,19 +59,12 @@ deliberately left even though they're also currently unused — see the low-prio
   after the loop and returning its own value).
   [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L399). *(uncommitted)*
 
-- [ ] **`GetUserFoodLogEntriesByLogId` never returns any rows — and has more than one thing wrong with it.**
-  [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L608)
-  **Symptom:** same empty-list symptom as above. If you go looking for "where does it append to
-  the result slice" the way you would for the previous bug, you'll find something that looks
-  like it should work but doesn't — that's a second, sneakier issue layered on top of the first.
-  There's also a subtle scan issue on the very last column, similar in flavor to a bug elsewhere
-  in this same file where a nullable timestamp column is scanned incorrectly.
-  **Hint:** two separate questions to answer here: (1) the variable declared *inside* the loop —
-  does its name collide with something declared *outside* the loop? If so, which one does Go
-  actually treat as "the same variable" at each point in the function, and which one gets
-  returned at the very end? (2) for the `deleted_at` column specifically, compare how it's passed
-  to `Scan` here versus how every other nullable timestamp column is passed to `Scan` anywhere
-  else in this file — one extra character is missing.
+- [x] ~~`GetUserFoodLogEntriesByLogId` never returns any rows — and has more than one thing wrong with it.~~
+  All fixed: the outer slice was renamed to `entries` so it's no longer shadowed by the loop's
+  `entry` variable, each scanned row is appended, the `deleted_at` scan now correctly passes
+  `&entry.DeletedAt`, the scan error is checked, `rows.Err()` is checked after the loop, and
+  `rows.Close()` is deferred. Matches `GetUserWeightLogs`'s pattern exactly now.
+  [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L620). *(uncommitted)*
 
 - [x] ~~Gemini calls ignore the request's timeout~~ — fixed in
   [internal/llm/gemini.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/llm/gemini.go). *(uncommitted)*
@@ -95,26 +88,34 @@ deliberately left even though they're also currently unused — see the low-prio
   function runs vs. the query the login path's equivalent function runs. Decide: is fetching one
   more column worth it for a field this endpoint doesn't strictly need?
 
-- [ ] **`UpsertUserExerciseSets` — synced weight changes don't stick.**
-  [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L364) (the `INSERT ... ON CONFLICT` statement)
-  **Symptom:** sync an exercise set, then sync the *same* set id again later with a different
-  weight (and a newer `updated_at`, so it's not being rejected as stale). Reps and set number
-  update fine. Weight silently stays at whatever it was the first time.
-  **Hint:** look at the full list of columns the "on conflict, update these" clause actually
-  updates, versus the full list of columns being inserted. One column is present in the insert
-  but absent from the update list — is that intentional?
+- [x] ~~`UpsertUserExerciseSets` — synced weight changes don't stick.~~ Fixed: `weight =
+  EXCLUDED.weight` added to the `DO UPDATE SET` list.
+  [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L363).
+  Verified against a real Postgres, not just by reading the SQL: upserted a set at weight 100,
+  upserted the same id again at weight 150 with a later `updated_at`, fetched it back — came
+  back as 150. *(uncommitted)*
 
-- [ ] **`GetUserExerciseLogs` / `GetUserFoodLogs` — one query per log, not one query total.**
-  [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L258)
-  has a `// TODO: Fix like done for the food logs` comment sitting on it — but
-  [`GetUserFoodLogs`](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L452)
-  has the identical shape, so there's no "done" version to copy from.
-  **Symptom:** not a correctness bug — a scaling one. A user with 50 exercise logs triggers 51
-  separate database round-trips on a single sync request.
-  **Hint:** both functions fetch the parent rows, then loop over them fetching each one's
-  children individually. Could the children for *all* parents be fetched in one single query
-  instead (there's a SQL construct for "give me all rows whose foreign key is in this list of
-  ids"), then matched back up to their parents afterward in Go?
+- [x] ~~`GetUserExerciseLogs` — one query per log, not one query total.~~ Fixed: rewritten to
+  fetch all parent logs, then all their sets in one `WHERE log_id = ANY($1)` query, grouped
+  back onto their parent logs via a `map[string][]*models.ExerciseSet`.
+  [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L263).
+  Verified against a real Postgres: a log with 2 sets (one soft-deleted) grouped correctly, a
+  log with 0 sets came back with an empty (not nil-panicking) slice, and a user with 0 exercise
+  logs at all didn't error on the `ANY($1)` query with an empty id list. *(uncommitted)*
+  Leftover: the stale `// TODO: Fix like done for the food logs` comment on line 262 now reads
+  backwards — it's `GetUserFoodLogs` that needs to catch up to this one, not the other way
+  around — worth updating/removing once `GetUserFoodLogs` gets the same treatment below.
+
+- [x] ~~`GetUserFoodLogs` — one query per log, not one query total.~~ Fixed: same shape as the
+  `GetUserExerciseLogs` fix above — all parent logs fetched, then all their entries in one
+  `WHERE log_id = ANY($1)` query, grouped back via a `map[string][]*models.FoodLogEntry`.
+  [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L467).
+  First pass didn't compile (`rows, err := ...` on the second query redeclared both vars already
+  in scope from the first query, same file/function shape as the exercise-logs one avoided) —
+  fixed. Verified against a real Postgres: a log with 2 entries (one soft-deleted) grouped
+  correctly, a log with 0 entries came back with an empty (not nil) slice, and a user with 0 food
+  logs at all didn't error on the `ANY($1)` query with an empty id list. `go build ./...` clean.
+  *(uncommitted)*
 
 - [ ] **Inconsistent handling of "no row found" across similar methods.**
   Compare
@@ -188,10 +189,19 @@ deliberately left even though they're also currently unused — see the low-prio
   of the two functions is identical setup code before they diverge?
 - [ ] Decide what to do with the abandoned `port-python-fastapi` branch on GitHub. Keep it,
   tag it for the record, or delete it.
-- [ ] `heroku.yml` has no `release:` phase — migrations run inline on every dyno boot, which is
-  only a real problem once you're running more than one web dyno at a time (simultaneous boots
-  could race on a brand-new migration file). Not a current issue; worth remembering if the dyno
-  count ever changes.
+- [x] ~~`heroku.yml` has no `release:` phase — migrations run inline on every dyno boot.~~ Fixed:
+  migrations moved into a dedicated `cmd/migrate` binary
+  ([internal/database/db.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/database/db.go)
+  now only connects/pings; `goose.SetDialect`/`goose.Up` live solely in
+  [cmd/migrate/main.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/cmd/migrate/main.go)),
+  [Dockerfile](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/Dockerfile) builds both
+  `main` and `migrate` binaries into the same image, and
+  [heroku.yml](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/heroku.yml) runs
+  `release: image: web, command: [./migrate]`. Verified by actually running `docker build` +
+  `docker run` on the built image: both binaries present and executable, `./migrate` runs and
+  correctly errors on a missing `DATABASE_URL` rather than failing to execute. Web dynos no
+  longer touch `goose` at all, so this is also safe now if the dyno count ever goes above 1.
+  *(uncommitted)*
 - [ ] `AppleProvider.platform` is always `""` today. Not a problem — just noting it in case
   Apple's flow ever needs to diverge per-platform the way Google's does.
 - [ ] Get real Apple Developer credentials configured (`APPLE_CLIENT_ID`, `APPLE_TEAM_ID`,
