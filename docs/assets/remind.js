@@ -55,7 +55,7 @@
         form.reset();
       })
       .catch(function () {
-        setStatus('Something went wrong. Try again, or email dev.kalenhermalin@gmail.com directly.', 'error');
+        setStatus('Something went wrong. Try again, or email support@kalorie.fit directly.', 'error');
       })
       .finally(function () {
         submitButton.disabled = false;
