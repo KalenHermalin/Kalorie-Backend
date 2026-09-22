@@ -562,9 +562,11 @@ Analyzes an image of food to estimate nutritional information.
 **Request Body:**
 ```JSON
 {
-    "picture": string (base64 encoded bytes)
+    "picture": string (base64 encoded bytes),
+    "description": string (optional)
 }
 ```
+`description` is optional free text passed alongside the image to the model as extra context (e.g. "grilled, no oil" or a portion estimate) - omit it or send an empty string if there's nothing to add.
 **Success (200 OK):** Returns the estimated nutritional content of the food in the image.
 ```JSON
 {

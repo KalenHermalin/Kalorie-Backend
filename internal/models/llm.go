@@ -23,5 +23,5 @@ type MealPayload struct {
 }
 type LLMProvider interface {
 	AnalyzeLabel(ctx context.Context, picture []byte, systemPrompt string) (*LabelPayload, error)
-	AnalyzePicture(ctx context.Context, picture []byte, systemPrompt string) (*MealPayload, error)
+	AnalyzePicture(ctx context.Context, picture []byte, description, systemPrompt string) (*MealPayload, error)
 }
