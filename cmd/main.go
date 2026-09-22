@@ -40,11 +40,11 @@ func main() {
 	}
 	llmService := service.NewLLMService(gemini)
 	llmHandler := handlers.NewLLMHandler(*llmService)
-
 	// Setting up User Store, Service and Handler
 
 	db := database.ConnectDatabase()
 	userStore := store.NewPostgressUserStore(db)
+	remindStore := store.NewRemindMeStore(db)
 	gitHubClientID, ok := os.LookupEnv("GIT_CLIENT_ID")
 	if !ok {
 		slog.Error("Error: Missing env variable", "key", "GIT_CLIENT_ID")
@@ -117,7 +117,7 @@ func main() {
 	// Setting up System Handler
 	systemHandler := handlers.NewSystemHander()
 	// Setting up Docs Handler (static marketing/support/privacy pages)
-	docsHandler := handlers.NewDocsHandler("./docs")
+	docsHandler := handlers.NewDocsHandler("./docs", remindStore)
 	addr, ok := os.LookupEnv("PORT")
 	if !ok {
 		slog.Error("Error: Missing env variable", "key", "PORT")

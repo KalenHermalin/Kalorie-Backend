@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"main/internal/handlers"
 	"main/internal/middlewares"
 	"net/http"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 type application struct {
@@ -32,9 +33,6 @@ func (app *application) mount() http.Handler {
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
 	mux.Use(middleware.Timeout(time.Minute))
-	mux.Post("/auth/login", app.authHandler.HandleLoginSignup)
-	mux.Post("/auth/refresh", app.authHandler.HandleRefresh)
-	mux.Get("/system/health", app.systemHandler.HealthHandler)
 
 	// Static marketing/support/privacy pages (./docs) - public, no auth.
 	mux.Get("/", app.docsHandler.IndexPage)
@@ -44,27 +42,37 @@ func (app *application) mount() http.Handler {
 	mux.Get("/privacy", app.docsHandler.PrivacyPage)
 	mux.Get("/privacy.html", app.docsHandler.PrivacyPage)
 	mux.Handle("/assets/*", http.StripPrefix("/assets/", http.FileServer(http.Dir("./docs/assets"))))
-	mux.Route("/auth", func(r chi.Router) {
-		r.Use(middlewares.Auth(app.config.jwtAccessSecret))
-		r.Post("/logout", app.authHandler.HandleLogOut)
-	})
-	mux.Route("/v1", func(r chi.Router) {
-		r.Use(middlewares.Auth(app.config.jwtAccessSecret))
 
-		r.Put("/settings/sync", app.userHandler.EgressSyncSettings)
-		r.Get("/settings/sync", app.userHandler.IngressSyncSettings)
+	mux.Route("/api", func(r chi.Router) {
+		r.Get("/system/health", app.systemHandler.HealthHandler)
+		r.Post("/waitlist", app.docsHandler.RemindMe)
+		r.Route("/auth", func(r chi.Router) {
+			r.Post("/login", app.authHandler.HandleLoginSignup)
+			r.Post("/refresh", app.authHandler.HandleRefresh)
+			r.Group(func(r chi.Router) {
+				r.Use(middlewares.Auth(app.config.jwtAccessSecret))
+				r.Post("/logout", app.authHandler.HandleLogOut)
 
-		r.Put("/weight-logs/sync", app.userHandler.EgressSyncWeightLogs)
-		r.Get("/weight-logs/sync", app.userHandler.IngressSyncWeightLogs)
+			})
+		})
+		r.Route("/v1", func(r chi.Router) {
+			r.Use(middlewares.Auth(app.config.jwtAccessSecret))
 
-		r.Put("/food-logs/sync", app.userHandler.EgressSyncFoodLogs)
-		r.Get("/food-logs/sync", app.userHandler.IngressSyncFoodLogs)
+			r.Put("/settings/sync", app.userHandler.EgressSyncSettings)
+			r.Get("/settings/sync", app.userHandler.IngressSyncSettings)
 
-		r.Put("/exercise-logs/sync", app.userHandler.EgressSyncExerciseLogs)
-		r.Get("/exercise-logs/sync", app.userHandler.IngressSyncExerciseLogs)
+			r.Put("/weight-logs/sync", app.userHandler.EgressSyncWeightLogs)
+			r.Get("/weight-logs/sync", app.userHandler.IngressSyncWeightLogs)
 
-		r.Post("/analyze/food", app.llmHandler.AnalyzeFoodHandler)
-		r.Post("/analyze/label", app.llmHandler.AnalyzeLabelHandler)
+			r.Put("/food-logs/sync", app.userHandler.EgressSyncFoodLogs)
+			r.Get("/food-logs/sync", app.userHandler.IngressSyncFoodLogs)
+
+			r.Put("/exercise-logs/sync", app.userHandler.EgressSyncExerciseLogs)
+			r.Get("/exercise-logs/sync", app.userHandler.IngressSyncExerciseLogs)
+
+			r.Post("/analyze/food", app.llmHandler.AnalyzeFoodHandler)
+			r.Post("/analyze/label", app.llmHandler.AnalyzeLabelHandler)
+		})
 	})
 	return mux
 }
