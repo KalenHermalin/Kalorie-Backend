@@ -20,14 +20,15 @@ func NewLLMHandler(llm service.LLMService) *LLMHandler {
 	return &LLMHandler{llmService: llm}
 }
 
-type analayzeRequestPayload struct {
-	Picture []byte `json:"picture"`
+type analayzeFoodRequestPayload struct {
+	Picture     []byte `json:"picture"`
+	Description string `json:"description"`
 }
 
 func (handler *LLMHandler) AnalyzeFoodHandler(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "application/json")
 
-	var requestData analayzeRequestPayload
+	var requestData analayzeFoodRequestPayload
 	if err := utils.DecodePayload(request.Body, &requestData); err != nil {
 		// Bad Request because all we did was decode it and got an error meaning invalid JSON
 		slog.Error("Error: decoding analyze food body", "error", err.Error())
@@ -38,7 +39,7 @@ func (handler *LLMHandler) AnalyzeFoodHandler(writer http.ResponseWriter, reques
 	ctx := request.Context()
 	ctx, cancel := context.WithTimeout(ctx, time.Second*15)
 	defer cancel()
-	payload, err := handler.llmService.Provider.AnalyzePicture(ctx, requestData.Picture, utils.ANALYZEFOODSYSTEMPROMPT)
+	payload, err := handler.llmService.Provider.AnalyzePicture(ctx, requestData.Picture, requestData.Description, utils.ANALYZEFOODSYSTEMPROMPT)
 	if err != nil {
 		var appErr *apperrors.AppError
 		if errors.As(err, &appErr) {
@@ -52,6 +53,10 @@ func (handler *LLMHandler) AnalyzeFoodHandler(writer http.ResponseWriter, reques
 	}
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(payload)
+}
+
+type analayzeRequestPayload struct {
+	Picture []byte `json:"picture"`
 }
 
 func (handler *LLMHandler) AnalyzeLabelHandler(writer http.ResponseWriter, request *http.Request) {
