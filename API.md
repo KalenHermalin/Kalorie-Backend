@@ -1,22 +1,24 @@
 # Kalorie API Documentation
 ## Overview
-This is an internal API for the Kalorie fitness tracking app. The server is built in Go and currently deployed on Heroku
+This is an internal API for the Kalorie fitness tracking app. The server is built in Go and deployed on Heroku via a pipeline with separate staging and production apps, each with its own database.
 
 ## Connection Information
 **Base URL (dev:)** `http://192.168.118.216:8080/`
-**Base URL (Production):** `https://kalorie-c04921684a0b.herokuapp.com/`
+**Base URL (Staging):** `https://staging.kalorie.fit/`
+**Base URL (Production):** `https://kalorie.fit/`
 
 ## Authentication
 Most endpoints require a **JWT Access Token** to be sent in the header
 
 | Header | Value | Description |
 |--------|-------|-------------|
-|Authorization| Bearer <access_token>| Use the token received from the `/auth/login` or `/auth/refresh` endpoint.|
+|Authorization| Bearer <access_token>| Use the token received from the `/api/auth/login` or `/api/auth/refresh` endpoint.|
 
 The following endpoints do not require authorization:  
-`/auth/login`  
-`/system/health`  
-`/auth/refresh` -> note it needs a valid refresh token in the request body
+`/api/auth/login`  
+`/api/system/health`  
+`/api/auth/refresh` -> note it needs a valid refresh token in the request body  
+`/api/waitlist`
 
 ## Error Codes
 All endpoints will return a standardized `AppError` object when something goes wrong. The `AppError` object has the form of: 
@@ -31,7 +33,7 @@ All endpoints will return a standardized `AppError` object when something goes w
 
 ### Authentication Endpoints
 #### Login / Sign up
-**Path:** `POST /auth/login`
+**Path:** `POST /api/auth/login`
 
 This endpoint handles both registration and login. If the user doesn't exist, they are created with this request.  
 **Request Body:** 
@@ -65,7 +67,7 @@ Note that provider can only be one of the setup providers. This includes `github
 - **500 Internal Server Error:** Indicates an internal error with the auth service or auth providers
 
 #### Refresh
-**Path:** `POST /auth/refresh` 
+**Path:** `POST /api/auth/refresh` 
 
 This endpoints takes in a valid refresh token and generates a new set of access token and refresh token for the user. Making the old refresh token invalid.  
 **Request Body:**
@@ -87,14 +89,14 @@ This endpoints takes in a valid refresh token and generates a new set of access 
     }
 }
 ```
-**Note:** unlike `/auth/login`, this endpoint does not re-fetch the account's creation timestamp from the database - `user.created_at` on a refresh response is always the zero-value Go timestamp (`"0001-01-01T00:00:00Z"`), not the account's real creation date. `user.id` and `user.email` are always accurate. Don't rely on `created_at` here if you need the real value; re-fetch it another way, or only trust it from `/auth/login`.
+**Note:** unlike `/api/auth/login`, this endpoint does not re-fetch the account's creation timestamp from the database - `user.created_at` on a refresh response is always the zero-value Go timestamp (`"0001-01-01T00:00:00Z"`), not the account's real creation date. `user.id` and `user.email` are always accurate. Don't rely on `created_at` here if you need the real value; re-fetch it another way, or only trust it from `/api/auth/login`.
 
 **Errors:**
 - **400 Bad Request:** If the request body could not be decoded
 - **401 Unauthorized:** If the refresh token is expired, invalid or not found in database
 
 #### Logout
-**Path:** `POST /auth/logout`
+**Path:** `POST /api/auth/logout`
 
 This endpoint invalidates the user's session by deleting the provided refresh token.  
 **Request Body:**
@@ -115,7 +117,7 @@ Success
 ### Settings Endpoints
 
 #### Egress Sync Settings (esync)
-**Path:** `PUT /v1/settings/sync`
+**Path:** `PUT /api/v1/settings/sync`
 
 Pushes updated settings to the server on application close or pause. If the server already has a newer version, a conflict is returned with the latest settings.  
 
@@ -160,7 +162,7 @@ Pushes updated settings to the server on application close or pause. If the serv
 - **500 Internal Server Error:** If there is an error updating or fetching settings.
 
 #### Ingress Sync Settings (isync)
-**Path:** `GET /v1/settings/sync?last_synced_at=<RFC3339 timestamp>`
+**Path:** `GET /api/v1/settings/sync?last_synced_at=<RFC3339 timestamp>`
 
 Fetches the most up-to-date settings based on the last synced date. If the server has a newer version, it is returned. If not, a 304 is returned.  
 
@@ -192,7 +194,7 @@ Fetches the most up-to-date settings based on the last synced date. If the serve
 ### Weight Log Endpoints
 
 #### Egress Sync Weight Logs
-**Path:** `PUT /v1/weight-logs/sync`
+**Path:** `PUT /api/v1/weight-logs/sync`
 
 Pushes weight log updates to the server. Each log is upserted and judged independently (one log
 failing to sync has no effect on the others) - the response always reports exactly what happened
@@ -251,7 +253,7 @@ already has the full data for whatever it sent, so only the id is needed to know
   `failed_logs` on a `207` rather than failing the whole request.
 
 #### Ingress Sync Weight Logs
-**Path:** `GET /v1/weight-logs/sync?last_synced_at=<RFC3339 timestamp>`
+**Path:** `GET /api/v1/weight-logs/sync?last_synced_at=<RFC3339 timestamp>`
 
 Fetches weight logs updated since the last synced date.
 
@@ -276,7 +278,7 @@ Fetches weight logs updated since the last synced date.
 ### Food Log Endpoints
 
 #### Egress Sync Food Logs
-**Path:** `PUT /v1/food-logs/sync`
+**Path:** `PUT /api/v1/food-logs/sync`
 
 Pushes food log updates to the server. The server will upsert each log and entry and may return partial success when some logs fail.
 
@@ -384,7 +386,7 @@ Pushes food log updates to the server. The server will upsert each log and entry
 - **500 Internal Server Error:** If there is an error updating food logs.
 
 #### Ingress Sync Food Logs
-**Path:** `GET /v1/food-logs/sync?last_synced_at=<RFC3339 timestamp>`
+**Path:** `GET /api/v1/food-logs/sync?last_synced_at=<RFC3339 timestamp>`
 
 Fetches food logs updated since the last synced date.
 
@@ -429,7 +431,7 @@ Fetches food logs updated since the last synced date.
 ### Exercise Log Endpoints
 
 #### Egress Sync Exercise Logs
-**Path:** `PUT /v1/exercise-logs/sync`
+**Path:** `PUT /api/v1/exercise-logs/sync`
 
 Pushes exercise log updates to the server. The server will upsert each log and its sets and may return partial success when some logs fail.
 
@@ -516,7 +518,7 @@ Pushes exercise log updates to the server. The server will upsert each log and i
 - **500 Internal Server Error:** If there is an error updating exercise logs.
 
 #### Ingress Sync Exercise Logs
-**Path:** `GET /v1/exercise-logs/sync?last_synced_at=<RFC3339 timestamp>`
+**Path:** `GET /api/v1/exercise-logs/sync?last_synced_at=<RFC3339 timestamp>`
 
 Fetches exercise logs updated since the last synced date.
 
@@ -554,7 +556,7 @@ Fetches exercise logs updated since the last synced date.
 ### Analysis Endpoints
 
 #### Analyze Food
-**Path:** `POST /v1/analyze/food`
+**Path:** `POST /api/v1/analyze/food`
 
 Analyzes an image of food to estimate nutritional information.  
 **Request Body:**
@@ -578,7 +580,7 @@ Analyzes an image of food to estimate nutritional information.
 - **500 Internal Server Error:** If there is an error with the analysis service.
 
 #### Analyze Label
-**Path:** `POST /v1/analyze/label`
+**Path:** `POST /api/v1/analyze/label`
 
 Analyzes an image of a nutrition label to extract nutritional information.  
 **Request Body:**
@@ -604,10 +606,35 @@ Analyzes an image of a nutrition label to extract nutritional information.
 - **400 Bad Request:** If the request body is invalid or the image cannot be processed.
 - **500 Internal Server Error:** If there is an error with the analysis service.
 
+### Waitlist Endpoints
+
+#### Remind Me
+**Path:** `POST /api/waitlist`
+
+Registers an email address to be notified when the app releases. Public endpoint — no access token required. There is no automated email sent yet; addresses are collected here to be exported and emailed manually later.
+
+**Request Body:**
+```JSON
+{
+    "email": string
+}
+```
+**Success (200 OK):** Returns an empty body.
+
+**Conflict (409):** Returned if the email is already on the list.
+```JSON
+{
+    "code": "ERR_ALREADY_ON_LIST",
+    "message": "You're already on the list"
+}
+```
+**Errors:**
+- **400 Bad Request:** If the request body could not be decoded, or if storing the email fails for any reason other than it already being registered.
+
 ### System Endpoints
 
 #### Health
-**Path:** `GET /system/health`
+**Path:** `GET /api/system/health`
 
 Simple health check.
 
