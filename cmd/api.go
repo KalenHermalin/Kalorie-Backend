@@ -52,6 +52,7 @@ func (app *application) mount() http.Handler {
 			r.Group(func(r chi.Router) {
 				r.Use(middlewares.Auth(app.config.jwtAccessSecret))
 				r.Post("/logout", app.authHandler.HandleLogOut)
+				r.Delete("/account", app.authHandler.HandleDeleteUser)
 
 			})
 		})

@@ -114,6 +114,22 @@ Success
 - **401 Unauthorized:** If the user's token is invalid.
 - **500 Internal Server Error:** If there is an error deleting the token.
 
+#### Delete Account
+**Path:** `DELETE /api/auth/account`
+
+Permanently deletes the authenticated user's account and all associated data (settings, weight logs, food logs, exercise logs, refresh tokens). This cannot be undone.
+
+**Request Body:** None.
+
+**Success (200 OK):** Returns a simple success message.
+```text
+Success
+```
+**Errors:**
+- **401 Unauthorized:** If the access token is missing or invalid.
+- **404 Not Found:** If the user no longer exists.
+- **500 Internal Server Error:** If there is an error deleting the account.
+
 ### Settings Endpoints
 
 #### Egress Sync Settings (esync)
