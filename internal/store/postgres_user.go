@@ -83,6 +83,20 @@ func (us *postgressUserRepo) UpsertUserWithAuth(ctx context.Context, tx *sql.Tx,
 	return &user, nil
 }
 
+func (us *postgressUserRepo) DeleteUser(ctx context.Context, tx *sql.Tx, userID string) error {
+	deleteQuery := `DELETE FROM users WHERE id = $1`
+	res, err := tx.ExecContext(ctx, deleteQuery, userID)
+	if err != nil {
+		return err
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return ErrNoRowsAffected
+	}
+	return nil
+
+}
+
 func (us *postgressUserRepo) UpsertUserWeightLog(ctx context.Context, tx *sql.Tx, userId string, payload *models.WeightLog) error {
 	query := `
         INSERT INTO weight_logs (id, user_id, weight_kg, log_date, updated_at, deleted_at)

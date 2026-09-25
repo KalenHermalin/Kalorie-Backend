@@ -89,6 +89,29 @@ func (ah *AuthHandler) HandleLogOut(writer http.ResponseWriter, request *http.Re
 	writer.WriteHeader(http.StatusOK)
 	writer.Write([]byte("Success"))
 }
+
+func (ah *AuthHandler) HandleDeleteUser(writer http.ResponseWriter, request *http.Request) {
+	userId, ok := request.Context().Value(middlewares.UserIDKey).(string)
+	if !ok {
+		apperrors.WriteError(writer, *apperrors.ErrUnauthoirized)
+		return
+	}
+	err := ah.auth.DeleteUser(request.Context(), userId)
+	if err != nil {
+		var appErr *apperrors.AppError
+		if errors.As(err, &appErr) {
+			apperrors.WriteError(writer, *appErr)
+			return
+
+		}
+
+		slog.Error("delete user had an error", "error", err.Error())
+		apperrors.WriteError(writer, *apperrors.NewAppError("ERR_DELETE_FAILED", "Unkown delete error occured. Please try again in a few", http.StatusInternalServerError))
+		return
+	}
+	writer.WriteHeader(http.StatusOK)
+	writer.Write([]byte("Success"))
+}
 func (ah *AuthHandler) HandleLoginSignup(writer http.ResponseWriter, request *http.Request) {
 
 	var requestData authRequestBody

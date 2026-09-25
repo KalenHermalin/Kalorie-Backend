@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log/slog"
 	"main/internal/apperrors"
 	"main/internal/auth"
 	"main/internal/models"
+	"main/internal/store"
 	"net/http"
 	"time"
 
@@ -35,6 +37,22 @@ func (as *AuthService) LogOut(ctx context.Context, userId, token string) error {
 		return nil
 	})
 	return err
+}
+
+func (as *AuthService) DeleteUser(ctx context.Context, userId string) error {
+	err := as.us.WithTx(ctx, func(tx *sql.Tx) error {
+		deleteError := as.us.DeleteUser(ctx, tx, userId)
+		return deleteError
+
+	})
+
+	if err != nil {
+		if errors.Is(err, store.ErrNoRowsAffected) {
+			return apperrors.NewAppError("ERR_DELETEING_USER", "UserID does not exist", 404)
+		}
+		return apperrors.ErrInternalServer
+	}
+	return nil
 }
 func (as *AuthService) RefreshAccessToken(ctx context.Context, refresh string) (*models.AuthResponse, error) {
 
