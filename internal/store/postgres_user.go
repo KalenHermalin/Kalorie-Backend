@@ -29,13 +29,13 @@ func (us *postgressUserRepo) SaveRefreshToken(ctx context.Context, tx *sql.Tx, r
 }
 func (us *postgressUserRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string) (*models.User, error) {
 	query := `
-        SELECT u.id, u.email 
+        SELECT u.id, u.email, u.created_at
         FROM users u
         JOIN refresh_tokens rt ON u.id = rt.user_id
         WHERE rt.token = $1 AND rt.expires_at > NOW()`
 
 	user := &models.User{}
-	err := tx.QueryRowContext(ctx, query, refresh).Scan(&user.ID, &user.Email)
+	err := tx.QueryRowContext(ctx, query, refresh).Scan(&user.ID, &user.Email, &user.CreatedAt)
 	if err != nil {
 		return nil, err
 	}

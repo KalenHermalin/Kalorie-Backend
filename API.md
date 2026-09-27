@@ -89,7 +89,7 @@ This endpoints takes in a valid refresh token and generates a new set of access 
     }
 }
 ```
-**Note:** unlike `/api/auth/login`, this endpoint does not re-fetch the account's creation timestamp from the database - `user.created_at` on a refresh response is always the zero-value Go timestamp (`"0001-01-01T00:00:00Z"`), not the account's real creation date. `user.id` and `user.email` are always accurate. Don't rely on `created_at` here if you need the real value; re-fetch it another way, or only trust it from `/api/auth/login`.
+`user.created_at` is the account's real creation timestamp here too, same as `/api/auth/login`.
 
 **Errors:**
 - **400 Bad Request:** If the request body could not be decoded

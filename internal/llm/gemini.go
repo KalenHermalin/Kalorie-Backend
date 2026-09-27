@@ -36,7 +36,10 @@ func (gm *GeminiProvider) AnalyzePicture(ctx context.Context, picture []byte, de
 	//TODO: Seperate concerns, meaning build the genAI parts in sub function and return?
 	userParts := []*genai.Part{
 		{InlineData: &genai.Blob{Data: picture, MIMEType: "image/jpeg"}},
-		{Text: description},
+	}
+	if len(strings.TrimSpace(description)) > 0 {
+		userParts = append(userParts, &genai.Part{Text: description})
+
 	}
 	var systemParts []*genai.Part
 	if len(strings.TrimSpace(systemPrompt)) > 0 {
