@@ -31,6 +31,20 @@ deliberately left even though they're also currently unused — see the low-prio
   the interface requires has no stub on the mock. The other stub methods on `MockUserRepo` show
   you the shape a new one needs (signature, trivial return values).
 
+- [ ] **`AnalyzeFood` fails for every request that leaves `description` blank — confirmed live in
+  production logs.**
+  [internal/llm/gemini.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/llm/gemini.go#L35)
+  (`AnalyzePicture`)
+  **Symptom:** production logs show `Error 400 ... required oneof field 'data' must have one
+  initialized field` from the Gemini API on `AnalyzeFood` calls. Since `description` is optional,
+  this hits whenever a client sends an empty one — likely most requests.
+  **Hint:** the `description` string always gets turned into its own `genai.Part{Text:
+  description}` and appended unconditionally, even when it's empty. I reproduced this directly:
+  marshaling a `genai.Part{Text: ""}` to JSON produces `{}` — a part with none of its oneof fields
+  set, which the Gemini API rejects outright. Compare against how `systemPrompt` — a few lines
+  below — builds its own `Part` slice just above this one; it doesn't have this problem. What does
+  it do differently before including its `Part`?
+
 ---
 
 ## 🟠 High priority (real correctness bugs)
@@ -69,6 +83,64 @@ deliberately left even though they're also currently unused — see the low-prio
 - [x] ~~Gemini calls ignore the request's timeout~~ — fixed in
   [internal/llm/gemini.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/llm/gemini.go). *(uncommitted)*
 
+- [ ] **"No food/label found" is indistinguishable from a real server crash.**
+  [internal/llm/gemini.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/llm/gemini.go#L82)
+  (`AnalyzePicture`, and the equivalent spot in `AnalyzeLabel`)
+  **Symptom:** point the camera at something that isn't food (or isn't a nutrition label) and the
+  client gets back `ERR_INTERNAL_SERVER` / "An internal server error occured" — the exact same
+  response a genuine crash would produce.
+  **Hint:** when Gemini reports `success: false`, this function returns a plain `errors.New(...)`
+  instead of an `*apperrors.AppError`. Trace what the handler's `errors.As` check does with a
+  plain error versus an `AppError` — that's why this specific, extremely common case loses its
+  identity by the time it reaches the client.
+
+- [ ] **Exercise/food log sync reports partial failures as a full success.**
+  [internal/handlers/user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/handlers/user.go#L217)
+  (`EgressSyncExerciseLogs`, and the identical spot in `EgressSyncFoodLogs`)
+  **Symptom:** compare this branch against `EgressSyncWeightLogs`'s equivalent partial-failure
+  case. Weight logs correctly send `207`. What status code does a client actually receive here
+  when some (not all) exercise or food logs fail to sync?
+  **Hint:** look for the `writer.WriteHeader(...)` call in this branch. Is there one?
+
+- [ ] **Exercise/food log failures say "weight log."**
+  [internal/service/user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/service/user.go#L213)
+  (and the mirrored code at `:312`, plus the `ERR_UPSERTING_WEIGHT_LOG` literal at `:218`/`:317`)
+  **Symptom:** trigger a partial or total sync failure on `/api/v1/exercise-logs/sync` or
+  `/api/v1/food-logs/sync` and read the `code`/`message` you get back closely.
+  **Hint:** this whole function looks like it started as a copy of the weight-log sync function.
+  What got copied that should have been renamed for this domain?
+
+- [ ] **`ERR_GENERATING_ACCESS_TOKEN` is used for refresh-token failures too.**
+  [internal/service/auth.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/service/auth.go#L92)
+  (four spots total: `SignIn` and `RefreshAccessToken` each have one for the access token and one
+  for the refresh token, and both use the same code)
+  **Symptom:** a client branching on `error.code` to decide what to tell the user can't
+  distinguish "we couldn't generate your access token" from "we couldn't generate your refresh
+  token" — both come back with the identical code.
+  **Hint:** read the `message` string right next to each of these four `NewAppError` calls versus
+  the `code` string a few characters before it. Do they agree with each other?
+
+- [ ] **A raw internal error string reaches the client.**
+  [internal/service/auth.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/service/auth.go#L34)
+  (`LogOut`)
+  **Symptom:** compare this one `NewAppError` call against every other error message in this file
+  and in `internal/handlers` — they're all fixed, hand-written strings. This one isn't.
+  **Hint:** what gets concatenated onto the end of `"error deleting refresh token: "`? Where does
+  that value come from, and is it something you'd want an end user to potentially see verbatim
+  (a raw driver/SQL error string)?
+
+- [ ] **The same "userId missing from context" bug means two different things depending on which
+  endpoint hits it.**
+  [internal/handlers/auth.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/handlers/auth.go#L94)
+  (`HandleDeleteUser`, and `HandleLogOut` just above it) vs. any of the 8 identical checks in
+  [internal/handlers/user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/handlers/user.go#L30)
+  **Symptom:** this exact same condition (the auth middleware failed to put a userId in the
+  request context — should never happen in practice) produces `ERR_UNAUTHORIZED` / 401 / "please
+  sign in again" in one file, and `ERR_MISSING_USER_ID` / 500 / an internal-error framing in the
+  other. A client can't build one consistent response to this bug because it looks like two
+  different bugs depending on which endpoint it hit.
+  **Hint:** pick one of these two conventions and make both files agree with it.
+
 ---
 
 ## 🟡 Medium priority (gaps, consistency, docs)
@@ -77,16 +149,15 @@ deliberately left even though they're also currently unused — see the low-prio
   parameter entirely (interface, implementation, mock, and both call sites all updated
   consistently). *(uncommitted)*
 
-- [ ] **`/auth/refresh`'s `user.created_at` is always the same suspicious-looking date.**
-  [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L30) (`FindRefreshToken`)
-  **Symptom:** hit `/auth/login` and `user.created_at` is a real, sensible date. Hit
-  `/auth/refresh` for the same account and `user.created_at` comes back as
-  `0001-01-01T00:00:00Z`. Already documented in
-  [API.md](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/API.md) as current
-  behavior — this is a "decide if you care" item, not a clear-cut bug.
-  **Hint:** compare exactly which columns get selected out of the `users` table in the query this
-  function runs vs. the query the login path's equivalent function runs. Decide: is fetching one
-  more column worth it for a field this endpoint doesn't strictly need?
+- [x] ~~`/auth/refresh`'s `user.created_at` is always the same suspicious-looking date.~~ Fixed:
+  `FindRefreshToken`'s query now selects `u.created_at` and scans it into `user.CreatedAt`.
+  [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L30).
+  First pass added the column to the `SELECT` but not to the matching `Scan(...)` call, which
+  broke the endpoint entirely (`sql: expected 3 destination arguments in Scan, not 2`) — caught
+  by actually running it, then fixed. Verified against a real Postgres: `FindRefreshToken` now
+  returns the account's real `created_at`, matching what was set at signup exactly.
+  [API.md](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/API.md) updated to drop the
+  old zero-value-date note. *(uncommitted)*
 
 - [x] ~~`UpsertUserExerciseSets` — synced weight changes don't stick.~~ Fixed: `weight =
   EXCLUDED.weight` added to the `DO UPDATE SET` list.
@@ -163,6 +234,28 @@ deliberately left even though they're also currently unused — see the low-prio
   of them? Same question for the error-unwrapping block that appears near the end of every one
   of the 8 handlers.
 
+- [ ] **`RemindMe` tells the user their request was invalid when the real problem is a server-side
+  failure.**
+  [internal/handlers/docs.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/handlers/docs.go#L59)
+  **Symptom:** the duplicate-email case is handled specifically (409), but anything else that goes
+  wrong storing the email — a DB error, a connection blip — falls back to `ERR_INVALID_REQUEST` /
+  400, the same response a malformed JSON body gets.
+  **Hint:** is a database failure actually the client's fault? What status code and code name would
+  more accurately describe "we failed on our end," and how do other handlers in this codebase
+  distinguish that case from a bad request?
+
+- [ ] **A JSON field typed as Go's `error` interface — works today, but only by accident.**
+  [internal/handlers/user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/handlers/user.go#L196)
+  (`SyncExerciseLogsResponse.Err`, and the identical field on `SyncFoodLogsResponse`)
+  **Symptom:** not broken yet. I tested it directly: `json.Marshal` on this field only produces
+  something useful (`{"code":..., "message":...}`) because the one error type ever assigned to it
+  today (`apperrors.ErrSoftWeightLog`) happens to be an exported struct with its own JSON tags.
+  **Hint:** what would `json.Marshal` produce for this field if some future code assigned it a
+  plain `errors.New(...)` instead — the same kind of error several other functions in this
+  codebase already return? (I checked: it's `{}` — silently empty, no code, no message.) Is a Go
+  `error` interface the right type for a field that's going to be JSON-encoded and read by a
+  client?
+
 ---
 
 ## 🟢 Low priority (cleanup, dead code, nice-to-haves)
@@ -170,6 +263,21 @@ deliberately left even though they're also currently unused — see the low-prio
 - [x] ~~`internal/env/env.go`'s `GetString` unused~~ — package deleted entirely.
 - [x] ~~`Nutrients`/`Portion`/`searchResponse` dead structs~~ — removed from `cmd/main.go`.
 - [x] ~~`models.Provider` struct unused~~ — removed from `internal/models/user.go`.
+- [ ] **Typos baked into shipped, user-facing error text and error codes.** Worth a pass before
+  any of these are relied on by a client you can't update independently of this server —
+  fixing the `message` text later is free, but changing a `code` string a client already
+  branches on is a breaking change.
+  - "presists"/"presist" instead of "persists" —
+    [internal/service/auth.go:92](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/service/auth.go#L92),
+    `:98`, `:104`, `:146`, `:153`
+  - "yout" instead of "your" —
+    [internal/apperrors/errors.go:106](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/apperrors/errors.go#L106)
+    (`ErrSoftWeightLog`'s message)
+  - Typos in the error *codes* themselves, not just messages —
+    `ERR_DELETEING_USER` in
+    [internal/service/auth.go:51](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/service/auth.go#L51)
+    and `ERR_SOFT_UPSETING_WEIGHT_LOG` in
+    [internal/apperrors/errors.go:105](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/apperrors/errors.go#L105)
 - [ ] `middlewares.GetUserID` / `GetIsPremium` are still unused by any handler (handlers read
   the context value directly instead of calling these). Deliberately kept rather than deleted —
   they're a correct, intentional accessor pattern, not abandoned code. Decide: start using them
