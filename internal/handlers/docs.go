@@ -36,6 +36,14 @@ func (dh *DocsHandler) PrivacyPage(writer http.ResponseWriter, request *http.Req
 	http.ServeFile(writer, request, dh.docsDir+"/privacy.html")
 }
 
+func (dh *DocsHandler) RobotsTxt(writer http.ResponseWriter, request *http.Request) {
+	http.ServeFile(writer, request, dh.docsDir+"/robots.txt")
+}
+
+func (dh *DocsHandler) Sitemap(writer http.ResponseWriter, request *http.Request) {
+	http.ServeFile(writer, request, dh.docsDir+"/sitemap.xml")
+}
+
 type remindMeRequestPayload struct {
 	Email string `json:"email"`
 }

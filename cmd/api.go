@@ -41,6 +41,8 @@ func (app *application) mount() http.Handler {
 	mux.Get("/support.html", app.docsHandler.SupportPage)
 	mux.Get("/privacy", app.docsHandler.PrivacyPage)
 	mux.Get("/privacy.html", app.docsHandler.PrivacyPage)
+	mux.Get("/robots.txt", app.docsHandler.RobotsTxt)
+	mux.Get("/sitemap.xml", app.docsHandler.Sitemap)
 	mux.Handle("/assets/*", http.StripPrefix("/assets/", http.FileServer(http.Dir("./docs/assets"))))
 
 	mux.Route("/api", func(r chi.Router) {

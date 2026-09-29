@@ -3,11 +3,81 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Kalorie — Nutrition &amp; Workout Tracking</title>
-<meta name="description" content="Kalorie tracks your meals, workouts, and weight together — snap a photo of your food and let AI estimate the macros." />
+<title>Kalorie: AI Calorie Tracker &amp; Workout Log for iPhone</title>
+<meta name="description" content="Kalorie is an AI-powered calorie tracker and workout log for iPhone. Snap a photo of your meal and Kalorie estimates calories and macros instantly — plus barcode scanning, weight tracking, and set-by-set workout logging." />
+<link rel="canonical" href="https://kalorie.fit/" />
+<meta name="robots" content="index, follow" />
+
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Kalorie" />
+<meta property="og:url" content="https://kalorie.fit/" />
+<meta property="og:title" content="Kalorie: AI Calorie Tracker &amp; Workout Log for iPhone" />
+<meta property="og:description" content="Snap a photo of your meal and let AI estimate the calories and macros — no manual logging. Track workouts, weight, and nutrition together in one app." />
+<meta property="og:image" content="https://kalorie.fit/assets/kalorie-mark.png" />
+
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="Kalorie: AI Calorie Tracker &amp; Workout Log for iPhone" />
+<meta name="twitter:description" content="Snap a photo of your meal and let AI estimate the calories and macros — no manual logging. Track workouts, weight, and nutrition together in one app." />
+<meta name="twitter:image" content="https://kalorie.fit/assets/kalorie-mark.png" />
+
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0a0a0b" media="(prefers-color-scheme: dark)" />
+
 <link rel="icon" href="./assets/kalorie-mark.png" />
+<link rel="apple-touch-icon" href="./assets/kalorie-mark.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="./assets/site.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Kalorie",
+  "url": "https://kalorie.fit/",
+  "applicationCategory": "HealthApplication",
+  "operatingSystem": "iOS",
+  "description": "AI-powered calorie tracker and workout log for iPhone. Snap a photo of your meal and Kalorie estimates calories and macros instantly.",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "description": "Free to download, with an optional Kalorie Premium subscription."
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is Kalorie free to use?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Kalorie is free to download, and you can log meals, workouts, and weight without a subscription. Kalorie Premium adds more AI photo scans per day, removes ads, and syncs your data across devices."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does the AI calorie tracker work?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Snap a photo of your meal and Kalorie's AI estimates the ingredients, portions, calories, and macros for you — no manual searching or measuring. You can also scan a barcode to instantly log packaged foods."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Kalorie track workouts too?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Log exercises, sets, reps, and weights in real time, then see your strength progress and body weight trends over time alongside your nutrition."
+      }
+    }
+  ]
+}
+</script>
 <style>
   :root {
     --phone-bg: #f4f4f5;
@@ -172,6 +242,14 @@
     max-width: 1120px; margin: 0 auto; padding: 28px 40px; display: flex; align-items: center;
     justify-content: space-between; flex-wrap: wrap; gap: 12px;
   }
+  .faq { padding: 24px 40px 80px; }
+  .faq-head { max-width: 560px; margin-bottom: 32px; }
+  .faq-head h2 { font-size: 32px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); margin: 0; }
+  .faq-list { display: flex; flex-direction: column; gap: 16px; max-width: 720px; }
+  .faq-item { background: var(--card-bg); border: 1px solid var(--border); border-radius: 20px; padding: 22px 26px; }
+  .faq-item h3 { font-size: 16px; font-weight: 600; color: var(--text); margin: 0; }
+  .faq-item p { font-size: 14px; color: var(--text-secondary); margin: 8px 0 0; line-height: 1.55; }
+
   .footer-inner .copyright { font-size: 13px; color: var(--text-secondary); }
   .footer-links { display: flex; gap: 20px; }
   .footer-links a { font-size: 13px; color: var(--text-secondary); font-weight: 600; }
@@ -214,7 +292,7 @@
           <span class="label">Launching soon on the App Store</span>
         </div>
         <h1>Your kitchen and your workouts, in one dashboard.</h1>
-        <p class="lead">Kalorie tracks your meals, workouts, and weight together &mdash; snap a photo of your food and let AI estimate the macros, no manual logging required.</p>
+        <p class="lead">Kalorie is the AI calorie tracker that logs your meals, workouts, and weight together &mdash; snap a photo of your food and let AI estimate the calories and macros, no manual logging required.</p>
         <div class="cta-row">
           <form id="remind-form" class="remind-form" novalidate>
             <label class="sr-only" for="remind-email">Email address</label>
@@ -310,8 +388,8 @@
 
   <div class="section features">
     <div class="features-head">
-      <h2>Everything your health tracker should do</h2>
-      <p>No spreadsheets, no guesswork &mdash; Kalorie brings nutrition, workouts, and progress into one place.</p>
+      <h2>Everything a calorie tracker should do</h2>
+      <p>No spreadsheets, no guesswork &mdash; Kalorie brings calorie tracking, workouts, and progress into one place.</p>
     </div>
 
     <div class="features-grid">
@@ -388,6 +466,26 @@
           <div class="cadence">per month</div>
           <div class="note">Free plan included &mdash; upgrade anytime in the app</div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section faq">
+    <div class="faq-head">
+      <h2>Frequently asked questions</h2>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item">
+        <h3>Is Kalorie free to use?</h3>
+        <p>Yes. Kalorie is free to download, and you can log meals, workouts, and weight without a subscription. Kalorie Premium adds more AI photo scans per day, removes ads, and syncs your data across devices.</p>
+      </div>
+      <div class="faq-item">
+        <h3>How does the AI calorie tracker work?</h3>
+        <p>Snap a photo of your meal and Kalorie's AI estimates the ingredients, portions, calories, and macros for you &mdash; no manual searching or measuring. You can also scan a barcode to instantly log packaged foods.</p>
+      </div>
+      <div class="faq-item">
+        <h3>Does Kalorie track workouts too?</h3>
+        <p>Yes. Log exercises, sets, reps, and weights in real time, then see your strength progress and body weight trends over time alongside your nutrition.</p>
       </div>
     </div>
   </div>
