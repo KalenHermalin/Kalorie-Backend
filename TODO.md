@@ -31,19 +31,14 @@ deliberately left even though they're also currently unused — see the low-prio
   the interface requires has no stub on the mock. The other stub methods on `MockUserRepo` show
   you the shape a new one needs (signature, trivial return values).
 
-- [ ] **`AnalyzeFood` fails for every request that leaves `description` blank — confirmed live in
-  production logs.**
-  [internal/llm/gemini.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/llm/gemini.go#L35)
-  (`AnalyzePicture`)
-  **Symptom:** production logs show `Error 400 ... required oneof field 'data' must have one
-  initialized field` from the Gemini API on `AnalyzeFood` calls. Since `description` is optional,
-  this hits whenever a client sends an empty one — likely most requests.
-  **Hint:** the `description` string always gets turned into its own `genai.Part{Text:
-  description}` and appended unconditionally, even when it's empty. I reproduced this directly:
-  marshaling a `genai.Part{Text: ""}` to JSON produces `{}` — a part with none of its oneof fields
-  set, which the Gemini API rejects outright. Compare against how `systemPrompt` — a few lines
-  below — builds its own `Part` slice just above this one; it doesn't have this problem. What does
-  it do differently before including its `Part`?
+- [x] ~~`AnalyzeFood` fails for every request that leaves `description` blank — confirmed live in
+  production logs.~~ Fixed: the `description` `Part` is now only appended when
+  `strings.TrimSpace(description)` is non-empty, matching the `systemPrompt` pattern right below
+  it. [internal/llm/gemini.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/llm/gemini.go#L35).
+  Verified against the real Gemini API with an empty description: the request now reaches Gemini
+  successfully (got back its normal "no food in this image" response for a non-food test image)
+  instead of failing with the `required oneof field 'data'` error. Deployed to staging (`v12`) and
+  confirmed live.
 
 ---
 
