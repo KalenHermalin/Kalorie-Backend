@@ -3,9 +3,10 @@ package llm
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"main/internal/apperrors"
 	"main/internal/models"
 	"strings"
+	"time"
 
 	"google.golang.org/genai"
 )
@@ -13,11 +14,6 @@ import (
 type GeminiProvider struct {
 	client *genai.Client
 	model  string
-}
-
-type geminiMealResponse struct {
-	Success bool               `json:"success"`
-	Payload models.MealPayload `json:"payload"`
 }
 
 func NewGeminiProvider(ctx context.Context, apiKey string, model string) (*GeminiProvider, error) {
@@ -31,7 +27,9 @@ func NewGeminiProvider(ctx context.Context, apiKey string, model string) (*Gemin
 	}
 	return &GeminiProvider{client: client, model: model}, nil
 }
-
+func (gm *GeminiProvider) GetTimeoutTime() time.Duration {
+	return time.Second * 15
+}
 func (gm *GeminiProvider) AnalyzePicture(ctx context.Context, picture []byte, description, systemPrompt string) (*models.MealPayload, error) {
 	//TODO: Seperate concerns, meaning build the genAI parts in sub function and return?
 	userParts := []*genai.Part{
@@ -73,24 +71,19 @@ func (gm *GeminiProvider) AnalyzePicture(ctx context.Context, picture []byte, de
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, apperrors.ErrLLMProvider
 	}
-	var geminiResponse geminiMealResponse
+	var geminiResponse models.MealResponse
 	err = json.Unmarshal([]byte(result.Text()), &geminiResponse)
 	if err != nil {
 		return nil, err
 	}
 
 	if !geminiResponse.Success {
-		return nil, errors.New("No food found!")
+		return nil, apperrors.ErrNoFoodFound
 	}
 	return &geminiResponse.Payload, nil
 
-}
-
-type geminiLabelResponse struct {
-	Success bool                `json:"success"`
-	Payload models.LabelPayload `json:"payload"`
 }
 
 func (gm *GeminiProvider) AnalyzeLabel(ctx context.Context, picture []byte, systemPrompt string) (*models.LabelPayload, error) {
@@ -136,15 +129,15 @@ func (gm *GeminiProvider) AnalyzeLabel(ctx context.Context, picture []byte, syst
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, apperrors.ErrLLMProvider
 	}
-	var geminiResponse geminiLabelResponse
+	var geminiResponse models.LabelResponse
 	err = json.Unmarshal([]byte(result.Text()), &geminiResponse)
 	if err != nil {
 		return nil, err
 	}
 	if !geminiResponse.Success {
-		return nil, errors.New("No label found in image")
+		return nil, apperrors.ErrNoLabelFound
 	}
 	return &geminiResponse.Payload, nil
 

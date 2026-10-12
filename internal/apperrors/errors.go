@@ -106,4 +106,19 @@ var (
 		Message: "There was an internal error updating some of yout weight logs",
 		Status:  http.StatusMultiStatus,
 	}
+	ErrLLMProvider = &AppError{
+		Code:    "ERR_LLM_PRIVDER",
+		Message: "There is an error with the LLM provider",
+		Status:  http.StatusInternalServerError,
+	}
+	ErrNoFoodFound = &AppError{
+		Code:    "ERR_NO_FOOD",
+		Message: "There was no food found in the submitted photo",
+		Status:  http.StatusBadRequest,
+	}
+	ErrNoLabelFound = &AppError{
+		Code:    "ERR_NO_:LABEL",
+		Message: "There was no label found in the submitted photo",
+		Status:  http.StatusBadRequest,
+	}
 )

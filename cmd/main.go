@@ -27,18 +27,26 @@ func main() {
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
 	// Setting Up LLM Provider, Service and Handler
-	apiKey, ok := os.LookupEnv("LLM_API_KEY")
+	geminiApiKey, ok := os.LookupEnv("GEMINI_API_KEY")
 	if !ok {
-		slog.Error("Error: Missing env variable", "key", "LLM_API_KEY")
+		slog.Error("Error: Missing env variable", "key", "GEMINI_API_KEY")
 		os.Exit(1)
 
 	}
-	gemini, err := llm.NewGeminiProvider(context.Background(), apiKey, model)
+
+	gemini, err := llm.NewGeminiProvider(context.Background(), geminiApiKey, model)
 	if err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)
 	}
-	llmService := service.NewLLMService(gemini)
+	openRouterApiKey, ok := os.LookupEnv("OPENROUTER_API_KEY")
+	if !ok {
+		slog.Error("Error: Missing env variable", "key", "OPENROUTER_API_KEY")
+		os.Exit(1)
+
+	}
+	openrouter := llm.NewOpenRouterProvider(context.Background(), openRouterApiKey, "openrouter/free")
+	llmService := service.NewLLMService(openrouter, gemini)
 	llmHandler := handlers.NewLLMHandler(*llmService)
 	// Setting up User Store, Service and Handler
 

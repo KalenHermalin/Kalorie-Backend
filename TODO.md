@@ -6,20 +6,12 @@ fixes spelled out, so you can work out the actual change yourself. Links point a
 GitHub — line numbers will drift as you edit, so if a link lands slightly off, the function name
 in the title is the reliable anchor.
 
-**Note:** several items below are checked off because they're genuinely fixed in your working
-tree (verified each diff) but **not committed yet** — `git status` still shows them as modified.
-Commit those whenever you're ready.
-
-**Dead code removed in a previous pass:** the unused `internal/env` package, the leftover
-`Nutrients`/`Portion`/`searchResponse` structs at the bottom of `cmd/main.go`, and the unused
-`Provider` struct in `internal/models/user.go`. `middlewares.GetUserID`/`GetIsPremium` were
-deliberately left even though they're also currently unused — see the low-priority item below.
+Completed items have been pruned. The one checked-off item that remains is kept because open
+items below compare themselves against it.
 
 ---
 
 ## 🔴 Urgent
-
-- [x] **Confirm the mobile app can actually log in and refresh end-to-end on production.** ✅ Done.
 
 - [ ] **`go vet` / `go test ./internal/service` doesn't build.**
   [internal/service/auth_test.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/service/auth_test.go)
@@ -31,23 +23,14 @@ deliberately left even though they're also currently unused — see the low-prio
   the interface requires has no stub on the mock. The other stub methods on `MockUserRepo` show
   you the shape a new one needs (signature, trivial return values).
 
-- [x] ~~`AnalyzeFood` fails for every request that leaves `description` blank — confirmed live in
-  production logs.~~ Fixed: the `description` `Part` is now only appended when
-  `strings.TrimSpace(description)` is non-empty, matching the `systemPrompt` pattern right below
-  it. [internal/llm/gemini.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/llm/gemini.go#L35).
-  Verified against the real Gemini API with an empty description: the request now reaches Gemini
-  successfully (got back its normal "no food in this image" response for a non-food test image)
-  instead of failing with the `required oneof field 'data'` error. Deployed to staging (`v12`) and
-  confirmed live.
-
 ---
 
 ## 🟠 High priority (real correctness bugs)
 
-- [x] ~~8× missing `return` after the "user id missing from context" check~~ — fixed in
-  [internal/handlers/user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/handlers/user.go). *(uncommitted)*
-
-- [x] **`UserService.UpsertUserWeightLogs` doesn't seem to ever report failure.**
+- [x] **`UserService.UpsertUserWeightLogs` doesn't seem to ever report failure.** *(fixed — kept
+  as the reference pattern for the exercise/food sync items below, which still use the older
+  single-transaction shape this one was redesigned away from: independent per-log transactions,
+  `failed_logs` as a list of ids, `207` on partial success, 200-item batch cap, no `error` field.)*
   [internal/service/user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/service/user.go#L84) (the weight-log sync function)
   **Symptom:** if something goes wrong inside the transaction this function runs (a DB error, a
   failed upsert), the caller still gets back a success result — no error, as if every log synced
@@ -57,26 +40,6 @@ deliberately left even though they're also currently unused — see the low-prio
   at here? Compare this function line-by-line against its two siblings just below it in the same
   file (the exercise-log and food-log sync functions) — they call the exact same kind of method.
   What's different about how they use its result?
-
-- [x] ~~`GetUserExerciseLogById` panics~~ — fixed correctly: the target struct is now allocated
-  before the `Scan` call, matching every sibling `Get*ById` method.
-  [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L341). *(uncommitted)*
-
-- [x] ~~`GetUserExerciseSetsByLogId` never returns any rows~~ — fixed, and fixed well: matches
-  [`GetUserWeightLogs`](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L142)'s
-  pattern exactly now (`defer rows.Close()`, per-row scan error checked, `rows.Err()` checked
-  after the loop and returning its own value).
-  [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L399). *(uncommitted)*
-
-- [x] ~~`GetUserFoodLogEntriesByLogId` never returns any rows — and has more than one thing wrong with it.~~
-  All fixed: the outer slice was renamed to `entries` so it's no longer shadowed by the loop's
-  `entry` variable, each scanned row is appended, the `deleted_at` scan now correctly passes
-  `&entry.DeletedAt`, the scan error is checked, `rows.Err()` is checked after the loop, and
-  `rows.Close()` is deferred. Matches `GetUserWeightLogs`'s pattern exactly now.
-  [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L620). *(uncommitted)*
-
-- [x] ~~Gemini calls ignore the request's timeout~~ — fixed in
-  [internal/llm/gemini.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/llm/gemini.go). *(uncommitted)*
 
 - [ ] **"No food/label found" is indistinguishable from a real server crash.**
   [internal/llm/gemini.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/llm/gemini.go#L82)
@@ -140,49 +103,6 @@ deliberately left even though they're also currently unused — see the low-prio
 
 ## 🟡 Medium priority (gaps, consistency, docs)
 
-- [x] ~~`FindRefreshToken` accepted an unused `userId` parameter~~ — resolved by removing the
-  parameter entirely (interface, implementation, mock, and both call sites all updated
-  consistently). *(uncommitted)*
-
-- [x] ~~`/auth/refresh`'s `user.created_at` is always the same suspicious-looking date.~~ Fixed:
-  `FindRefreshToken`'s query now selects `u.created_at` and scans it into `user.CreatedAt`.
-  [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L30).
-  First pass added the column to the `SELECT` but not to the matching `Scan(...)` call, which
-  broke the endpoint entirely (`sql: expected 3 destination arguments in Scan, not 2`) — caught
-  by actually running it, then fixed. Verified against a real Postgres: `FindRefreshToken` now
-  returns the account's real `created_at`, matching what was set at signup exactly.
-  [API.md](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/API.md) updated to drop the
-  old zero-value-date note. *(uncommitted)*
-
-- [x] ~~`UpsertUserExerciseSets` — synced weight changes don't stick.~~ Fixed: `weight =
-  EXCLUDED.weight` added to the `DO UPDATE SET` list.
-  [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L363).
-  Verified against a real Postgres, not just by reading the SQL: upserted a set at weight 100,
-  upserted the same id again at weight 150 with a later `updated_at`, fetched it back — came
-  back as 150. *(uncommitted)*
-
-- [x] ~~`GetUserExerciseLogs` — one query per log, not one query total.~~ Fixed: rewritten to
-  fetch all parent logs, then all their sets in one `WHERE log_id = ANY($1)` query, grouped
-  back onto their parent logs via a `map[string][]*models.ExerciseSet`.
-  [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L263).
-  Verified against a real Postgres: a log with 2 sets (one soft-deleted) grouped correctly, a
-  log with 0 sets came back with an empty (not nil-panicking) slice, and a user with 0 exercise
-  logs at all didn't error on the `ANY($1)` query with an empty id list. *(uncommitted)*
-  Leftover: the stale `// TODO: Fix like done for the food logs` comment on line 262 now reads
-  backwards — it's `GetUserFoodLogs` that needs to catch up to this one, not the other way
-  around — worth updating/removing once `GetUserFoodLogs` gets the same treatment below.
-
-- [x] ~~`GetUserFoodLogs` — one query per log, not one query total.~~ Fixed: same shape as the
-  `GetUserExerciseLogs` fix above — all parent logs fetched, then all their entries in one
-  `WHERE log_id = ANY($1)` query, grouped back via a `map[string][]*models.FoodLogEntry`.
-  [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L467).
-  First pass didn't compile (`rows, err := ...` on the second query redeclared both vars already
-  in scope from the first query, same file/function shape as the exercise-logs one avoided) —
-  fixed. Verified against a real Postgres: a log with 2 entries (one soft-deleted) grouped
-  correctly, a log with 0 entries came back with an empty (not nil) slice, and a user with 0 food
-  logs at all didn't error on the `ANY($1)` query with an empty id list. `go build ./...` clean.
-  *(uncommitted)*
-
 - [ ] **Inconsistent handling of "no row found" across similar methods.**
   Compare
   [`GetUserSettings`](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go#L176) /
@@ -204,9 +124,6 @@ deliberately left even though they're also currently unused — see the low-prio
   where those URLs come from for a test to be able to point them at a fake local server instead?
   Separately: which parts of `AppleProvider` need *zero* network access to test right now,
   as-is?
-
-- [x] ~~`API.md` said the app was deployed on DigitalOcean~~ — fixed, now says Heroku with the
-  correct base URL. *(uncommitted)*
 
 - [ ] **`API.md`'s exercise-logs and food-logs sync sections describe a different convention than weight-logs now.**
   Not inaccurate — they correctly describe what their own endpoints still actually do. The
@@ -255,9 +172,6 @@ deliberately left even though they're also currently unused — see the low-prio
 
 ## 🟢 Low priority (cleanup, dead code, nice-to-haves)
 
-- [x] ~~`internal/env/env.go`'s `GetString` unused~~ — package deleted entirely.
-- [x] ~~`Nutrients`/`Portion`/`searchResponse` dead structs~~ — removed from `cmd/main.go`.
-- [x] ~~`models.Provider` struct unused~~ — removed from `internal/models/user.go`.
 - [ ] **Typos baked into shipped, user-facing error text and error codes.** Worth a pass before
   any of these are relied on by a client you can't update independently of this server —
   fixing the `message` text later is free, but changing a `code` string a client already
@@ -292,19 +206,6 @@ deliberately left even though they're also currently unused — see the low-prio
   of the two functions is identical setup code before they diverge?
 - [ ] Decide what to do with the abandoned `port-python-fastapi` branch on GitHub. Keep it,
   tag it for the record, or delete it.
-- [x] ~~`heroku.yml` has no `release:` phase — migrations run inline on every dyno boot.~~ Fixed:
-  migrations moved into a dedicated `cmd/migrate` binary
-  ([internal/database/db.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/database/db.go)
-  now only connects/pings; `goose.SetDialect`/`goose.Up` live solely in
-  [cmd/migrate/main.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/cmd/migrate/main.go)),
-  [Dockerfile](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/Dockerfile) builds both
-  `main` and `migrate` binaries into the same image, and
-  [heroku.yml](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/heroku.yml) runs
-  `release: image: web, command: [./migrate]`. Verified by actually running `docker build` +
-  `docker run` on the built image: both binaries present and executable, `./migrate` runs and
-  correctly errors on a missing `DATABASE_URL` rather than failing to execute. Web dynos no
-  longer touch `goose` at all, so this is also safe now if the dyno count ever goes above 1.
-  *(uncommitted)*
 - [ ] `AppleProvider.platform` is always `""` today. Not a problem — just noting it in case
   Apple's flow ever needs to diverge per-platform the way Google's does.
 - [ ] Get real Apple Developer credentials configured (`APPLE_CLIENT_ID`, `APPLE_TEAM_ID`,

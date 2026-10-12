@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"main/internal/apperrors"
+	"main/internal/models"
 	"main/internal/service"
 	"main/internal/utils"
 	"net/http"
@@ -20,15 +21,10 @@ func NewLLMHandler(llm service.LLMService) *LLMHandler {
 	return &LLMHandler{llmService: llm}
 }
 
-type analayzeFoodRequestPayload struct {
-	Picture     []byte `json:"picture"`
-	Description string `json:"description"`
-}
-
 func (handler *LLMHandler) AnalyzeFoodHandler(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "application/json")
 
-	var requestData analayzeFoodRequestPayload
+	var requestData models.AnalayzeFoodRequestPayload
 	if err := utils.DecodePayload(request.Body, &requestData); err != nil {
 		// Bad Request because all we did was decode it and got an error meaning invalid JSON
 		slog.Error("Error: decoding analyze food body", "error", err.Error())
@@ -37,9 +33,9 @@ func (handler *LLMHandler) AnalyzeFoodHandler(writer http.ResponseWriter, reques
 	}
 	// Retrieve request context to pass down
 	ctx := request.Context()
-	ctx, cancel := context.WithTimeout(ctx, time.Second*15)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
 	defer cancel()
-	payload, err := handler.llmService.Provider.AnalyzePicture(ctx, requestData.Picture, requestData.Description, utils.ANALYZEFOODSYSTEMPROMPT)
+	payload, err := handler.llmService.AnalyzeFood(ctx, &requestData)
 	if err != nil {
 		var appErr *apperrors.AppError
 		if errors.As(err, &appErr) {
@@ -55,14 +51,10 @@ func (handler *LLMHandler) AnalyzeFoodHandler(writer http.ResponseWriter, reques
 	json.NewEncoder(writer).Encode(payload)
 }
 
-type analayzeRequestPayload struct {
-	Picture []byte `json:"picture"`
-}
-
 func (handler *LLMHandler) AnalyzeLabelHandler(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "application/json")
 
-	var requestData analayzeRequestPayload
+	var requestData models.AnalayzeLabelRequestPayload
 
 	if err := utils.DecodePayload(request.Body, &requestData); err != nil {
 		slog.Error("Error: decoding analyze label body", "error", err.Error())
@@ -70,10 +62,10 @@ func (handler *LLMHandler) AnalyzeLabelHandler(writer http.ResponseWriter, reque
 		return
 	}
 	ctx := request.Context()
-	ctx, cancel := context.WithTimeout(ctx, time.Second*15)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
 	defer cancel()
 
-	payload, err := handler.llmService.Provider.AnalyzeLabel(ctx, requestData.Picture, utils.ANALYZELABELSYSTEMPROMPT)
+	payload, err := handler.llmService.AnalyzeLabel(ctx, &requestData)
 	if err != nil {
 		var appErr *apperrors.AppError
 		if errors.As(err, &appErr) {
