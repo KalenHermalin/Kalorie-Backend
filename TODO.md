@@ -41,16 +41,22 @@ items below compare themselves against it.
   file (the exercise-log and food-log sync functions) — they call the exact same kind of method.
   What's different about how they use its result?
 
-- [ ] **"No food/label found" is indistinguishable from a real server crash.**
-  [internal/llm/gemini.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/llm/gemini.go#L82)
-  (`AnalyzePicture`, and the equivalent spot in `AnalyzeLabel`)
-  **Symptom:** point the camera at something that isn't food (or isn't a nutrition label) and the
-  client gets back `ERR_INTERNAL_SERVER` / "An internal server error occured" — the exact same
-  response a genuine crash would produce.
-  **Hint:** when Gemini reports `success: false`, this function returns a plain `errors.New(...)`
-  instead of an `*apperrors.AppError`. Trace what the handler's `errors.As` check does with a
-  plain error versus an `AppError` — that's why this specific, extremely common case loses its
-  identity by the time it reaches the client.
+- [ ] **A malformed LLM reply skips the fallback provider entirely.**
+  [internal/llm/openrouter.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/llm/openrouter.go)
+  (`AnalyzePicture`/`AnalyzeLabel`, the `json.Unmarshal` error branch; same spot in `gemini.go`)
+  **Symptom:** OpenRouter (a free model, tried first) sometimes returns text that isn't valid JSON
+  for the schema. When that happens the user gets `ERR_INTERNAL_SERVER` and Gemini is never tried,
+  even though the whole point of the fallback chain is to try it.
+  **Hint:** in `LLMService.AnalyzeFood`, which errors make the loop `continue` and which make it
+  `break`? Now look at what kind of error the provider returns when unmarshalling fails. Is "this
+  provider gave me garbage" a provider failure or a server bug?
+
+- [ ] **New LLM error codes have typos and haven't shipped to a client yet.**
+  [internal/apperrors/errors.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/apperrors/errors.go)
+  (`ErrLLMProvider`, `ErrNoLabelFound`)
+  **Symptom:** read the `Code` strings on these two errors character by character.
+  **Hint:** see the Low-priority typo item for why `code` typos get expensive once a client
+  branches on them. These are new, so now is the cheapest time to fix them.
 
 - [ ] **Exercise/food log sync reports partial failures as a full success.**
   [internal/handlers/user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/handlers/user.go#L217)
@@ -201,6 +207,9 @@ items below compare themselves against it.
   a TODO about unifying the food/label analysis path. Look at
   [internal/handlers/llm.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/handlers/llm.go) —
   how much of the two handlers is actually different from each other?
+- [ ] `OpenRouterProvider` ignores the `model` it's constructed with.
+  [internal/llm/openrouter.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/llm/openrouter.go)
+  **Hint:** search for `"openrouter/free"`. How many times does it appear, and what's `gm.model` used for?
 - [ ] [internal/llm/gemini.go:36](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/llm/gemini.go#L36) —
   a TODO about shared setup between `AnalyzePicture` and `AnalyzeLabel`. Same question: how much
   of the two functions is identical setup code before they diverge?

@@ -19,6 +19,76 @@ type MockUserRepo struct {
 	mockErr     error
 }
 
+// DeleteUser implements [models.UserRepository].
+func (m *MockUserRepo) DeleteUser(ctx context.Context, tx *sql.Tx, userID string) error {
+	panic("unimplemented")
+}
+
+// GetUserExerciseLogById implements [models.UserRepository].
+func (m *MockUserRepo) GetUserExerciseLogById(ctx context.Context, tx *sql.Tx, userId string, logId string) (*models.ExerciseLog, error) {
+	panic("unimplemented")
+}
+
+// GetUserExerciseLogs implements [models.UserRepository].
+func (m *MockUserRepo) GetUserExerciseLogs(ctx context.Context, tx *sql.Tx, userId string) ([]*models.FullExerciseLog, error) {
+	panic("unimplemented")
+}
+
+// GetUserExerciseSetsByLogId implements [models.UserRepository].
+func (m *MockUserRepo) GetUserExerciseSetsByLogId(ctx context.Context, tx *sql.Tx, logId string) ([]*models.ExerciseSet, error) {
+	panic("unimplemented")
+}
+
+// GetUserFoodLogById implements [models.UserRepository].
+func (m *MockUserRepo) GetUserFoodLogById(ctx context.Context, tx *sql.Tx, userId string, logId string) (*models.FoodLog, error) {
+	panic("unimplemented")
+}
+
+// GetUserFoodLogEntriesByLogId implements [models.UserRepository].
+func (m *MockUserRepo) GetUserFoodLogEntriesByLogId(ctx context.Context, tx *sql.Tx, logId string) ([]*models.FoodLogEntry, error) {
+	panic("unimplemented")
+}
+
+// GetUserFoodLogs implements [models.UserRepository].
+func (m *MockUserRepo) GetUserFoodLogs(ctx context.Context, tx *sql.Tx, userId string) ([]*models.FullFoodLog, error) {
+	panic("unimplemented")
+}
+
+// GetUserWeightLogById implements [models.UserRepository].
+func (m *MockUserRepo) GetUserWeightLogById(ctx context.Context, tx *sql.Tx, userId string, logId string) (*models.WeightLog, error) {
+	panic("unimplemented")
+}
+
+// GetUserWeightLogs implements [models.UserRepository].
+func (m *MockUserRepo) GetUserWeightLogs(ctx context.Context, tx *sql.Tx, userId string) ([]*models.WeightLog, error) {
+	panic("unimplemented")
+}
+
+// UpsertUserExerciseLog implements [models.UserRepository].
+func (m *MockUserRepo) UpsertUserExerciseLog(ctx context.Context, tx *sql.Tx, userId string, payload *models.ExerciseLog) error {
+	panic("unimplemented")
+}
+
+// UpsertUserExerciseSets implements [models.UserRepository].
+func (m *MockUserRepo) UpsertUserExerciseSets(ctx context.Context, tx *sql.Tx, payload []*models.ExerciseSet) error {
+	panic("unimplemented")
+}
+
+// UpsertUserFoodLog implements [models.UserRepository].
+func (m *MockUserRepo) UpsertUserFoodLog(ctx context.Context, tx *sql.Tx, userId string, payload *models.FoodLog) error {
+	panic("unimplemented")
+}
+
+// UpsertUserFoodLogEntry implements [models.UserRepository].
+func (m *MockUserRepo) UpsertUserFoodLogEntry(ctx context.Context, tx *sql.Tx, payload []*models.FoodLogEntry) error {
+	panic("unimplemented")
+}
+
+// UpsertUserWeightLog implements [models.UserRepository].
+func (m *MockUserRepo) UpsertUserWeightLog(ctx context.Context, tx *sql.Tx, userId string, payload *models.WeightLog) error {
+	panic("unimplemented")
+}
+
 type MockAuthProvider struct {
 	name    string
 	payload *models.AuthPayload
@@ -47,9 +117,15 @@ func (m *MockUserRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh
 	return nil, nil
 }
 
-func (us *MockUserRepo) UpdateUserSettings(ctx context.Context, tx *sql.Tx, userId string, settings *models.UserSettings) error
+func (us *MockUserRepo) UpdateUserSettings(ctx context.Context, tx *sql.Tx, userId string, settings *models.UserSettings) error {
+	panic("unimplemented")
 
-func (us *MockUserRepo) GetUserSettings(ctx context.Context, tx *sql.Tx, userId string) (*models.UserSettings, error)
+}
+
+func (us *MockUserRepo) GetUserSettings(ctx context.Context, tx *sql.Tx, userId string) (*models.UserSettings, error) {
+	panic("unimplemented")
+
+}
 func TestSignIn_FullFlow(t *testing.T) {
 	// 1. Setup mocks
 	mockUser := &models.User{ID: "1", Email: "kalen@laurier.ca", CreatedAt: time.Now()}
@@ -74,7 +150,7 @@ func TestSignIn_FullFlow(t *testing.T) {
 		t.Error("Access token should not be empty")
 	}
 	if resp.User.ID != mockUser.ID {
-		t.Errorf("Expected user ID %d, got %d", mockUser.ID, resp.User.ID)
+		t.Errorf("Expected user ID %s, got %s", mockUser.ID, resp.User.ID)
 	}
 }
 
@@ -150,7 +226,7 @@ func TestGenerateJWT(t *testing.T) {
 
 	// 4. Assertions
 	if claims.UserID != testUserID {
-		t.Errorf("Expected userID %d, got %d", testUserID, claims.UserID)
+		t.Errorf("Expected userID %s, got %s", testUserID, claims.UserID)
 	}
 	if claims.Email != testEmail {
 		t.Errorf("Expected email %s, got %s", testEmail, claims.Email)

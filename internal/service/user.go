@@ -86,7 +86,7 @@ const MAXBATCHSIZE = 200
 func (us *UserService) UpsertUserWeightLogs(ctx context.Context, userId string, weightLogs []*models.WeightLog) (newServerLogs []*models.WeightLog, notSyncedLogs []string, err *apperrors.AppError) {
 	if weightLogs == nil {
 
-		slog.Error("Error: user serivce got nil weight log slice", "error", "userID", userId)
+		slog.Error("Error: user serivce got nil weight log slice", "userID", userId)
 		return nil, nil, apperrors.ErrInternalServer
 	}
 	if len(weightLogs) > MAXBATCHSIZE {
@@ -168,7 +168,7 @@ func (us *UserService) GetUserWeightLogs(ctx context.Context, userId string, las
 func (us *UserService) UpsertUserExerciseLogAndSets(ctx context.Context, userId string, exerciseLogs []*models.FullExerciseLog) ([]*models.FullExerciseLog, []*models.FullExerciseLog, error) {
 	if exerciseLogs == nil {
 
-		slog.Error("Error: user serivce got nil exercise log slice", "error", "userID", userId)
+		slog.Error("Error: user serivce got nil exercise log slice", "userID", userId)
 		return nil, nil, apperrors.ErrInternalServer
 	}
 	var failedUpsertLogs []*models.FullExerciseLog
@@ -266,7 +266,7 @@ func (us *UserService) GetUserExerciseLogs(ctx context.Context, user_id string, 
 func (us *UserService) UpsertUserFoodLogsAndEntries(ctx context.Context, userId string, FoodLogs []*models.FullFoodLog) ([]*models.FullFoodLog, []*models.FullFoodLog, error) {
 	if FoodLogs == nil {
 
-		slog.Error("Error: user serivce got nil exercise log slice", "error", "userID", userId)
+		slog.Error("Error: user serivce got nil exercise log slice", "userID", userId)
 		return nil, nil, apperrors.ErrInternalServer
 	}
 	var failedUpsertLogs []*models.FullFoodLog
