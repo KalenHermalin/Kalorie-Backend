@@ -2,95 +2,94 @@ package apperrors
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 )
 
-type AppError struct {
+type ErrorKind struct {
 	Code    string `json:"code"`    // Machine-Readable (e.g., ERR_USER_NOT_FOND)
 	Message string `json:"message"` // Humman-Readable
-	Status  int    `json:"-"`       // Not sent in JSON, used to send statusCode
+	Status  int    `json:"-"`
 }
-
-func (e *AppError) Error() string {
-	return fmt.Sprintf("[%s] %s", e.Code, e.Message)
-}
-
-func NewAppError(code, message string, status int) *AppError {
-	return &AppError{
-		Code:    code,
-		Message: message,
-		Status:  status,
-	}
-}
-func WriteError(w http.ResponseWriter, appErr AppError) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(appErr.Status)
-
-	// Only sends code and message because of the - in json marshal struct
-	json.NewEncoder(w).Encode(appErr)
-}
-
-//TODO: App Errors should be for internal use in the service layer
 
 var (
-	ErrBadRequestBody = &AppError{
-		Code:    "ERR_BAD_REQUEST",
-		Message: "Error decoding request body",
-		Status:  http.StatusBadRequest,
-	}
-	ErrUnauthoirized = &AppError{
-		Code:    "ERR_UNAUTHORIZED",
-		Message: "You are not authorized. Please sign in!",
-		Status:  http.StatusUnauthorized,
-	}
-	ErrInvalidToken = &AppError{
-		Code:    "ERR_INVALID_TOKEN",
-		Message: "Token invalid or expired. Please try logging in again.",
-		Status:  http.StatusUnauthorized,
-	}
-	ErrInvalidTokenFormat = &AppError{
-		Code:    "ERR_INVALID_TOKEN_FORMAT",
-		Message: "Token format is not correct. Expected:  `Authorization: Bearer <access_token>`",
-		Status:  http.StatusBadRequest,
-	}
+	BadRequest   = ErrorKind{Code: "ERR_INVALID_REQUEST", Status: http.StatusBadRequest, Message: "The Request is invalid"}
+	Internal     = ErrorKind{Code: "ERR_INTERNAL_SERVER", Status: http.StatusInternalServerError, Message: "The server encountered an unexpected error"}
+	Unauthorized = ErrorKind{Code: "ERR_UNAUTHORIZED", Status: http.StatusUnauthorized, Message: "Please sign in"}
+)
 
-	ErrInvalidProvider = &AppError{
-		Code:    "ERR_INVALID_PROVIDER",
-		Message: "Invalid auth provider. Try another!",
-		Status:  http.StatusBadRequest,
+type FieldError struct {
+	Field   string `json:"field"`
+	Problem string `json:"problem"`
+}
+type KError struct {
+	Kind   ErrorKind
+	Fields []FieldError
+	cause  error // The original error
+}
+
+func New(k ErrorKind, cause error) *KError {
+	return &KError{
+		Kind:  k,
+		cause: cause,
 	}
-	AuthErrLoginFailed = &AppError{
-		Code:    "ERR_LOGIN_FAILED",
-		Message: "Login failed with login provider. Please try again in a few.",
-		Status:  http.StatusBadRequest,
+}
+
+func NewInvalid(fields ...FieldError) *KError { // Bad request error with fields
+	return &KError{
+		Kind:   BadRequest,
+		Fields: fields,
 	}
+}
+
+func (e *KError) Error() string { // For logging code and cause
+	if e.cause != nil {
+		return fmt.Sprintf("%s: %v", e.Kind.Code, e.cause)
+
+	}
+	return e.Kind.Code
+}
+func (e *KError) Unwrap() error { // To expose cause for use in errors.Is/As
+	return e.cause
+}
+
+type errorResponse struct {
+	Code    string       `json:"code"`
+	Message string       `json:"message"`
+	Fields  []FieldError `json:"fields,omitempty"`
+}
+
+func Write(w http.ResponseWriter, kerr *KError) {
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(kerr.Kind.Status)
+	resp := &errorResponse{
+		Code:    kerr.Kind.Code,
+		Message: kerr.Kind.Message,
+		Fields:  kerr.Fields,
+	}
+	json.NewEncoder(w).Encode(resp)
+}
+
+func Is(e error, k ErrorKind) bool {
+	var kerr *KError
+	if !errors.As(e, &kerr) { // Search error chain and fills kerr with a KError found in the chain
+		return false // if not found they cant be the same
+	}
+	return kerr.Kind == k // Else return based on if they are the same
+}
+
+/*var (
+
+
 	AuthErrUnavailableService = &AppError{
 		Code:    "ERR_AUTH_SERVICE_UNAVAILABLE",
 		Message: "Authentication service temporarily unavailable. Please try again shortly.",
 		Status:  http.StatusServiceUnavailable,
 	}
-	ErrInternalServer = &AppError{
-		Code:    "ERR_INTERNAL_SERVER",
-		Message: "An internal server error occured",
-		Status:  http.StatusInternalServerError,
-	}
 
-	ErrInvalidRequest = &AppError{
-		Code:    "ERR_INVALID_REQUEST",
-		Message: "The provided request is invalid. Please refer to documentation!",
-		Status:  http.StatusBadRequest,
-	}
-	ErrMissingUserIdInContext = &AppError{
-		Code:    "ERR_MISSING_USER_ID",
-		Message: "Missing UserId from context",
-		Status:  http.StatusInternalServerError,
-	}
-	ErrUserSettingsMissing = &AppError{
-		Code:    "ERR_USER_SETTINGS_MISSING",
-		Message: "User Settings do not exist. Please contact support!",
-		Status:  http.StatusInternalServerError,
-	}
+
+
 	ErrSyncConflict = &AppError{
 		Code:    "ERR_SYNC_CONFLICT",
 		Message: "A newer version of this data already exists",
@@ -121,4 +120,4 @@ var (
 		Message: "There was no label found in the submitted photo",
 		Status:  http.StatusBadRequest,
 	}
-)
+)*/

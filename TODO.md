@@ -11,17 +11,22 @@ items below compare themselves against it.
 
 ---
 
+## 🧭 Current epic: error handling and logging redesign
+
+See [docs/adr/001-error-handling.md](docs/adr/001-error-handling.md). This closes most of the
+error-related items below as each file is converted. Progress:
+- [x] Phase 0: `go vet` passes
+- [ ] Revert the `NewAppError` signature change
+- [ ] `apperr` + `logx` + `Handle`, with tests
+- [ ] Pilot: LLM handlers
+- [ ] Convert `auth.go` → `user.go` → `docs.go`
+- [ ] Delete `internal/apperrors`, clean up codes
+
+---
+
 ## 🔴 Urgent
 
-- [ ] **`go vet` / `go test ./internal/service` doesn't build.**
-  [internal/service/auth_test.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/service/auth_test.go)
-  **Symptom:** running `go vet ./...` or `go test ./...` fails before any test even runs, with a
-  compile error naming `MockUserRepo` and a specific missing method, referencing
-  `models.UserRepository`.
-  **Hint:** an interface and one of its mock implementations have drifted apart. Line up
-  `MockUserRepo`'s method list against the full interface it's supposed to satisfy — one method
-  the interface requires has no stub on the mock. The other stub methods on `MockUserRepo` show
-  you the shape a new one needs (signature, trivial return values).
+_Nothing urgent right now._
 
 ---
 
