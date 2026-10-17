@@ -14,9 +14,11 @@ type ErrorKind struct {
 }
 
 var (
-	BadRequest   = ErrorKind{Code: "ERR_INVALID_REQUEST", Status: http.StatusBadRequest, Message: "The Request is invalid"}
-	Internal     = ErrorKind{Code: "ERR_INTERNAL_SERVER", Status: http.StatusInternalServerError, Message: "The server encountered an unexpected error"}
-	Unauthorized = ErrorKind{Code: "ERR_UNAUTHORIZED", Status: http.StatusUnauthorized, Message: "Please sign in"}
+	BadRequest          = ErrorKind{Code: "ERR_INVALID_REQUEST", Status: http.StatusBadRequest, Message: "The Request is invalid"}
+	Internal            = ErrorKind{Code: "ERR_INTERNAL_SERVER", Status: http.StatusInternalServerError, Message: "The server encountered an unexpected error"}
+	Unauthorized        = ErrorKind{Code: "ERR_UNAUTHORIZED", Status: http.StatusUnauthorized, Message: "Please sign in"}
+	InvalidToken        = ErrorKind{Code: "ERR_INVALID_TOKEN", Status: http.StatusUnauthorized, Message: "Your login token is not valid"}
+	MalformedAuthHeader = ErrorKind{Code: "ERR_AUTH_HEADER_MALFORMED", Status: http.StatusBadRequest, Message: "Malform auth header. Should be Authorization: Bearer <token>"}
 )
 
 type FieldError struct {

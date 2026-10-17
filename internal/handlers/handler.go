@@ -3,7 +3,7 @@ package handlers
 import (
 	"errors"
 	"main/internal/apperrors"
-	"main/internal/logger"
+	"main/internal/loggerx"
 	"net/http"
 )
 
@@ -20,7 +20,7 @@ func Handle(fn HandlerFunc) http.HandlerFunc {
 			kerr = apperrors.New(apperrors.Internal, err)
 		}
 		apperrors.Write(w, kerr)
-		lgx := logger.Log(r.Context())
+		lgx := loggerx.Log(r.Context())
 		// Log err because KError implements Error so if err is a Kerror we get caused log, else we log a normal error
 		if kerr.Kind.Status >= 500 {
 			lgx.Error("Request failed", "code", kerr.Kind.Code, "err", err)

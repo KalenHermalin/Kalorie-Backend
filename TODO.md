@@ -112,7 +112,17 @@ _Nothing urgent right now._
 
 ---
 
-## 🟡 Medium priority (gaps, consistency, docs)
+## 🟡 Medium priority
+
+- [ ] **JWT parsing accepts whatever signing algorithm the token claims.**
+  [internal/middlewares/auth.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/middlewares/auth.go)
+  (and the refresh-token parse in `internal/service/auth.go`)
+  **Symptom:** nothing visible. jwt v5 already rejects `alg: none`, and an HMAC secret can't
+  validate an RS256 token, so this isn't exploitable today. But the key function never checks
+  `token.Method`.
+  **Hint:** look at the parser options `jwt.ParseWithClaims` accepts. Which one lets you say
+  "only HS256 is allowed"? Check `GenerateJWT` for the method you actually sign with.
+ (gaps, consistency, docs)
 
 - [ ] **Inconsistent handling of "no row found" across similar methods.**
   Compare

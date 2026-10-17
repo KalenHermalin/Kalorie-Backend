@@ -30,6 +30,11 @@ func NewGeminiProvider(ctx context.Context, apiKey string, model string) (*Gemin
 func (gm *GeminiProvider) GetTimeoutTime() time.Duration {
 	return time.Second * 15
 }
+
+func (gm *GeminiProvider) GetName() *string {
+	name := "gemini"
+	return &name
+}
 func (gm *GeminiProvider) AnalyzePicture(ctx context.Context, picture []byte, description, systemPrompt string) (*models.MealPayload, error) {
 	//TODO: Seperate concerns, meaning build the genAI parts in sub function and return?
 	userParts := []*genai.Part{

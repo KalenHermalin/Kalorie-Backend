@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"main/internal/handlers"
 	"main/internal/middlewares"
 	"net/http"
@@ -28,9 +29,10 @@ type config struct {
 
 func (app *application) mount() http.Handler {
 	mux := chi.NewRouter()
+	logger := slog.Default()
 	mux.Use(middleware.RequestID)
 	mux.Use(middleware.RealIP)
-	mux.Use(middleware.Logger)
+	mux.Use(middlewares.RequestLogger(logger))
 	mux.Use(middleware.Recoverer)
 	mux.Use(middleware.Timeout(time.Minute))
 

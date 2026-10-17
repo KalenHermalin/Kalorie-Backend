@@ -29,6 +29,11 @@ func NewOpenRouterProvider(ctx context.Context, apiKey string, model string) *Op
 func (gm *OpenRouterProvider) GetTimeoutTime() time.Duration {
 	return time.Second * 10
 }
+
+func (or *OpenRouterProvider) GetName() *string {
+	name := "openrouter"
+	return &name
+}
 func (gm *OpenRouterProvider) AnalyzePicture(ctx context.Context, picture []byte, description, systemPrompt string) (*models.MealPayload, error) {
 	//TODO: Seperate concerns, meaning build the genAI parts in sub function and return?
 	if len(strings.TrimSpace(description)) == 0 {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"main/internal/models"
 	"time"
 )
@@ -13,6 +14,7 @@ type postgressUserRepo struct {
 }
 
 var ErrNoRowsAffected = errors.New("no rows affected")
+var ErrNotFound = errors.New("no row found")
 
 func NewPostgressUserStore(db *sql.DB) *postgressUserRepo {
 	return &postgressUserRepo{
@@ -24,7 +26,10 @@ func NewPostgressUserStore(db *sql.DB) *postgressUserRepo {
 func (us *postgressUserRepo) SaveRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string, expiresAt time.Time) error {
 	query := `INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)`
 	_, err := tx.ExecContext(ctx, query, userId, refresh, expiresAt)
-	return err
+	if err != nil {
+		return fmt.Errorf("save refresh token %s: %w", userId, err)
+	}
+	return nil
 
 }
 func (us *postgressUserRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string) (*models.User, error) {
@@ -37,7 +42,10 @@ func (us *postgressUserRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, r
 	user := &models.User{}
 	err := tx.QueryRowContext(ctx, query, refresh).Scan(&user.ID, &user.Email, &user.CreatedAt)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("find refresh token: %w", ErrNotFound)
+		}
+		return nil, fmt.Errorf("find refresh token: %w", err)
 	}
 	return user, nil
 }
@@ -46,22 +54,19 @@ func (us *postgressUserRepo) DeleteRefreshToken(ctx context.Context, tx *sql.Tx,
 	query := `DELETE FROM refresh_tokens WHERE user_id=$1 AND token=$2`
 	result, err := tx.ExecContext(ctx, query, userId, token)
 	if err != nil {
-		return err
+		return fmt.Errorf("delete refresh token %s: %w", userId, err)
 	}
 
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return fmt.Errorf("delete refresh token %s: %w", userId, err)
 	}
 
 	if rows == 0 {
-		return errors.New("Could not delete token")
-	}
-	if rows == 1 {
-		return nil
-	}
-	return errors.New("Unknown Error Occured")
+		return fmt.Errorf("delete refresh token %s: %w", userId, ErrNoRowsAffected)
 
+	}
+	return nil
 }
 func (us *postgressUserRepo) UpsertUserWithAuth(ctx context.Context, tx *sql.Tx, payload *models.AuthPayload) (*models.User, error) {
 	var user models.User
@@ -71,14 +76,14 @@ func (us *postgressUserRepo) UpsertUserWithAuth(ctx context.Context, tx *sql.Tx,
                   ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email 
                   RETURNING id, email, created_at`
 	if err := tx.QueryRowContext(ctx, query, payload.Email).Scan(&user.ID, &user.Email, &user.CreatedAt); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("upsert user: %w", err)
 	}
 	// 2. Upsert Provider Identity
 	providerQuery := `INSERT INTO provider_identities (user_id, provider, provider_user_id) 
                           VALUES ($1, $2, $3) 
                           ON CONFLICT (provider, provider_user_id) DO NOTHING`
 	if _, err := tx.ExecContext(ctx, providerQuery, user.ID, payload.Provider, payload.ID); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("upsert user provider identity: %w", err)
 	}
 	return &user, nil
 }
@@ -87,11 +92,11 @@ func (us *postgressUserRepo) DeleteUser(ctx context.Context, tx *sql.Tx, userID 
 	deleteQuery := `DELETE FROM users WHERE id = $1`
 	res, err := tx.ExecContext(ctx, deleteQuery, userID)
 	if err != nil {
-		return err
+		return fmt.Errorf("delete user %s: %w", userID, err)
 	}
 	rows, _ := res.RowsAffected()
 	if rows == 0 {
-		return ErrNoRowsAffected
+		return fmt.Errorf("delete user %s: %w", userID, ErrNoRowsAffected)
 	}
 	return nil
 
@@ -117,12 +122,12 @@ func (us *postgressUserRepo) UpsertUserWeightLog(ctx context.Context, tx *sql.Tx
 		payload.DeletedAt, // $6
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("upsert weight log %s: %w", userId, err)
 	}
 
 	rowsAff, _ := res.RowsAffected()
 	if rowsAff == 0 {
-		return ErrNoRowsAffected
+		return fmt.Errorf("upsert weight log %s: %w", userId, ErrNoRowsAffected)
 	}
 	return nil
 
@@ -144,10 +149,10 @@ func (us *postgressUserRepo) GetUserWeightLogById(ctx context.Context, tx *sql.T
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ErrNoRowsAffected
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("get weight for %s for user %s: %w", logId, userId, ErrNotFound)
 		}
-		return nil, err
+		return nil, fmt.Errorf("get weight for %s for user %s: %w", logId, userId, err)
 	}
 
 	return log, nil
@@ -162,7 +167,7 @@ func (us *postgressUserRepo) GetUserWeightLogs(ctx context.Context, tx *sql.Tx, 
 
 	rows, err := tx.QueryContext(ctx, query, userId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get weight logs %s: %w", userId, err)
 	}
 	defer rows.Close() // Critical: Always close rows to free up DB connections
 
@@ -178,14 +183,14 @@ func (us *postgressUserRepo) GetUserWeightLogs(ctx context.Context, tx *sql.Tx, 
 			&log.DeletedAt,
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("get weight logs scan %s: %w", userId, err)
 		}
 		logs = append(logs, log)
 	}
 
 	// Check for errors that occurred during iteration
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get weight logs %s: %w", userId, err)
 	}
 
 	return logs, nil
@@ -219,9 +224,9 @@ WHERE user_id = $1;`
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNoRowsAffected
+			return nil, fmt.Errorf("get settings %s: %w", userId, ErrNotFound)
 		}
-		return nil, err
+		return nil, fmt.Errorf("get settings %s: %w", userId, err)
 	}
 	return settings, nil
 
@@ -235,12 +240,12 @@ func (us *postgressUserRepo) UpdateUserSettings(ctx context.Context, tx *sql.Tx,
           WHERE user_id = $1 AND $7 > updated_at`
 	res, err := tx.ExecContext(ctx, query, userId, settings.Units, settings.CaloriesTarget, settings.ProteinTarget, settings.CarbsTarget, settings.FatTarget, settings.UpdatedAt, settings.DeletedAt, settings.Theme)
 	if err != nil {
-		return err
+		return fmt.Errorf("update settings %s: %w", userId, err)
 	}
 
 	rowsAff, _ := res.RowsAffected()
 	if rowsAff == 0 {
-		return ErrNoRowsAffected
+		return fmt.Errorf("update settings %s: %w", userId, ErrNoRowsAffected)
 	}
 	return nil
 
@@ -266,7 +271,7 @@ WHERE EXCLUDED.updated_at > exercise_logs.updated_at;`
 		payload.DeletedAt,  // $6
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("upsert exercise log %s: %w", userId, err)
 	}
 
 	return nil
@@ -287,8 +292,9 @@ func (us *postgressUserRepo) GetUserExerciseLogs(ctx context.Context, tx *sql.Tx
     `
 	rows, err := tx.QueryContext(ctx, queryExerciseLog, userId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get exercise logs %s: %w", userId, err)
 	}
+	defer rows.Close()
 
 	var FullExerciselogs []*models.FullExerciseLog
 	for rows.Next() {
@@ -301,11 +307,15 @@ func (us *postgressUserRepo) GetUserExerciseLogs(ctx context.Context, tx *sql.Tx
 			&log.DeletedAt,
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("get exercise logs scan %s: %w", userId, err)
 		}
 		fullLog := models.FullExerciseLog{ExerciseLog: log, ExerciseSets: nil}
 		FullExerciselogs = append(FullExerciselogs, &fullLog)
 
+	}
+
+	if rows.Err() != nil {
+		return nil, fmt.Errorf("get exercise logs %s: %w", userId, err)
 	}
 	rows.Close()
 	logIds := []string{}
@@ -317,9 +327,9 @@ func (us *postgressUserRepo) GetUserExerciseLogs(ctx context.Context, tx *sql.Tx
 	}
 	rows, err = tx.QueryContext(ctx, queryExerciseSet, logIds)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get exercise logs set %s: %w", userId, err)
 	}
-
+	defer rows.Close()
 	for rows.Next() {
 		entry := &models.ExerciseSet{}
 		err := rows.Scan(
@@ -333,7 +343,7 @@ func (us *postgressUserRepo) GetUserExerciseLogs(ctx context.Context, tx *sql.Tx
 		)
 
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("get exercise logs set scan %s: %w", userId, err)
 		}
 
 		logMap[entry.LogId] = append(logMap[entry.LogId], entry)
@@ -347,7 +357,7 @@ func (us *postgressUserRepo) GetUserExerciseLogs(ctx context.Context, tx *sql.Tx
 
 	// Check for errors that occurred during iteration
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get exercise logs %s: %w", userId, err)
 	}
 
 	return FullExerciselogs, nil
@@ -370,7 +380,10 @@ func (us *postgressUserRepo) GetUserExerciseLogById(ctx context.Context, tx *sql
 		&log.DeletedAt,
 	)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("get exercise log %s for user %s: %w", logId, userId, ErrNotFound)
+		}
+		return nil, fmt.Errorf("get exercise log %s for user %s: %w", logId, userId, err)
 	}
 
 	return log, nil
@@ -378,7 +391,7 @@ func (us *postgressUserRepo) GetUserExerciseLogById(ctx context.Context, tx *sql
 }
 func (us *postgressUserRepo) UpsertUserExerciseSets(ctx context.Context, tx *sql.Tx, payload []*models.ExerciseSet) error {
 	if payload == nil {
-		return errors.New("PARAMETER MISSING")
+		return errors.New("upsert exercise sets: nil payload")
 	}
 
 	query := `
@@ -405,7 +418,7 @@ WHERE EXCLUDED.updated_at > exercise_sets.updated_at;`
 			set.DeletedAt,  // $7
 		)
 		if err != nil {
-			return err
+			return fmt.Errorf("upsert exercise set %s: %w", set.ID, err)
 		}
 	}
 
@@ -421,7 +434,7 @@ func (us *postgressUserRepo) GetUserExerciseSetsByLogId(ctx context.Context, tx 
 	var sets []*models.ExerciseSet
 	rows, err := tx.QueryContext(ctx, queryExerciseSet, logId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get exercise set by log %s: %w", logId, err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -436,13 +449,13 @@ func (us *postgressUserRepo) GetUserExerciseSetsByLogId(ctx context.Context, tx 
 			&set.DeletedAt,
 		)
 		if scanErr != nil {
-			return nil, scanErr
+			return nil, fmt.Errorf("get exercise set by log %s scan: %w", logId, scanErr)
 		}
 		sets = append(sets, set)
 	}
-
-	if rows.Err() != nil {
-		return nil, rows.Err()
+	rowErr := rows.Err()
+	if rowErr != nil {
+		return nil, fmt.Errorf("get exercise set by log %s: %w", logId, rowErr)
 	}
 
 	return sets, nil
@@ -471,7 +484,7 @@ WHERE EXCLUDED.updated_at > food_logs.updated_at;`
 		payload.DeletedAt, // $7
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("upsert food log %s for user %s: %w", payload.ID, userId, err)
 	}
 
 	return nil
@@ -491,10 +504,11 @@ func (us *postgressUserRepo) GetUserFoodLogs(ctx context.Context, tx *sql.Tx, us
 
 	rows, err := tx.QueryContext(ctx, queryFoodLog, userId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get food logs %s: %w", userId, err)
 	}
 
 	var FullFoodLogs []*models.FullFoodLog
+	defer rows.Close()
 	for rows.Next() {
 		log := &models.FoodLog{}
 		err := rows.Scan(
@@ -506,11 +520,15 @@ func (us *postgressUserRepo) GetUserFoodLogs(ctx context.Context, tx *sql.Tx, us
 			&log.DeletedAt,
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("get food logs scan %s: %w", userId, err)
 		}
 		fullLog := models.FullFoodLog{FoodLog: log, FoodLogEntries: nil}
 		FullFoodLogs = append(FullFoodLogs, &fullLog)
 
+	}
+	// Check for errors that occurred during iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("get food logs %s: %w", userId, err)
 	}
 	rows.Close()
 
@@ -525,9 +543,9 @@ func (us *postgressUserRepo) GetUserFoodLogs(ctx context.Context, tx *sql.Tx, us
 
 	rows, err = tx.QueryContext(ctx, queryFoodLogEntries, logIds)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get food logs entries %s : %w", userId, err)
 	}
-
+	defer rows.Close()
 	for rows.Next() {
 		entry := &models.FoodLogEntry{}
 		err := rows.Scan(
@@ -547,7 +565,7 @@ func (us *postgressUserRepo) GetUserFoodLogs(ctx context.Context, tx *sql.Tx, us
 		)
 
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("get food logs entries scan %s: %w", userId, err)
 		}
 		logMap[entry.LogId] = append(logMap[entry.LogId], entry)
 
@@ -559,7 +577,7 @@ func (us *postgressUserRepo) GetUserFoodLogs(ctx context.Context, tx *sql.Tx, us
 
 	// Check for errors that occurred during iteration
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get food logs %s: %w", userId, err)
 	}
 
 	return FullFoodLogs, nil
@@ -582,7 +600,10 @@ func (us *postgressUserRepo) GetUserFoodLogById(ctx context.Context, tx *sql.Tx,
 		&log.DeletedAt,
 	)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("get food log %s for user %s: %w", logId, userId, ErrNotFound)
+		}
+		return nil, fmt.Errorf("get food log %s for user %s: %w", logId, userId, err)
 	}
 
 	return log, nil
@@ -591,7 +612,7 @@ func (us *postgressUserRepo) GetUserFoodLogById(ctx context.Context, tx *sql.Tx,
 
 func (us *postgressUserRepo) UpsertUserFoodLogEntry(ctx context.Context, tx *sql.Tx, payload []*models.FoodLogEntry) error {
 	if payload == nil {
-		return errors.New("PARAMETER MISSING")
+		return errors.New("upsert food log entry: nil payload")
 	}
 
 	query := `
@@ -629,7 +650,7 @@ WHERE EXCLUDED.updated_at > food_log_items.updated_at;`
 			entry.DeletedAt, // $13
 		)
 		if err != nil {
-			return err
+			return fmt.Errorf("upsert food log entry %s: %w", entry.ID, err)
 		}
 	}
 
@@ -645,7 +666,7 @@ func (us *postgressUserRepo) GetUserFoodLogEntriesByLogId(ctx context.Context, t
 	var entries []*models.FoodLogEntry
 	rows, err := tx.QueryContext(ctx, queryFoodLogEntries, logId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get food log entry for log %s: %w", logId, err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -666,12 +687,13 @@ func (us *postgressUserRepo) GetUserFoodLogEntriesByLogId(ctx context.Context, t
 			&entry.DeletedAt,
 		)
 		if scanErr != nil {
-			return nil, scanErr
+			return nil, fmt.Errorf("get food log entry scan for log %s: %w", logId, scanErr)
 		}
 		entries = append(entries, entry)
 	}
-	if rows.Err() != nil {
-		return nil, rows.Err()
+	rowErr := rows.Err()
+	if rowErr != nil {
+		return nil, fmt.Errorf("get food log entry for log %s: %w", logId, rowErr)
 	}
 
 	return entries, nil
@@ -681,7 +703,7 @@ func (us *postgressUserRepo) GetUserFoodLogEntriesByLogId(ctx context.Context, t
 func (us *postgressUserRepo) WithTx(ctx context.Context, fn func(*sql.Tx) error) error {
 	tx, err := us.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("transaction begin: %w", err)
 	}
 
 	// If the function returns an error, we rollback
@@ -692,5 +714,8 @@ func (us *postgressUserRepo) WithTx(ctx context.Context, fn func(*sql.Tx) error)
 		return err
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("transaction commit: %w", err)
+	}
+	return nil
 }
