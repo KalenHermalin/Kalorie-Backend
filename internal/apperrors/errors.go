@@ -14,11 +14,13 @@ type ErrorKind struct {
 }
 
 var (
-	BadRequest          = ErrorKind{Code: "ERR_INVALID_REQUEST", Status: http.StatusBadRequest, Message: "The Request is invalid"}
+	BadRequest          = ErrorKind{Code: "ERR_INVALID_REQUEST", Status: http.StatusBadRequest, Message: "The request is invalid"}
 	Internal            = ErrorKind{Code: "ERR_INTERNAL_SERVER", Status: http.StatusInternalServerError, Message: "The server encountered an unexpected error"}
 	Unauthorized        = ErrorKind{Code: "ERR_UNAUTHORIZED", Status: http.StatusUnauthorized, Message: "Please sign in"}
 	InvalidToken        = ErrorKind{Code: "ERR_INVALID_TOKEN", Status: http.StatusUnauthorized, Message: "Your login token is not valid"}
-	MalformedAuthHeader = ErrorKind{Code: "ERR_AUTH_HEADER_MALFORMED", Status: http.StatusBadRequest, Message: "Malform auth header. Should be Authorization: Bearer <token>"}
+	MalformedAuthHeader = ErrorKind{Code: "ERR_AUTH_HEADER_MALFORMED", Status: http.StatusBadRequest, Message: "Malformed auth header. Should be Authorization: Bearer <token>"}
+	BadLoginRequest     = ErrorKind{Code: "ERR_LOGIN_REQUEST", Status: http.StatusBadRequest, Message: "Sign in didn't work. Please try again!"}
+	AuthUnavailable     = ErrorKind{Code: "ERR_AUTH_UNAVAILABLE", Status: http.StatusServiceUnavailable, Message: "Service currently unavailable. Please wait a few minutes!"}
 )
 
 type FieldError struct {
@@ -38,7 +40,7 @@ func New(k ErrorKind, cause error) *KError {
 	}
 }
 
-func NewInvalid(fields ...FieldError) *KError { // Bad request error with fields
+func NewBadRequestWithFields(fields ...FieldError) *KError { // Bad request error with fields
 	return &KError{
 		Kind:   BadRequest,
 		Fields: fields,

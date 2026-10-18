@@ -2,10 +2,8 @@ package auth
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"io"
-	"log/slog"
-	"main/internal/apperrors"
 	"main/internal/auth"
 	"main/internal/models"
 	"main/internal/utils"
@@ -48,7 +46,7 @@ type initialGitPayload struct {
 
 func (gh *GitHubProvider) HandleCodeExchangeWithVerifier(ctx context.Context, code string, verifier string) (*models.AuthPayload, error) {
 
-	// Only ever returns an apperror, can be instantly returned to handler
+	// Always returns an KError so can return right away
 	token, err := auth.ExchangeCode(ctx, code, verifier, *gh.config)
 	if err != nil {
 		return nil, err
@@ -58,8 +56,7 @@ func (gh *GitHubProvider) HandleCodeExchangeWithVerifier(ctx context.Context, co
 	// Get user ID
 	resp, err := client.Get("https://api.github.com/user")
 	if err != nil {
-		slog.Error("Error: oauth2 user info", "provider", gh.GetProviderName(), "error", err.Error())
-		return nil, err
+		return nil, fmt.Errorf("[GitHub] handle code exchange user info: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		// A non-200 here (e.g. a bad/expired token) still has a JSON body,
@@ -67,41 +64,34 @@ func (gh *GitHubProvider) HandleCodeExchangeWithVerifier(ctx context.Context, co
 		// otherwise silently succeed with a zero-value payload instead of
 		// surfacing an error.
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		slog.Error("Error: oauth provider api error", "provider", gh.GetProviderName(), "status", resp.StatusCode, "message", string(bodyBytes))
-		return nil, apperrors.AuthErrUnavailableService
+		resp.Body.Close()
+		return nil, fmt.Errorf("[GitHub] handle code exchange user info resp | status: %d : %s", resp.StatusCode, bodyBytes)
 	}
 
 	gitPayload := &initialGitPayload{}
 	err = utils.DecodePayload(resp.Body, gitPayload)
 	if err != nil {
-		slog.Error("Error: decoding user data", "error", err.Error())
-		return nil, err
+		return nil, fmt.Errorf("[GitHub] handle code exchange decode user info: %w", err)
 	}
 	if gitPayload.ID == 0 {
-		slog.Error("Error: github user response missing id", "provider", gh.GetProviderName())
-		return nil, errors.New("github user response missing id")
+		return nil, fmt.Errorf("[GitHub] handle code exchange: github returned no id")
+
 	}
 	// Getting Email
 	resp, err = client.Get("https://api.github.com/user/emails")
 	if err != nil {
-		slog.Error("Error: oauth2 user email info", "provider", gh.GetProviderName(), "error", err.Error())
-		return nil, err
+		return nil, fmt.Errorf("[GitHub] handle code exchange user email: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		// Read the body as a string to see the actual error message from GitHub
 		bodyBytes, _ := io.ReadAll(resp.Body)
-
-		slog.Error("Error: oauth provider api error", "status", "provider", gh.GetProviderName(), resp.StatusCode, "message", string(bodyBytes))
-		return nil, apperrors.AuthErrUnavailableService
+		resp.Body.Close()
+		return nil, fmt.Errorf("[GitHub] handle code exchange user email resp | status: %d : %s", resp.StatusCode, bodyBytes)
 	}
 	var emails []GitHubEmail
 	err = utils.DecodePayload(resp.Body, &emails)
-	//err = json.NewDecoder(resp.Body).Decode(&emails)
-	//defer resp.Body.Close()
-
 	if err != nil {
-		slog.Error("Error: extracting oauth2 user email info", "provider", gh.GetProviderName(), "error", err.Error())
-		return nil, err
+		return nil, fmt.Errorf("[GitHub] handle code exchange decode user email: %w", err)
 	}
 
 	// 2. Find the primary one

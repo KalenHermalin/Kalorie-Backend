@@ -2,7 +2,7 @@ package auth
 
 import (
 	"context"
-	"log/slog"
+	"fmt"
 	"main/internal/apperrors"
 	"main/internal/models"
 	"time"
@@ -26,7 +26,7 @@ func GenerateAccessToken(userID string, email string, isPremium bool, secret str
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signedAccess, err := accessToken.SignedString([]byte(secret))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("generate access token: %w", err)
 	}
 
 	return signedAccess, err
@@ -44,7 +44,7 @@ func GenerateRefreshToken(userID string, expiresIn time.Time, secret string) (st
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signedAccess, err := refreshToken.SignedString([]byte(secret))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("generate refresh token: %w", err)
 	}
 	return signedAccess, nil
 }
@@ -53,29 +53,27 @@ func ExchangeCode(ctx context.Context, code, verifier string, client oauth2.Conf
 	token, err := client.Exchange(ctx, code, oauth2.VerifierOption(verifier))
 	if err != nil {
 		if re, ok := err.(*oauth2.RetrieveError); ok {
-			slog.Error("Error: oauth2 token exchange", "ErrorCode", re.ErrorCode, "Description", re.ErrorDescription)
 			switch re.ErrorCode {
 
 			case "invalid_grant", "access_denied":
 				//Please try again in a few
-				return nil, apperrors.AuthErrLoginFailed
+				return nil, apperrors.New(apperrors.BadLoginRequest, err)
 
-			case "unauthorized_client", "invalid_scope":
-				// internal server erro
-				return nil, apperrors.ErrInternalServer
+			case "unauthorized_client", "invalid_client", "invalid_scope":
+				// Configuration Error
+				return nil, apperrors.New(apperrors.Internal, err)
 
 			case "server_error", "temporarily_unavailable":
 				// auth provider temporarily down
-				return nil, apperrors.AuthErrUnavailableService
+				return nil, apperrors.New(apperrors.AuthUnavailable, err)
 			default:
 				//unknown error
-				return nil, re
+				return nil, apperrors.New(apperrors.Internal, err)
 
 			}
 
 		}
-		slog.Error("Error: Non oauth2", "error", err.Error())
-		return nil, apperrors.ErrInternalServer
+		return nil, apperrors.New(apperrors.Internal, err)
 	}
 	return token, nil
 

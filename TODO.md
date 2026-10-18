@@ -63,6 +63,22 @@ _Nothing urgent right now._
   **Hint:** see the Low-priority typo item for why `code` typos get expensive once a client
   branches on them. These are new, so now is the cheapest time to fix them.
 
+- [ ] **GitHub users without a verified primary email all sign in to the same account.**
+  [internal/auth/providers/github.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/auth/providers/github.go)
+  (`HandleCodeExchangeWithVerifier`, the "find the primary one" loop) +
+  `UpsertUserWithAuth` in the store
+  **Symptom:** a GitHub user whose emails are all unverified (or have none marked primary) signs
+  in successfully with `email = ""`. The next such user signs in *as them* and can see and change
+  their data.
+  **Hint:** what does the `users.email` constraint allow, and what does `ON CONFLICT (email)` do
+  when two different people show up with the same (empty) email? Should a sign-in with no usable
+  email succeed at all? What kind of error is "your GitHub account has no verified email": whose
+  fault, and what can the user do about it? Separately: users are matched by email, not by
+  `(provider, provider_user_id)`. Is that what you want?
+  **Google too:** `GoogleProvider` never checks for an empty email, and never reads whether
+  Google considers the email verified (the userinfo response says so; `GoogleResponse` ignores it).
+  With accounts matched by email, an unverified address is a way into someone else's account.
+
 - [ ] **Exercise/food log sync reports partial failures as a full success.**
   [internal/handlers/user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/handlers/user.go#L217)
   (`EgressSyncExerciseLogs`, and the identical spot in `EgressSyncFoodLogs`)
@@ -113,6 +129,17 @@ _Nothing urgent right now._
 ---
 
 ## 🟡 Medium priority
+
+- [ ] **Refresh tokens are stored in the database as plaintext.**
+  [internal/store/postgres_user.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/store/postgres_user.go)
+  (`SaveRefreshToken`, `FindRefreshToken`, `DeleteRefreshToken`)
+  **Symptom:** nothing visible. But anyone who reads the `refresh_tokens` table (a leaked backup,
+  a misconfigured DB user, SQL injection elsewhere) can take the `token` column and use it for up
+  to 30 days as that user.
+  **Hint:** the server never needs to know the original token, only whether one presented to it
+  matches. How do sites avoid storing passwords in a way that can be reused? Does that approach
+  need a slow algorithm here, given these tokens are long and random rather than chosen by a human?
+  Think about what happens to tokens already issued when you switch over.
 
 - [ ] **JWT parsing accepts whatever signing algorithm the token claims.**
   [internal/middlewares/auth.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/middlewares/auth.go)
@@ -192,6 +219,31 @@ _Nothing urgent right now._
 ---
 
 ## 🟢 Low priority (cleanup, dead code, nice-to-haves)
+
+- [ ] **Network failures reaching an OAuth provider return 500.**
+  [internal/auth/auth.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/auth/auth.go)
+  (`ExchangeCode`, the final fallback after the `RetrieveError` branch)
+  **Symptom:** if Google/GitHub/Apple can't be reached (DNS failure, timeout, connection reset),
+  the client gets `ERR_INTERNAL_SERVER` instead of the "provider unavailable" response you already
+  return when the provider answers with `server_error`. A client that disconnects mid-sign-in is
+  also logged at `Error`, as if it were an outage.
+  **Hint:** the HTTP client reports transport failures as one particular wrapper type, and context
+  expiry/cancellation as two specific values. Which of `errors.Is` / `errors.As` fits each? Which
+  of those cases is actually the provider's fault?
+  **Same item, second case:** a provider that answers `200` with a broken body (oauth2's
+  "cannot parse response/json" and "missing access_token" errors) also lands in that fallback as a
+  500. Those errors are built with `%v`/`errors.New`, so there's nothing to match with `Is`/`As`:
+  look at what's left once network errors are ruled out.
+- [ ] **Every non-200 from a provider's user-info API is reported as a generic 500.**
+  [internal/auth/providers/google.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/auth/providers/google.go)
+  and [github.go](https://github.com/KalenHermalin/Kalorie-Backend/blob/main/internal/auth/providers/github.go)
+  (the `resp.StatusCode != http.StatusOK` branches)
+  **Symptom:** a 401 (the token you *just* got was rejected), a 403 (missing scope), a 429 (rate
+  limit), and a real 5xx outage all reach the client as the same `ERR_INTERNAL_SERVER`. A
+  provider outage should look like your existing "provider unavailable" (503) kind, and some of
+  the others are really your own misconfiguration.
+  **Hint:** for each status range, ask whose fault it is and whether waiting fixes it. Which ones
+  are really your configuration?
 
 - [ ] **Typos baked into shipped, user-facing error text and error codes.** Worth a pass before
   any of these are relied on by a client you can't update independently of this server —

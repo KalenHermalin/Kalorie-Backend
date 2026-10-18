@@ -2,8 +2,7 @@ package auth
 
 import (
 	"context"
-	"log/slog"
-	"main/internal/apperrors"
+	"fmt"
 	"main/internal/auth"
 	"main/internal/models"
 	"strings"
@@ -66,7 +65,7 @@ func NewAppleProvider(clientID, teamID, keyID, privateKey, callback, platform st
 func (ap *AppleProvider) generateClientSecret() (string, error) {
 	key, err := jwt.ParseECPrivateKeyFromPEM([]byte(ap.privateKey))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("[Apple] parse private key: %w", err)
 	}
 	now := time.Now()
 	claims := jwt.RegisteredClaims{
@@ -78,14 +77,18 @@ func (ap *AppleProvider) generateClientSecret() (string, error) {
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
 	token.Header["kid"] = ap.keyID
-	return token.SignedString(key)
+	jwtString, err := token.SignedString(key)
+	if err != nil {
+		return "", fmt.Errorf("[Apple] create signed jwt: %w", err)
+
+	}
+	return jwtString, nil
 }
 
 func (ap *AppleProvider) HandleCodeExchangeWithVerifier(ctx context.Context, code, verifier string) (*models.AuthPayload, error) {
 	clientSecret, err := ap.generateClientSecret()
 	if err != nil {
-		slog.Error("Error: generating apple client secret", "error", err.Error())
-		return nil, apperrors.ErrInternalServer
+		return nil, fmt.Errorf("[Apple] provider generate secret: %w", err)
 	}
 
 	config := oauth2.Config{
@@ -96,6 +99,7 @@ func (ap *AppleProvider) HandleCodeExchangeWithVerifier(ctx context.Context, cod
 		Scopes:       ap.scopes,
 	}
 
+	// Always returns an KError so can return right away
 	token, err := auth.ExchangeCode(ctx, code, verifier, config)
 	if err != nil {
 		return nil, err
@@ -103,8 +107,7 @@ func (ap *AppleProvider) HandleCodeExchangeWithVerifier(ctx context.Context, cod
 
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok || rawIDToken == "" {
-		slog.Error("Error: apple token response missing id_token")
-		return nil, apperrors.ErrInternalServer
+		return nil, fmt.Errorf("[Apple] handle code exchange missing <id_token>")
 	}
 
 	// Verify the id_token's signature against Apple's published JWKS
@@ -112,12 +115,22 @@ func (ap *AppleProvider) HandleCodeExchangeWithVerifier(ctx context.Context, cod
 	claims := jwt.MapClaims{}
 	_, err = jwt.ParseWithClaims(rawIDToken, claims, ap.jwks.Keyfunc, jwt.WithIssuer(appleIssuer), jwt.WithAudience(ap.clientID))
 	if err != nil {
-		slog.Error("Error: verifying apple id_token", "error", err.Error())
-		return nil, apperrors.ErrInvalidToken
+		return nil, fmt.Errorf("[Apple] handle code exchange token verification: %w", err)
 	}
 
-	sub, _ := claims["sub"].(string)
-	email, _ := claims["email"].(string)
+	sub, ok := claims["sub"].(string)
+	if !ok {
+		return nil, fmt.Errorf("[Apple] handle code exchange sub: missing or not a string")
+
+	}
+	if sub == "" {
+		return nil, fmt.Errorf("[Apple] handle code exchange: apple returned no sub")
+	}
+	email, ok := claims["email"].(string)
+	if !ok {
+		return nil, fmt.Errorf("[Apple] handle code exchange email: missing or not a string")
+
+	}
 
 	return &models.AuthPayload{
 		Provider: ap.GetProviderName(),
