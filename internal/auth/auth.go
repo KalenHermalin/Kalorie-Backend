@@ -29,7 +29,7 @@ func GenerateAccessToken(userID string, email string, isPremium bool, secret str
 		return "", fmt.Errorf("generate access token: %w", err)
 	}
 
-	return signedAccess, err
+	return signedAccess, nil
 }
 func GenerateRefreshToken(userID string, expiresIn time.Time, secret string) (string, error) {
 	// 1. Create Access Token (JWT)

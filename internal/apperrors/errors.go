@@ -21,6 +21,8 @@ var (
 	MalformedAuthHeader = ErrorKind{Code: "ERR_AUTH_HEADER_MALFORMED", Status: http.StatusBadRequest, Message: "Malformed auth header. Should be Authorization: Bearer <token>"}
 	BadLoginRequest     = ErrorKind{Code: "ERR_LOGIN_REQUEST", Status: http.StatusBadRequest, Message: "Sign in didn't work. Please try again!"}
 	AuthUnavailable     = ErrorKind{Code: "ERR_AUTH_UNAVAILABLE", Status: http.StatusServiceUnavailable, Message: "Service currently unavailable. Please wait a few minutes!"}
+	SessionOver         = ErrorKind{Code: "ERR_SESSION_OVER", Status: http.StatusUnauthorized, Message: "Your current session already ended. Please sign in again!"}
+	InvalidProvider     = ErrorKind{Code: "ERR_INVALID_PROVIDER", Status: http.StatusBadRequest, Message: "The login provider selected is not valid"}
 )
 
 type FieldError struct {
