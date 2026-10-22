@@ -5,12 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"main/internal/apperrors"
 	"main/internal/loggerx"
 	"main/internal/models"
 	"main/internal/store"
-	"net/http"
 	"time"
 )
 
@@ -154,67 +152,32 @@ func (us *UserService) GetUserWeightLogs(ctx context.Context, userId string, las
 
 }
 
-func (us *UserService) UpsertUserExerciseLogAndSets(ctx context.Context, userId string, exerciseLogs []*models.FullExerciseLog) (newer []*models.FullExerciseLog, failed []*models.FullExerciseLog, err error) {
+func (us *UserService) UpsertUserExerciseLogAndSets(ctx context.Context, userId string, exerciseLogs []*models.FullExerciseLog) (newer []*models.FullExerciseLog, failed []string, err error) {
 	if exerciseLogs == nil {
 		return nil, nil, apperrors.New(apperrors.BadRequest, fmt.Errorf("no exercise logs submitted to upsert"))
 	}
-	var failedSync []string
 	var newerServerLogs []*models.FullExerciseLog
 	err = us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
-		var upsertError error
-		failedCount := 0
 		for _, log := range exerciseLogs {
-
-			err := us.userStore.UpsertUserExerciseLog(ctx, tx, userId, log.ExerciseLog)
+			err := us.userStore.UpsertUserExerciseLog(ctx, tx, userId, log)
 			if err != nil {
 				// Newer log data exist so we get it
 				newLog, err := us.userStore.GetUserExerciseLogById(ctx, tx, userId, log.ExerciseLog.ID)
 				if err != nil {
-					failedSync = append(failedSync, log.ExerciseLog.ID)
+					loggerx.Log(ctx).Warn(fmt.Sprintf("couldn't upsert or get exercise log %s: %w", log.ExerciseLog.ID, err))
+					failed = append(failed, log.ExerciseLog.ID)
 
 				} else if newLog != nil {
-					sets, err := us.userStore.GetUserExerciseSetsByLogId(ctx, tx, newLog.ID)
-					if err != nil {
-
-					}
-					newFullLog := &models.FullExerciseLog{
-						ExerciseLog:  newLog,
-						ExerciseSets: sets,
-					}
-					newerServerLogs = append(newerServerLogs, newFullLog)
+					newerServerLogs = append(newerServerLogs, newLog)
 				}
 			}
-			err = us.userStore.UpsertUserExerciseSets(ctx, tx, log.ExerciseSets)
-			if err != nil {
-
-				return err
-			}
-		}
-		// TODO: No need for soft error, we should just return the success and failed?
-		// COMEBACK:
-		if failedCount > 0 && failedCount < len(exerciseLogs) {
-			slog.Error("failed to sync logs", "failed_count", failedCount, "total_count", len(exerciseLogs), "error", upsertError)
-			return apperrors.ErrSoftWeightLog
-		}
-		if failedCount == len(exerciseLogs) {
-			// Some kind of hard error?
-			slog.Error("failed to sync logs all logs", "failed_count", failedCount, "total_count", len(exerciseLogs), "error", upsertError)
-			return apperrors.NewAppError("ERR_UPSERTING_WEIGHT_LOG", "There was an internal error updating your weight logs", http.StatusInternalServerError)
 
 		}
 
 		return nil
 	})
 
-	if err != nil {
-		if errors.Is(err, apperrors.ErrSoftWeightLog) {
-			return newerServerLogs, failedUpsertLogs, err
-		} else if errors.Is(err, apperrors.ErrInternalServer) {
-			return nil, nil, err
-		}
-		return nil, failedUpsertLogs, err
-	}
-	return newerServerLogs, nil, nil
+	return newerServerLogs, failed, nil
 
 }
 
@@ -246,73 +209,32 @@ func (us *UserService) GetUserExerciseLogs(ctx context.Context, user_id string, 
 } //
 
 // TODO: Rewrite function specifically the soft error and hard error at bottom make no sense and are uneeded
-func (us *UserService) UpsertUserFoodLogsAndEntries(ctx context.Context, userId string, FoodLogs []*models.FullFoodLog) ([]*models.FullFoodLog, []*models.FullFoodLog, error) {
+func (us *UserService) UpsertUserFoodLogsAndEntries(ctx context.Context, userId string, FoodLogs []*models.FullFoodLog) (newer []*models.FullFoodLog, failed []string, err error) {
 	if FoodLogs == nil {
-
-		slog.Error("Error: user serivce got nil exercise log slice", "userID", userId)
-		return nil, nil, apperrors.ErrInternalServer
+		return nil, nil, apperrors.New(apperrors.BadRequest, fmt.Errorf("no food logs submitted to upsert"))
 	}
-	var failedUpsertLogs []*models.FullFoodLog
+	var failedSync []string
 	var newerServerLogs []*models.FullFoodLog
-	err := us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
-		var upsertError error
-		failedCount := 0
-		for i, log := range FoodLogs {
+	err = us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
+		for _, log := range FoodLogs {
 
-			err := us.userStore.UpsertUserFoodLog(ctx, tx, userId, log.FoodLog)
+			err := us.userStore.UpsertUserFoodLog(ctx, tx, userId, log)
 			if err != nil {
 				// Newer log data exist so we get it
-				slog.Error("Error in upsert", "error", err, "log_id", log.FoodLog.ID)
 				newLog, err := us.userStore.GetUserFoodLogById(ctx, tx, userId, log.FoodLog.ID)
 				if err != nil {
-					slog.Error("Upsert did not work, caused get to fail, log is missing in db", "error", err.Error(), "user_id", userId, "log_id", log.FoodLog.ID)
-					failedCount++
-					upsertError = err
-					failedUpsertLogs = append(failedUpsertLogs, log)
-
+					failedSync = append(failedSync, log.FoodLog.ID)
 				} else if newLog != nil {
-					sets, err := us.userStore.GetUserFoodLogEntriesByLogId(ctx, tx, newLog.ID)
-					if err != nil {
-
-					}
-					newFullLog := &models.FullFoodLog{
-						FoodLog:        newLog,
-						FoodLogEntries: sets,
-					}
-					newerServerLogs = append(newerServerLogs, newFullLog)
+					newerServerLogs = append(newerServerLogs, newLog)
 				}
 			}
-			err = us.userStore.UpsertUserFoodLogEntry(ctx, tx, log.FoodLogEntries)
-			if err != nil {
-
-				slog.Error("Upsert for food log failed, should be impossible", "error", err.Error(), "user_id", userId, "log_id", log.FoodLog.ID)
-				failedUpsertLogs = append(failedUpsertLogs, FoodLogs[i:]...)
-				return apperrors.ErrInternalServer
-			}
 		}
-		if failedCount > 0 && failedCount < len(FoodLogs) {
-			slog.Error("failed to sync logs", "failed_count", failedCount, "total_count", len(FoodLogs), "error", upsertError)
-			return apperrors.ErrSoftWeightLog
-		}
-		if failedCount == len(FoodLogs) {
-			// Some kind of hard error?
-			slog.Error("failed to sync logs all logs", "failed_count", failedCount, "total_count", len(FoodLogs), "error", upsertError)
-			return apperrors.NewAppError("ERR_UPSERTING_WEIGHT_LOG", "There was an internal error updating your weight logs", http.StatusInternalServerError)
-
-		}
-
 		return nil
 	})
-
 	if err != nil {
-		if errors.Is(err, apperrors.ErrSoftWeightLog) {
-			return newerServerLogs, failedUpsertLogs, err
-		} else if errors.Is(err, apperrors.ErrInternalServer) {
-			return nil, nil, err
-		}
-		return nil, failedUpsertLogs, err
+		return nil, nil, fmt.Errorf("something went wrong: %w", err)
 	}
-	return newerServerLogs, nil, nil
+	return newerServerLogs, failedSync, nil
 
 }
 

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"errors"
-	"log/slog"
 	"main/internal/apperrors"
 	"main/internal/store"
 	"main/internal/utils"
@@ -48,22 +47,20 @@ type remindMeRequestPayload struct {
 	Email string `json:"email"`
 }
 
-func (dh *DocsHandler) RemindMe(writer http.ResponseWriter, request *http.Request) {
+func (dh *DocsHandler) RemindMe(writer http.ResponseWriter, request *http.Request) error {
 	var requestData remindMeRequestPayload
 	if err := utils.DecodePayload(request.Body, &requestData); err != nil {
 		// Bad Request because all we did was decode it and got an error meaning invalid JSON
-		slog.Error("Error: decoding analyze food body", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrInvalidRequest)
-		return
+		return apperrors.New(apperrors.BadRequest, err)
 	}
 
 	err := dh.remindStore.Remind_user(request.Context(), requestData.Email)
 	if err != nil {
-		if errors.Is(err, store.EmailAlreadyExist) {
-			apperrors.WriteError(writer, *apperrors.NewAppError("ERR_ALREADY_ON_LIST", "You're already on the list", 409))
-			return
-
+		if errors.Is(err, store.ErrEmailExists) {
+			return apperrors.New(apperrors.Conflict, err)
 		}
-		apperrors.WriteError(writer, *apperrors.ErrInvalidRequest)
+		return err
 	}
+
+	return nil
 }

@@ -94,16 +94,15 @@ type UserRepository interface {
 	GetUserWeightLogById(ctx context.Context, tx *sql.Tx, userId string, logId string) (*WeightLog, error)
 	GetUserWeightLogs(ctx context.Context, tx *sql.Tx, userId string) ([]*WeightLog, error)
 
-	UpsertUserExerciseSets(ctx context.Context, tx *sql.Tx, payload []*ExerciseSet) error
 	GetUserExerciseLogs(ctx context.Context, tx *sql.Tx, userId string) ([]*FullExerciseLog, error)
-	UpsertUserExerciseLog(ctx context.Context, tx *sql.Tx, userId string, payload *ExerciseLog) error
-	GetUserExerciseLogById(ctx context.Context, tx *sql.Tx, userId, logId string) (*ExerciseLog, error)
-	GetUserExerciseSetsByLogId(ctx context.Context, tx *sql.Tx, logId string) ([]*ExerciseSet, error)
+	// Upserts the log item and its sets in a single transaction
+	// rolls back on error
+	UpsertUserExerciseLog(ctx context.Context, tx *sql.Tx, userId string, payload *FullExerciseLog) error
+	// Returns a single exercise log with all sets
+	GetUserExerciseLogById(ctx context.Context, tx *sql.Tx, userId, logId string) (*FullExerciseLog, error)
 
-	UpsertUserFoodLog(ctx context.Context, tx *sql.Tx, userId string, payload *FoodLog) error
+	UpsertUserFoodLog(ctx context.Context, tx *sql.Tx, userId string, payload *FullFoodLog) error
 	GetUserFoodLogs(ctx context.Context, tx *sql.Tx, userId string) ([]*FullFoodLog, error)
-	GetUserFoodLogById(ctx context.Context, tx *sql.Tx, userId, logId string) (*FoodLog, error)
-	UpsertUserFoodLogEntry(ctx context.Context, tx *sql.Tx, payload []*FoodLogEntry) error
-	GetUserFoodLogEntriesByLogId(ctx context.Context, tx *sql.Tx, logId string) ([]*FoodLogEntry, error)
+	GetUserFoodLogById(ctx context.Context, tx *sql.Tx, userId, logId string) (*FullFoodLog, error)
 	WithTx(ctx context.Context, fn func(*sql.Tx) error) error
 }

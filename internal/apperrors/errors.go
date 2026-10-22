@@ -27,6 +27,7 @@ var (
 	NoFoodFound          = ErrorKind{Code: "ERR_NO_FOOD", Status: http.StatusBadRequest, Message: "There was no food found in the image."}
 	NoLabelFound         = ErrorKind{Code: "ERR_NO_LABEL", Status: http.StatusBadRequest, Message: "There was no label found in the image."}
 	LlmProviderDown      = ErrorKind{Code: "ERR_LLM_PROVIDER", Status: http.StatusServiceUnavailable, Message: "The AI provider is currently experiencing issues. Try again later."}
+	Conflict             = ErrorKind{Code: "ERR_CONFLICT", Status: http.StatusConflict, Message: "The email already exists"}
 )
 
 type FieldError struct {
@@ -46,9 +47,10 @@ func New(k ErrorKind, cause error) *KError {
 	}
 }
 
-func NewBadRequestWithFields(fields ...FieldError) *KError { // Bad request error with fields
+func NewBadRequestWithFields(cause error, fields ...FieldError) *KError { // Bad request error with fields
 	return &KError{
 		Kind:   BadRequest,
+		cause:  cause,
 		Fields: fields,
 	}
 }

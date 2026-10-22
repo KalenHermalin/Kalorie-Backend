@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
-	"log/slog"
 	"main/internal/apperrors"
 	"main/internal/middlewares"
 	"main/internal/models"
@@ -24,54 +22,37 @@ func NewUserHandler(userService service.UserService) *UserHandler {
 type esyncSettingsbody struct {
 	Settings models.UserSettings `json:"settings"`
 }
+type egressResponse struct {
+	NewSettings any  `json:"new"`
+	IsModified  bool `json:"is_modified"`
+}
 
-func (uh *UserHandler) EgressSyncSettings(writer http.ResponseWriter, request *http.Request) {
+func (uh *UserHandler) EgressSyncSettings(writer http.ResponseWriter, request *http.Request) error {
 
-	id, ok := request.Context().Value(middlewares.UserIDKey).(string)
-	if !ok {
-		apperrors.WriteError(writer, *apperrors.ErrMissingUserIdInContext)
-		return
-	}
+	id := middlewares.GetUserID(request.Context())
 	var requestBody esyncSettingsbody
 	err := utils.DecodePayload(request.Body, &requestBody)
 	if err != nil {
-		slog.Error("Error: decoding refresh request body", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrBadRequestBody)
-		return
+		return apperrors.New(apperrors.BadRequest, err)
 
 	}
 
-	newSettings, err := uh.user.UpdateUserSettings(request.Context(), id, &requestBody.Settings)
+	newSettings, isModified, err := uh.user.UpdateUserSettings(request.Context(), id, &requestBody.Settings)
 	if err != nil {
-		if errors.Is(err, apperrors.ErrSyncConflict) {
-			writer.Header().Set("Content-Type", "application/json")
-			writer.WriteHeader(http.StatusConflict) // 409
-			json.NewEncoder(writer).Encode(newSettings)
-			return // Critical: Stop execution here
-		}
-
-		// 2. Handle standard AppErrors
-		var appErr *apperrors.AppError
-		if errors.As(err, &appErr) {
-			apperrors.WriteError(writer, *appErr)
-			return // Critical: Stop execution here
-		}
-
-		// 3. Fallback for unexpected errors
-		slog.Error("Error: Updating Settings Failed", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrInternalServer)
-		return
+		return err
 	}
+
 	writer.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(writer).Encode(map[string]string{"status": "success"})
+	json.NewEncoder(writer).Encode(egressResponse{
+		NewSettings: newSettings,
+		IsModified:  isModified,
+	})
+	return nil
 }
-func (uh *UserHandler) IngressSyncSettings(writer http.ResponseWriter, request *http.Request) {
+func (uh *UserHandler) IngressSyncSettings(writer http.ResponseWriter, request *http.Request) error {
 
-	id, ok := request.Context().Value(middlewares.UserIDKey).(string)
-	if !ok {
-		apperrors.WriteError(writer, *apperrors.ErrMissingUserIdInContext)
-		return
-	}
+	id := middlewares.GetUserID(request.Context())
+
 	last_synced := request.URL.Query().Get("last_synced_at")
 	var sinceTime *time.Time
 	if last_synced != "" {
@@ -81,25 +62,14 @@ func (uh *UserHandler) IngressSyncSettings(writer http.ResponseWriter, request *
 		}
 
 	}
-	if sinceTime == nil {
-		apperrors.WriteError(writer, *apperrors.NewAppError("ERR_MISSING_QUERY", "Missing the 'last_synced_at' query", http.StatusBadRequest))
-		return
-	}
-	newSettings, err := uh.user.GetUserSettings(request.Context(), id, sinceTime)
-	if err != nil {
-		var appErr *apperrors.AppError
-		if errors.As(err, &appErr) {
-			apperrors.WriteError(writer, *appErr)
-			return // Critical: Stop execution here
-		}
 
-		// 3. Fallback for unexpected errors
-		slog.Error("Error: Updating Settings Failed", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrInternalServer)
-		return
+	newSettings, _, err := uh.user.GetUserSettings(request.Context(), id, sinceTime)
+	if err != nil {
+		return err
 	}
 	writer.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(writer).Encode(newSettings)
+	return nil
 }
 
 type SyncWeightLogsRequestBody struct {
@@ -110,26 +80,18 @@ type SyncWeightLogsResponse struct {
 	FailedLogs []string            `json:"failed_logs"`
 }
 
-func (uh *UserHandler) EgressSyncWeightLogs(writer http.ResponseWriter, request *http.Request) {
-	id, ok := request.Context().Value(middlewares.UserIDKey).(string)
-	if !ok {
-		apperrors.WriteError(writer, *apperrors.ErrMissingUserIdInContext)
-		return
-	}
+func (uh *UserHandler) EgressSyncWeightLogs(writer http.ResponseWriter, request *http.Request) error {
+	id := middlewares.GetUserID(request.Context())
+
 	var requestBody SyncWeightLogsRequestBody
 	err := utils.DecodePayload(request.Body, &requestBody)
 	if err != nil {
-		slog.Error("Error: decoding refresh request body", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrBadRequestBody)
-		return
-
+		return apperrors.New(apperrors.BadRequest, err)
 	}
 
-	successful, failed, appErr := uh.user.UpsertUserWeightLogs(request.Context(), id, requestBody.WeightLogs)
-	if appErr != nil {
-		apperrors.WriteError(writer, *appErr)
-		return
-
+	successful, failed, err := uh.user.UpsertUserWeightLogs(request.Context(), id, requestBody.WeightLogs)
+	if err != nil {
+		return err
 	}
 	if len(failed) != 0 {
 		writer.WriteHeader(207)
@@ -138,15 +100,15 @@ func (uh *UserHandler) EgressSyncWeightLogs(writer http.ResponseWriter, request 
 		NewLogs:    successful,
 		FailedLogs: failed,
 	}
-	json.NewEncoder(writer).Encode(response)
-}
-func (uh *UserHandler) IngressSyncWeightLogs(writer http.ResponseWriter, request *http.Request) {
+	writer.Header().Set("Content-Type", "application/json")
 
-	id, ok := request.Context().Value(middlewares.UserIDKey).(string)
-	if !ok {
-		apperrors.WriteError(writer, *apperrors.ErrMissingUserIdInContext)
-		return
-	}
+	json.NewEncoder(writer).Encode(response)
+	return nil
+}
+func (uh *UserHandler) IngressSyncWeightLogs(writer http.ResponseWriter, request *http.Request) error {
+
+	id := middlewares.GetUserID(request.Context())
+
 	last_synced := request.URL.Query().Get("last_synced_at")
 	var sinceTime *time.Time
 	if last_synced != "" {
@@ -156,35 +118,19 @@ func (uh *UserHandler) IngressSyncWeightLogs(writer http.ResponseWriter, request
 		}
 
 	}
-	if sinceTime == nil {
-		apperrors.WriteError(writer, *apperrors.NewAppError("ERR_MISSING_QUERY", "Missing the 'last_synced_at' query", http.StatusBadRequest))
-		return
-	}
 	weightLogs, err := uh.user.GetUserWeightLogs(request.Context(), id, sinceTime)
 	if err != nil {
-		var appErr *apperrors.AppError
-		if errors.As(err, &appErr) {
-			apperrors.WriteError(writer, *appErr)
-			return // Critical: Stop execution here
-		}
-
-		// 3. Fallback for unexpected errors
-		slog.Error("Error: Updating Settings Failed", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrInternalServer)
-		return
+		return err
 	}
 	if len(weightLogs) == 0 {
 		writer.WriteHeader(http.StatusNotModified)
-		return
+		return nil
 
 	}
-	if weightLogs == nil {
-		writer.WriteHeader(http.StatusNotModified)
-		return
 
-	}
 	writer.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(writer).Encode(weightLogs)
+	return nil
 }
 
 type SyncExerciseLogsRequestBody struct {
@@ -192,62 +138,36 @@ type SyncExerciseLogsRequestBody struct {
 }
 type SyncExerciseLogsResponse struct {
 	NewLogs    []*models.FullExerciseLog `json:"new_logs"`
-	FailedLogs []*models.FullExerciseLog `json:"failed_logs"`
-	Err        error                     `json:"error"`
+	FailedLogs []string                  `json:"failed_logs"`
 }
 
-func (uh *UserHandler) EgressSyncExerciseLogs(writer http.ResponseWriter, request *http.Request) {
-	id, ok := request.Context().Value(middlewares.UserIDKey).(string)
-	if !ok {
-		apperrors.WriteError(writer, *apperrors.ErrMissingUserIdInContext)
-		return
-	}
+func (uh *UserHandler) EgressSyncExerciseLogs(writer http.ResponseWriter, request *http.Request) error {
+	id := middlewares.GetUserID(request.Context())
 	var requestBody SyncExerciseLogsRequestBody
 	err := utils.DecodePayload(request.Body, &requestBody)
 	if err != nil {
-		slog.Error("Error: decoding refresh request body", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrBadRequestBody)
-		return
+		return apperrors.New(apperrors.BadRequest, err)
 
 	}
 
 	successful, failed, err := uh.user.UpsertUserExerciseLogAndSets(request.Context(), id, requestBody.ExerciseLogs)
 	if err != nil {
-
-		if errors.Is(err, apperrors.ErrSoftWeightLog) {
-			writer.Header().Set("Content-Type", "application/json")
-			response := &SyncExerciseLogsResponse{
-				NewLogs:    successful,
-				FailedLogs: failed,
-				Err:        err,
-			}
-			json.NewEncoder(writer).Encode(response)
-			return
-		}
-		var appErr *apperrors.AppError
-		if errors.As(err, &appErr) {
-			apperrors.WriteError(writer, *appErr)
-			return
-		}
-		apperrors.WriteError(writer, *apperrors.ErrInternalServer)
-		return
-
+		return err
 	}
 	response := &SyncExerciseLogsResponse{
 		NewLogs:    successful,
-		FailedLogs: nil,
-		Err:        nil,
+		FailedLogs: failed,
 	}
+	writer.Header().Set("Content-Type", "application/json")
+
 	json.NewEncoder(writer).Encode(response)
+	return nil
 }
 
-func (uh *UserHandler) IngressSyncExerciseLogs(writer http.ResponseWriter, request *http.Request) {
+func (uh *UserHandler) IngressSyncExerciseLogs(writer http.ResponseWriter, request *http.Request) error {
 
-	id, ok := request.Context().Value(middlewares.UserIDKey).(string)
-	if !ok {
-		apperrors.WriteError(writer, *apperrors.ErrMissingUserIdInContext)
-		return
-	}
+	id := middlewares.GetUserID(request.Context())
+
 	last_synced := request.URL.Query().Get("last_synced_at")
 	var sinceTime *time.Time
 	if last_synced != "" {
@@ -257,36 +177,20 @@ func (uh *UserHandler) IngressSyncExerciseLogs(writer http.ResponseWriter, reque
 		}
 
 	}
-	if sinceTime == nil {
-		apperrors.WriteError(writer, *apperrors.NewAppError("ERR_MISSING_QUERY", "Missing the 'last_synced_at' query", http.StatusBadRequest))
-		return
-	}
+
 	newLogs, err := uh.user.GetUserExerciseLogs(request.Context(), id, sinceTime)
 	if err != nil {
-		var appErr *apperrors.AppError
-		if errors.As(err, &appErr) {
-			apperrors.WriteError(writer, *appErr)
-			return // Critical: Stop execution here
-		}
-
-		// 3. Fallback for unexpected errors
-		slog.Error("Error: Updating Settings Failed", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrInternalServer)
-		return
+		return err
 	}
 	if len(newLogs) == 0 {
 		writer.WriteHeader(http.StatusNotModified)
-		return
-
-	}
-	if newLogs == nil {
-		writer.WriteHeader(http.StatusNotModified)
-		return
+		return nil
 
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(writer).Encode(newLogs)
+	return nil
 }
 
 type SyncFoodLogsRequestBody struct {
@@ -294,62 +198,38 @@ type SyncFoodLogsRequestBody struct {
 }
 type SyncFoodLogsResponse struct {
 	NewLogs    []*models.FullFoodLog `json:"new_logs"`
-	FailedLogs []*models.FullFoodLog `json:"failed_logs"`
-	Err        error                 `json:"error"`
+	FailedLogs []string              `json:"failed_logs"`
 }
 
-func (uh *UserHandler) EgressSyncFoodLogs(writer http.ResponseWriter, request *http.Request) {
-	id, ok := request.Context().Value(middlewares.UserIDKey).(string)
-	if !ok {
-		apperrors.WriteError(writer, *apperrors.ErrMissingUserIdInContext)
-		return
-	}
+func (uh *UserHandler) EgressSyncFoodLogs(writer http.ResponseWriter, request *http.Request) error {
+	id := middlewares.GetUserID(request.Context())
+
 	var requestBody SyncFoodLogsRequestBody
 	err := utils.DecodePayload(request.Body, &requestBody)
 	if err != nil {
-		slog.Error("Error: decoding refresh request body", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrBadRequestBody)
-		return
+		return apperrors.New(apperrors.BadRequest, err)
 
 	}
 
 	successful, failed, err := uh.user.UpsertUserFoodLogsAndEntries(request.Context(), id, requestBody.FoodLogs)
 	if err != nil {
 
-		if errors.Is(err, apperrors.ErrSoftWeightLog) {
-			writer.Header().Set("Content-Type", "application/json")
-			response := &SyncFoodLogsResponse{
-				NewLogs:    successful,
-				FailedLogs: failed,
-				Err:        err,
-			}
-			json.NewEncoder(writer).Encode(response)
-			return
-		}
-		var appErr *apperrors.AppError
-		if errors.As(err, &appErr) {
-			apperrors.WriteError(writer, *appErr)
-			return
-		}
-		apperrors.WriteError(writer, *apperrors.ErrInternalServer)
-		return
+		return err
 
 	}
 	response := &SyncFoodLogsResponse{
 		NewLogs:    successful,
-		FailedLogs: nil,
-		Err:        nil,
+		FailedLogs: failed,
 	}
+	writer.Header().Set("Content-Type", "application/json")
+
 	json.NewEncoder(writer).Encode(response)
+	return nil
 }
 
-func (uh *UserHandler) IngressSyncFoodLogs(writer http.ResponseWriter, request *http.Request) {
+func (uh *UserHandler) IngressSyncFoodLogs(writer http.ResponseWriter, request *http.Request) error {
+	id := middlewares.GetUserID(request.Context())
 
-	id, ok := request.Context().Value(middlewares.UserIDKey).(string)
-	if !ok {
-		apperrors.WriteError(writer, *apperrors.ErrMissingUserIdInContext)
-		return
-	}
 	last_synced := request.URL.Query().Get("last_synced_at")
 	var sinceTime *time.Time
 	if last_synced != "" {
@@ -359,34 +239,17 @@ func (uh *UserHandler) IngressSyncFoodLogs(writer http.ResponseWriter, request *
 		}
 
 	}
-	if sinceTime == nil {
-		apperrors.WriteError(writer, *apperrors.NewAppError("ERR_MISSING_QUERY", "Missing the 'last_synced_at' query", http.StatusBadRequest))
-		return
-	}
+
 	newLogs, err := uh.user.GetUserFoodLogs(request.Context(), id, sinceTime)
 	if err != nil {
-		var appErr *apperrors.AppError
-		if errors.As(err, &appErr) {
-			apperrors.WriteError(writer, *appErr)
-			return // Critical: Stop execution here
-		}
-
-		// 3. Fallback for unexpected errors
-		slog.Error("Error: Updating Settings Failed", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrInternalServer)
-		return
+		return err
 	}
 	if len(newLogs) == 0 {
 		writer.WriteHeader(http.StatusNotModified)
-		return
+		return nil
 
 	}
-	if newLogs == nil {
-		writer.WriteHeader(http.StatusNotModified)
-		return
-
-	}
-
 	writer.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(writer).Encode(newLogs)
+	return nil
 }

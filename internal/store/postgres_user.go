@@ -251,7 +251,7 @@ func (us *postgressUserRepo) UpdateUserSettings(ctx context.Context, tx *sql.Tx,
 
 }
 
-func (us *postgressUserRepo) UpsertUserExerciseLog(ctx context.Context, tx *sql.Tx, userId string, payload *models.ExerciseLog) error {
+func (us *postgressUserRepo) UpsertUserExerciseLog(ctx context.Context, tx *sql.Tx, userId string, payload *models.FullExerciseLog) error {
 	query := `
 INSERT INTO exercise_logs (id, user_id, exercise_id, created_at, updated_at, deleted_at)
 VALUES ($1, $2, $3, $4, $5, $6)
@@ -263,15 +263,19 @@ DO UPDATE SET
 WHERE EXCLUDED.updated_at > exercise_logs.updated_at;`
 
 	_, err := tx.ExecContext(ctx, query,
-		payload.ID,         // $1
-		userId,             // $2
-		payload.ExerciseId, // $3
-		payload.CreatedAt,  // $4
-		payload.UpdatedAt,  // $5
-		payload.DeletedAt,  // $6
+		payload.ExerciseLog.ID,         // $1
+		userId,                         // $2
+		payload.ExerciseLog.ExerciseId, // $3
+		payload.ExerciseLog.CreatedAt,  // $4
+		payload.ExerciseLog.UpdatedAt,  // $5
+		payload.ExerciseLog.DeletedAt,  // $6
 	)
 	if err != nil {
 		return fmt.Errorf("upsert exercise log %s: %w", userId, err)
+	}
+	err = us.upsertUserExerciseSets(ctx, tx, payload.ExerciseSets)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -364,20 +368,21 @@ func (us *postgressUserRepo) GetUserExerciseLogs(ctx context.Context, tx *sql.Tx
 
 }
 
-func (us *postgressUserRepo) GetUserExerciseLogById(ctx context.Context, tx *sql.Tx, userId, logId string) (*models.ExerciseLog, error) {
+// Returns the full Exercise Log including sets
+func (us *postgressUserRepo) GetUserExerciseLogById(ctx context.Context, tx *sql.Tx, userId, logId string) (*models.FullExerciseLog, error) {
 	queryExerciseLog := `
     SELECT id, exercise_id, created_at, updated_at, deleted_at
     FROM exercise_logs
     WHERE user_id = $1 and id = $2
     ORDER BY created_at DESC;` // Good practice to sort by date
 
-	log := &models.ExerciseLog{}
+	log := &models.FullExerciseLog{}
 	err := tx.QueryRowContext(ctx, queryExerciseLog, userId, logId).Scan(
-		&log.ID,
-		&log.ExerciseId,
-		&log.CreatedAt,
-		&log.UpdatedAt,
-		&log.DeletedAt,
+		&log.ExerciseLog.ID,
+		&log.ExerciseLog.ExerciseId,
+		&log.ExerciseLog.CreatedAt,
+		&log.ExerciseLog.UpdatedAt,
+		&log.ExerciseLog.DeletedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -386,10 +391,15 @@ func (us *postgressUserRepo) GetUserExerciseLogById(ctx context.Context, tx *sql
 		return nil, fmt.Errorf("get exercise log %s for user %s: %w", logId, userId, err)
 	}
 
+	log.ExerciseSets, err = us.getUserExerciseSetsByLogId(ctx, tx, logId)
+	if err != nil {
+		return nil, err
+	}
+
 	return log, nil
 
 }
-func (us *postgressUserRepo) UpsertUserExerciseSets(ctx context.Context, tx *sql.Tx, payload []*models.ExerciseSet) error {
+func (us *postgressUserRepo) upsertUserExerciseSets(ctx context.Context, tx *sql.Tx, payload []*models.ExerciseSet) error {
 	if payload == nil {
 		return errors.New("upsert exercise sets: nil payload")
 	}
@@ -426,7 +436,7 @@ WHERE EXCLUDED.updated_at > exercise_sets.updated_at;`
 
 }
 
-func (us *postgressUserRepo) GetUserExerciseSetsByLogId(ctx context.Context, tx *sql.Tx, logId string) ([]*models.ExerciseSet, error) {
+func (us *postgressUserRepo) getUserExerciseSetsByLogId(ctx context.Context, tx *sql.Tx, logId string) ([]*models.ExerciseSet, error) {
 	queryExerciseSet := `
     SELECT id, log_id, set_number, weight, reps, updated_at, deleted_at
     FROM exercise_sets WHERE log_id = $1
@@ -462,7 +472,7 @@ func (us *postgressUserRepo) GetUserExerciseSetsByLogId(ctx context.Context, tx 
 
 }
 
-func (us *postgressUserRepo) UpsertUserFoodLog(ctx context.Context, tx *sql.Tx, userId string, payload *models.FoodLog) error {
+func (us *postgressUserRepo) UpsertUserFoodLog(ctx context.Context, tx *sql.Tx, userId string, payload *models.FullFoodLog) error {
 	query := `
 INSERT INTO food_logs (id, user_id, time, name, created_at, updated_at, deleted_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -475,18 +485,21 @@ DO UPDATE SET
 WHERE EXCLUDED.updated_at > food_logs.updated_at;`
 
 	_, err := tx.ExecContext(ctx, query,
-		payload.ID,        // $1
-		userId,            // $2
-		payload.Time,      // $3
-		payload.Name,      // $4
-		payload.CreatedAt, // $5
-		payload.UpdatedAt, // $6
-		payload.DeletedAt, // $7
+		payload.FoodLog.ID,        // $1
+		userId,                    // $2
+		payload.FoodLog.Time,      // $3
+		payload.FoodLog.Name,      // $4
+		payload.FoodLog.CreatedAt, // $5
+		payload.FoodLog.UpdatedAt, // $6
+		payload.FoodLog.DeletedAt, // $7
 	)
 	if err != nil {
-		return fmt.Errorf("upsert food log %s for user %s: %w", payload.ID, userId, err)
+		return fmt.Errorf("upsert food log %s for user %s: %w", payload.FoodLog.ID, userId, err)
 	}
-
+	err = us.upsertUserFoodLogEntry(ctx, tx, payload.FoodLogEntries)
+	if err != nil {
+		return err
+	}
 	return nil
 
 }
@@ -584,20 +597,20 @@ func (us *postgressUserRepo) GetUserFoodLogs(ctx context.Context, tx *sql.Tx, us
 
 }
 
-func (us *postgressUserRepo) GetUserFoodLogById(ctx context.Context, tx *sql.Tx, userId, logId string) (*models.FoodLog, error) {
+func (us *postgressUserRepo) GetUserFoodLogById(ctx context.Context, tx *sql.Tx, userId, logId string) (*models.FullFoodLog, error) {
 	queryFoodLog := `
     SELECT id, time, name, created_at, updated_at, deleted_at
     FROM food_logs
     WHERE user_id = $1 AND id = $2;`
 
-	log := &models.FoodLog{}
+	log := &models.FullFoodLog{}
 	err := tx.QueryRowContext(ctx, queryFoodLog, userId, logId).Scan(
-		&log.ID,
-		&log.Time,
-		&log.Name,
-		&log.CreatedAt,
-		&log.UpdatedAt,
-		&log.DeletedAt,
+		&log.FoodLog.ID,
+		&log.FoodLog.Time,
+		&log.FoodLog.Name,
+		&log.FoodLog.CreatedAt,
+		&log.FoodLog.UpdatedAt,
+		&log.FoodLog.DeletedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -606,11 +619,16 @@ func (us *postgressUserRepo) GetUserFoodLogById(ctx context.Context, tx *sql.Tx,
 		return nil, fmt.Errorf("get food log %s for user %s: %w", logId, userId, err)
 	}
 
+	log.FoodLogEntries, err = us.getUserFoodLogEntriesByLogId(ctx, tx, logId)
+	if err != nil {
+		return nil, err
+	}
+
 	return log, nil
 
 }
 
-func (us *postgressUserRepo) UpsertUserFoodLogEntry(ctx context.Context, tx *sql.Tx, payload []*models.FoodLogEntry) error {
+func (us *postgressUserRepo) upsertUserFoodLogEntry(ctx context.Context, tx *sql.Tx, payload []*models.FoodLogEntry) error {
 	if payload == nil {
 		return errors.New("upsert food log entry: nil payload")
 	}
@@ -658,7 +676,7 @@ WHERE EXCLUDED.updated_at > food_log_items.updated_at;`
 
 }
 
-func (us *postgressUserRepo) GetUserFoodLogEntriesByLogId(ctx context.Context, tx *sql.Tx, logId string) ([]*models.FoodLogEntry, error) {
+func (us *postgressUserRepo) getUserFoodLogEntriesByLogId(ctx context.Context, tx *sql.Tx, logId string) ([]*models.FoodLogEntry, error) {
 	queryFoodLogEntries := `
     SELECT id, log_id, food_id, food_name, serving_id, quantity, unit, cal, fat, carbs, protein, updated_at, deleted_at
     FROM food_log_items WHERE log_id = $1
