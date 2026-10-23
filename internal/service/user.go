@@ -152,36 +152,43 @@ func (us *UserService) GetUserWeightLogs(ctx context.Context, userId string, las
 
 }
 
-func (us *UserService) UpsertUserExerciseLogAndSets(ctx context.Context, userId string, exerciseLogs []*models.FullExerciseLog) (newer []*models.FullExerciseLog, failed []string, err error) {
+func (us *UserService) UpsertUserExerciseLogAndSets(ctx context.Context, userId string, exerciseLogs []*models.FullExerciseLog) (newerServerLogs []*models.FullExerciseLog, failed []string, err error) {
 	if exerciseLogs == nil {
 		return nil, nil, apperrors.New(apperrors.BadRequest, fmt.Errorf("no exercise logs submitted to upsert"))
 	}
-	var newerServerLogs []*models.FullExerciseLog
-	err = us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
-		for _, log := range exerciseLogs {
+	newerServerLogs = []*models.FullExerciseLog{}
+	failed = []string{}
+	for _, log := range exerciseLogs {
+		var newerLog *models.FullExerciseLog
+
+		err = us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
 			err := us.userStore.UpsertUserExerciseLog(ctx, tx, userId, log)
 			if err != nil {
-				// Newer log data exist so we get it
-				newLog, err := us.userStore.GetUserExerciseLogById(ctx, tx, userId, log.ExerciseLog.ID)
-				if err != nil {
-					loggerx.Log(ctx).Warn(fmt.Sprintf("couldn't upsert or get exercise log %s: %w", log.ExerciseLog.ID, err))
-					failed = append(failed, log.ExerciseLog.ID)
-
-				} else if newLog != nil {
-					newerServerLogs = append(newerServerLogs, newLog)
+				if errors.Is(err, store.ErrNoRowsAffected) {
+					// Newer log data exist so we get it
+					var innerErr error
+					newerLog, innerErr = us.userStore.GetUserExerciseLogById(ctx, tx, userId, log.ExerciseLog.ID)
+					return innerErr
 				}
+				return err
 			}
-
+			return nil
+		})
+		if err != nil {
+			loggerx.Log(ctx).Warn("log upsert failed", "error", err, "log_id", log.ExerciseLog.ID)
+			failed = append(failed, log.ExerciseLog.ID)
+		}
+		if newerLog != nil {
+			newerServerLogs = append(newerServerLogs, newerLog)
 		}
 
-		return nil
-	})
+	}
 
 	return newerServerLogs, failed, nil
 
 }
 
-func (us *UserService) GetUserExerciseLogs(ctx context.Context, user_id string, last_sync *time.Time) ([]*models.FullExerciseLog, error) {
+func (us *UserService) GetUserExerciseLogs(ctx context.Context, user_id string, lastSync *time.Time) ([]*models.FullExerciseLog, error) {
 
 	var exerciseLogs []*models.FullExerciseLog
 
@@ -197,44 +204,56 @@ func (us *UserService) GetUserExerciseLogs(ctx context.Context, user_id string, 
 		// Already wrapped from store.getuserexerciselogs
 		return nil, err
 	}
-	var not_synced []*models.FullExerciseLog
+	var newLogs []*models.FullExerciseLog
 
 	for _, log := range exerciseLogs {
-		if log.ExerciseLog.UpdatedAt.After(*last_sync) {
-			not_synced = append(not_synced, log)
+		if lastSync != nil {
+			if log.ExerciseLog.UpdatedAt.After(*lastSync) {
+				newLogs = append(newLogs, log)
+			}
+		} else {
+			newLogs = append(newLogs, log)
 		}
 	}
-	return not_synced, nil
+	return newLogs, nil
 
-} //
+}
 
-// TODO: Rewrite function specifically the soft error and hard error at bottom make no sense and are uneeded
-func (us *UserService) UpsertUserFoodLogsAndEntries(ctx context.Context, userId string, FoodLogs []*models.FullFoodLog) (newer []*models.FullFoodLog, failed []string, err error) {
+func (us *UserService) UpsertUserFoodLogsAndEntries(ctx context.Context, userId string, FoodLogs []*models.FullFoodLog) (newerServerLogs []*models.FullFoodLog, failed []string, err error) {
 	if FoodLogs == nil {
 		return nil, nil, apperrors.New(apperrors.BadRequest, fmt.Errorf("no food logs submitted to upsert"))
 	}
-	var failedSync []string
-	var newerServerLogs []*models.FullFoodLog
-	err = us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
-		for _, log := range FoodLogs {
+	newerServerLogs = []*models.FullFoodLog{}
+	failed = []string{}
 
+	for _, log := range FoodLogs {
+		var newerLog *models.FullFoodLog
+
+		err = us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
 			err := us.userStore.UpsertUserFoodLog(ctx, tx, userId, log)
 			if err != nil {
-				// Newer log data exist so we get it
-				newLog, err := us.userStore.GetUserFoodLogById(ctx, tx, userId, log.FoodLog.ID)
-				if err != nil {
-					failedSync = append(failedSync, log.FoodLog.ID)
-				} else if newLog != nil {
-					newerServerLogs = append(newerServerLogs, newLog)
+				if errors.Is(err, store.ErrNoRowsAffected) {
+					var innerErr error
+					// Newer log data exist so we get it
+					newerLog, innerErr = us.userStore.GetUserFoodLogById(ctx, tx, userId, log.FoodLog.ID)
+					return innerErr
 				}
+				return err
 			}
+			return nil
+		})
+
+		if err != nil {
+			loggerx.Log(ctx).Warn("log upsert failed", "error", err, "log_id", log.FoodLog.ID)
+			failed = append(failed, log.FoodLog.ID)
+			continue
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, nil, fmt.Errorf("something went wrong: %w", err)
+		if newerLog != nil {
+			newerServerLogs = append(newerServerLogs, newerLog)
+		}
+
 	}
-	return newerServerLogs, failedSync, nil
+	return newerServerLogs, failed, nil
 
 }
 
@@ -253,13 +272,17 @@ func (us *UserService) GetUserFoodLogs(ctx context.Context, user_id string, last
 		// Already a wrapped error
 		return nil, err
 	}
-	var not_synced []*models.FullFoodLog
+	var newLogs []*models.FullFoodLog
 
 	for _, log := range foodLogs {
-		if log.FoodLog.UpdatedAt.After(*last_sync) {
-			not_synced = append(not_synced, log)
+		if last_sync != nil {
+			if log.FoodLog.UpdatedAt.After(*last_sync) {
+				newLogs = append(newLogs, log)
+			}
+		} else {
+			newLogs = append(newLogs, log)
 		}
 	}
-	return not_synced, nil
+	return newLogs, nil
 
 }

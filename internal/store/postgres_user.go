@@ -106,7 +106,7 @@ func (us *postgressUserRepo) UpsertUserWeightLog(ctx context.Context, tx *sql.Tx
 	query := `
         INSERT INTO weight_logs (id, user_id, weight_kg, log_date, updated_at, deleted_at)
         VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT (user_id, log_date) 
+        ON CONFLICT (id, user_id, log_date) 
         DO UPDATE SET 
             weight_kg = EXCLUDED.weight_kg,
             updated_at = EXCLUDED.updated_at,
@@ -255,14 +255,14 @@ func (us *postgressUserRepo) UpsertUserExerciseLog(ctx context.Context, tx *sql.
 	query := `
 INSERT INTO exercise_logs (id, user_id, exercise_id, created_at, updated_at, deleted_at)
 VALUES ($1, $2, $3, $4, $5, $6)
-ON CONFLICT (id) 
+ON CONFLICT (id, user_id) 
 DO UPDATE SET
     exercise_id = EXCLUDED.exercise_id,
     updated_at = EXCLUDED.updated_at,
     deleted_at = EXCLUDED.deleted_at
 WHERE EXCLUDED.updated_at > exercise_logs.updated_at;`
 
-	_, err := tx.ExecContext(ctx, query,
+	res, err := tx.ExecContext(ctx, query,
 		payload.ExerciseLog.ID,         // $1
 		userId,                         // $2
 		payload.ExerciseLog.ExerciseId, // $3
@@ -272,6 +272,10 @@ WHERE EXCLUDED.updated_at > exercise_logs.updated_at;`
 	)
 	if err != nil {
 		return fmt.Errorf("upsert exercise log %s: %w", userId, err)
+	}
+	rowsAff, _ := res.RowsAffected()
+	if rowsAff == 0 {
+		return fmt.Errorf("upsert exercise log %s: %w", userId, ErrNoRowsAffected)
 	}
 	err = us.upsertUserExerciseSets(ctx, tx, payload.ExerciseSets)
 	if err != nil {
@@ -407,7 +411,7 @@ func (us *postgressUserRepo) upsertUserExerciseSets(ctx context.Context, tx *sql
 	query := `
 INSERT INTO exercise_sets (id, log_id, set_number, weight, reps, updated_at, deleted_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-ON CONFLICT (id) 
+ON CONFLICT (id, log_id) 
 DO UPDATE SET
     set_number = EXCLUDED.set_number,
     reps = EXCLUDED.reps,
@@ -476,7 +480,7 @@ func (us *postgressUserRepo) UpsertUserFoodLog(ctx context.Context, tx *sql.Tx, 
 	query := `
 INSERT INTO food_logs (id, user_id, time, name, created_at, updated_at, deleted_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-ON CONFLICT (id) 
+ON CONFLICT (id, user_id) 
 DO UPDATE SET
     name = EXCLUDED.name,
     time = EXCLUDED.time,
@@ -484,7 +488,7 @@ DO UPDATE SET
     deleted_at = EXCLUDED.deleted_at
 WHERE EXCLUDED.updated_at > food_logs.updated_at;`
 
-	_, err := tx.ExecContext(ctx, query,
+	res, err := tx.ExecContext(ctx, query,
 		payload.FoodLog.ID,        // $1
 		userId,                    // $2
 		payload.FoodLog.Time,      // $3
@@ -495,6 +499,10 @@ WHERE EXCLUDED.updated_at > food_logs.updated_at;`
 	)
 	if err != nil {
 		return fmt.Errorf("upsert food log %s for user %s: %w", payload.FoodLog.ID, userId, err)
+	}
+	rowsAff, _ := res.RowsAffected()
+	if rowsAff == 0 {
+		return fmt.Errorf("upsert food log %s: %w", userId, ErrNoRowsAffected)
 	}
 	err = us.upsertUserFoodLogEntry(ctx, tx, payload.FoodLogEntries)
 	if err != nil {
@@ -636,7 +644,7 @@ func (us *postgressUserRepo) upsertUserFoodLogEntry(ctx context.Context, tx *sql
 	query := `
 INSERT INTO food_log_items (id, log_id, food_id, food_name, serving_id, quantity, unit, cal, fat, carbs, protein, updated_at, deleted_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-ON CONFLICT (id) 
+ON CONFLICT (id, log_id) 
 DO UPDATE SET
     food_name = EXCLUDED.food_name,
     serving_id = EXCLUDED.serving_id,

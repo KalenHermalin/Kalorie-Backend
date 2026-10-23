@@ -24,7 +24,7 @@ type esyncSettingsbody struct {
 }
 type egressResponse struct {
 	NewSettings any  `json:"new"`
-	IsModified  bool `json:"is_modified"`
+	IsConflcit  bool `json:"is_conflict"`
 }
 
 func (uh *UserHandler) EgressSyncSettings(writer http.ResponseWriter, request *http.Request) error {
@@ -45,7 +45,7 @@ func (uh *UserHandler) EgressSyncSettings(writer http.ResponseWriter, request *h
 	writer.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(writer).Encode(egressResponse{
 		NewSettings: newSettings,
-		IsModified:  isModified,
+		IsConflcit:  isModified,
 	})
 	return nil
 }
@@ -63,11 +63,16 @@ func (uh *UserHandler) IngressSyncSettings(writer http.ResponseWriter, request *
 
 	}
 
-	newSettings, _, err := uh.user.GetUserSettings(request.Context(), id, sinceTime)
+	newSettings, isModified, err := uh.user.GetUserSettings(request.Context(), id, sinceTime)
 	if err != nil {
 		return err
 	}
 	writer.Header().Set("Content-Type", "application/json")
+	if !isModified {
+		writer.WriteHeader(http.StatusNotModified)
+		return nil
+	}
+
 	json.NewEncoder(writer).Encode(newSettings)
 	return nil
 }
@@ -94,7 +99,7 @@ func (uh *UserHandler) EgressSyncWeightLogs(writer http.ResponseWriter, request 
 		return err
 	}
 	if len(failed) != 0 {
-		writer.WriteHeader(207)
+		writer.WriteHeader(http.StatusMultiStatus)
 	}
 	response := &SyncWeightLogsResponse{
 		NewLogs:    successful,
@@ -122,13 +127,13 @@ func (uh *UserHandler) IngressSyncWeightLogs(writer http.ResponseWriter, request
 	if err != nil {
 		return err
 	}
+	writer.Header().Set("Content-Type", "application/json")
 	if len(weightLogs) == 0 {
 		writer.WriteHeader(http.StatusNotModified)
 		return nil
 
 	}
 
-	writer.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(writer).Encode(weightLogs)
 	return nil
 }
@@ -143,6 +148,7 @@ type SyncExerciseLogsResponse struct {
 
 func (uh *UserHandler) EgressSyncExerciseLogs(writer http.ResponseWriter, request *http.Request) error {
 	id := middlewares.GetUserID(request.Context())
+
 	var requestBody SyncExerciseLogsRequestBody
 	err := utils.DecodePayload(request.Body, &requestBody)
 	if err != nil {
@@ -153,6 +159,9 @@ func (uh *UserHandler) EgressSyncExerciseLogs(writer http.ResponseWriter, reques
 	successful, failed, err := uh.user.UpsertUserExerciseLogAndSets(request.Context(), id, requestBody.ExerciseLogs)
 	if err != nil {
 		return err
+	}
+	if len(failed) > 0 {
+		writer.WriteHeader(http.StatusMultiStatus)
 	}
 	response := &SyncExerciseLogsResponse{
 		NewLogs:    successful,
@@ -182,13 +191,13 @@ func (uh *UserHandler) IngressSyncExerciseLogs(writer http.ResponseWriter, reque
 	if err != nil {
 		return err
 	}
+	writer.Header().Set("Content-Type", "application/json")
 	if len(newLogs) == 0 {
 		writer.WriteHeader(http.StatusNotModified)
 		return nil
 
 	}
 
-	writer.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(writer).Encode(newLogs)
 	return nil
 }
@@ -213,9 +222,10 @@ func (uh *UserHandler) EgressSyncFoodLogs(writer http.ResponseWriter, request *h
 
 	successful, failed, err := uh.user.UpsertUserFoodLogsAndEntries(request.Context(), id, requestBody.FoodLogs)
 	if err != nil {
-
 		return err
-
+	}
+	if len(failed) > 0 {
+		writer.WriteHeader(http.StatusMultiStatus)
 	}
 	response := &SyncFoodLogsResponse{
 		NewLogs:    successful,
@@ -244,12 +254,12 @@ func (uh *UserHandler) IngressSyncFoodLogs(writer http.ResponseWriter, request *
 	if err != nil {
 		return err
 	}
+	writer.Header().Set("Content-Type", "application/json")
 	if len(newLogs) == 0 {
 		writer.WriteHeader(http.StatusNotModified)
 		return nil
 
 	}
-	writer.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(writer).Encode(newLogs)
 	return nil
 }

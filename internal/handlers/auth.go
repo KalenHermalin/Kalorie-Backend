@@ -32,8 +32,11 @@ func (ah *AuthHandler) HandleRefresh(writer http.ResponseWriter, request *http.R
 
 	requestData := &logOutRequestBody{}
 	if err := utils.DecodePayload(request.Body, requestData); err != nil {
-		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "refresh", Problem: "missing or malformed field or request"})
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "body", Problem: "malformed request bodu"})
 
+	}
+	if err := utils.CheckValidString(requestData.Refresh); err != nil {
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "refresh", Problem: "missing refresh token"})
 	}
 	resp, err := ah.auth.RefreshAccessToken(request.Context(), requestData.Refresh)
 	if err != nil {
@@ -50,7 +53,11 @@ func (ah *AuthHandler) HandleLogOut(writer http.ResponseWriter, request *http.Re
 	// Get refresh token from request body
 	requestData := &logOutRequestBody{}
 	if err := utils.DecodePayload(request.Body, requestData); err != nil {
-		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "refresh", Problem: "missing or malformed field or request"})
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "body", Problem: "malformed request bodu"})
+
+	}
+	if err := utils.CheckValidString(requestData.Refresh); err != nil {
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "refresh", Problem: "missing refresh token"})
 	}
 	err := ah.auth.LogOut(request.Context(), userId, requestData.Refresh)
 	if err != nil {
@@ -76,15 +83,18 @@ func (ah *AuthHandler) HandleLoginSignup(writer http.ResponseWriter, request *ht
 
 	var requestData authRequestBody
 	if err := utils.DecodePayload(request.Body, &requestData); err != nil {
-		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "refresh", Problem: "missing or malformed field or request"})
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "body", Problem: "malformed request bodu"})
 
 	}
 	if err := utils.CheckValidString(requestData.Code); err != nil {
-		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "refresh", Problem: "code is empty"})
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "code", Problem: "code is empty"})
 
 	}
 	if err := utils.CheckValidString(requestData.Provider); err != nil {
-		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "refresh", Problem: "provider is empty"})
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "provider", Problem: "provider is empty"})
+	}
+	if err := utils.CheckValidString(requestData.Verifier); err != nil {
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "verifier", Problem: "verifier is empty"})
 	}
 	resp, err := ah.auth.SignIn(request.Context(), requestData.Code, requestData.Provider, requestData.Verifier, requestData.Platform)
 	if err != nil {
