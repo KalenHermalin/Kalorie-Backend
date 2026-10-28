@@ -110,7 +110,8 @@ func main() {
 		slog.Error("Error: Missing env variable", "key", "JWT_REFRESH_SECRET")
 		os.Exit(1)
 	}
-	authService := service.NewAuthService(userStore, jwtAccessSecret, jwtRefreshSecret, authProviders...)
+	authStore := store.NewPostgressAuthStore(db)
+	authService := service.NewAuthService(authStore, jwtAccessSecret, jwtRefreshSecret, authProviders...)
 	authHandler := handlers.NewAuthHandler(*authService)
 
 	// Setting Up User Handler

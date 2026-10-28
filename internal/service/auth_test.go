@@ -13,80 +13,30 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type MockUserRepo struct {
+type MockAuthRepo struct {
 	mockUser    *models.User
 	mockRefresh string
 	mockErr     error
 }
 
+// DeleteRefreshToken implements [models.UserRepository].
+func (m *MockAuthRepo) DeleteRefreshToken(ctx context.Context, tx *sql.Tx, token string, userId string) error {
+	panic("unimplemented")
+}
+
 // DeleteUser implements [models.UserRepository].
-func (m *MockUserRepo) DeleteUser(ctx context.Context, tx *sql.Tx, userID string) error {
+func (m *MockAuthRepo) DeleteUser(ctx context.Context, tx *sql.Tx, userID string) error {
 	panic("unimplemented")
 }
 
-// GetUserExerciseLogById implements [models.UserRepository].
-func (m *MockUserRepo) GetUserExerciseLogById(ctx context.Context, tx *sql.Tx, userId string, logId string) (*models.ExerciseLog, error) {
+// FindRefreshToken implements [models.UserRepository].
+func (m *MockAuthRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string) (*models.User, error) {
 	panic("unimplemented")
 }
 
-// GetUserExerciseLogs implements [models.UserRepository].
-func (m *MockUserRepo) GetUserExerciseLogs(ctx context.Context, tx *sql.Tx, userId string) ([]*models.FullExerciseLog, error) {
-	panic("unimplemented")
-}
-
-// GetUserExerciseSetsByLogId implements [models.UserRepository].
-func (m *MockUserRepo) GetUserExerciseSetsByLogId(ctx context.Context, tx *sql.Tx, logId string) ([]*models.ExerciseSet, error) {
-	panic("unimplemented")
-}
-
-// GetUserFoodLogById implements [models.UserRepository].
-func (m *MockUserRepo) GetUserFoodLogById(ctx context.Context, tx *sql.Tx, userId string, logId string) (*models.FoodLog, error) {
-	panic("unimplemented")
-}
-
-// GetUserFoodLogEntriesByLogId implements [models.UserRepository].
-func (m *MockUserRepo) GetUserFoodLogEntriesByLogId(ctx context.Context, tx *sql.Tx, logId string) ([]*models.FoodLogEntry, error) {
-	panic("unimplemented")
-}
-
-// GetUserFoodLogs implements [models.UserRepository].
-func (m *MockUserRepo) GetUserFoodLogs(ctx context.Context, tx *sql.Tx, userId string) ([]*models.FullFoodLog, error) {
-	panic("unimplemented")
-}
-
-// GetUserWeightLogById implements [models.UserRepository].
-func (m *MockUserRepo) GetUserWeightLogById(ctx context.Context, tx *sql.Tx, userId string, logId string) (*models.WeightLog, error) {
-	panic("unimplemented")
-}
-
-// GetUserWeightLogs implements [models.UserRepository].
-func (m *MockUserRepo) GetUserWeightLogs(ctx context.Context, tx *sql.Tx, userId string) ([]*models.WeightLog, error) {
-	panic("unimplemented")
-}
-
-// UpsertUserExerciseLog implements [models.UserRepository].
-func (m *MockUserRepo) UpsertUserExerciseLog(ctx context.Context, tx *sql.Tx, userId string, payload *models.ExerciseLog) error {
-	panic("unimplemented")
-}
-
-// UpsertUserExerciseSets implements [models.UserRepository].
-func (m *MockUserRepo) UpsertUserExerciseSets(ctx context.Context, tx *sql.Tx, payload []*models.ExerciseSet) error {
-	panic("unimplemented")
-}
-
-// UpsertUserFoodLog implements [models.UserRepository].
-func (m *MockUserRepo) UpsertUserFoodLog(ctx context.Context, tx *sql.Tx, userId string, payload *models.FoodLog) error {
-	panic("unimplemented")
-}
-
-// UpsertUserFoodLogEntry implements [models.UserRepository].
-func (m *MockUserRepo) UpsertUserFoodLogEntry(ctx context.Context, tx *sql.Tx, payload []*models.FoodLogEntry) error {
-	panic("unimplemented")
-}
-
-// UpsertUserWeightLog implements [models.UserRepository].
-func (m *MockUserRepo) UpsertUserWeightLog(ctx context.Context, tx *sql.Tx, userId string, payload *models.WeightLog) error {
-	panic("unimplemented")
+// SaveRefreshToken implements [models.UserRepository].
+func (m *MockAuthRepo) SaveRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string, expiresAt time.Time) error {
+	return nil
 }
 
 type MockAuthProvider struct {
@@ -100,36 +50,17 @@ func (m *MockAuthProvider) GetProviderName() string { return m.name }
 func (m *MockAuthProvider) HandleCodeExchangeWithVerifier(ctx context.Context, code, verifier string) (*models.AuthPayload, error) {
 	return m.payload, m.err
 }
-func (m *MockUserRepo) UpsertUserWithAuth(ctx context.Context, tx *sql.Tx, p *models.AuthPayload) (*models.User, error) {
+func (m *MockAuthRepo) UpsertUserWithAuth(ctx context.Context, tx *sql.Tx, p *models.AuthPayload) (*models.User, error) {
 	return m.mockUser, m.mockErr
 }
-func (m *MockUserRepo) WithTx(ctx context.Context, fn func(*sql.Tx) error) error {
+func (m *MockAuthRepo) WithTx(ctx context.Context, fn func(*sql.Tx) error) error {
 	return fn(nil)
 }
 
-func (m *MockUserRepo) SaveRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string, expiresAt time.Time) error {
-	return nil
-}
-func (m *MockUserRepo) DeleteRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string) error {
-	return nil
-}
-func (m *MockUserRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string) (*models.User, error) {
-	return nil, nil
-}
-
-func (us *MockUserRepo) UpdateUserSettings(ctx context.Context, tx *sql.Tx, userId string, settings *models.UserSettings) error {
-	panic("unimplemented")
-
-}
-
-func (us *MockUserRepo) GetUserSettings(ctx context.Context, tx *sql.Tx, userId string) (*models.UserSettings, error) {
-	panic("unimplemented")
-
-}
 func TestSignIn_FullFlow(t *testing.T) {
 	// 1. Setup mocks
 	mockUser := &models.User{ID: "1", Email: "kalen@laurier.ca", CreatedAt: time.Now()}
-	repo := &MockUserRepo{mockUser: mockUser, mockRefresh: "fake_refresh_token"}
+	repo := &MockAuthRepo{mockUser: mockUser, mockRefresh: "fake_refresh_token"}
 
 	provider := &MockAuthProvider{
 		name:    "github",
@@ -156,7 +87,7 @@ func TestSignIn_FullFlow(t *testing.T) {
 
 func TestSignIn_DatabaseFailure(t *testing.T) {
 	// 1. Setup mocks
-	repo := &MockUserRepo{mockErr: errors.New("Database Connection Failed")}
+	repo := &MockAuthRepo{mockErr: errors.New("Database Connection Failed")}
 
 	provider := &MockAuthProvider{
 		name:    "github",
@@ -180,7 +111,7 @@ func TestSignIn_DatabaseFailure(t *testing.T) {
 
 func TestSignIn_ProviderFailure(t *testing.T) {
 	// Dont need DB because we fail before reaching it
-	repo := &MockUserRepo{}
+	repo := &MockAuthRepo{}
 
 	provider := &MockAuthProvider{
 		name: "github",

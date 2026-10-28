@@ -32,7 +32,7 @@ func (ah *AuthHandler) HandleRefresh(writer http.ResponseWriter, request *http.R
 
 	requestData := &logOutRequestBody{}
 	if err := utils.DecodePayload(request.Body, requestData); err != nil {
-		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "body", Problem: "malformed request bodu"})
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "body", Problem: "malformed request body"})
 
 	}
 	if err := utils.CheckValidString(requestData.Refresh); err != nil {
@@ -53,7 +53,7 @@ func (ah *AuthHandler) HandleLogOut(writer http.ResponseWriter, request *http.Re
 	// Get refresh token from request body
 	requestData := &logOutRequestBody{}
 	if err := utils.DecodePayload(request.Body, requestData); err != nil {
-		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "body", Problem: "malformed request bodu"})
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "body", Problem: "malformed request body"})
 
 	}
 	if err := utils.CheckValidString(requestData.Refresh); err != nil {
@@ -83,7 +83,7 @@ func (ah *AuthHandler) HandleLoginSignup(writer http.ResponseWriter, request *ht
 
 	var requestData authRequestBody
 	if err := utils.DecodePayload(request.Body, &requestData); err != nil {
-		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "body", Problem: "malformed request bodu"})
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "body", Problem: "malformed request body"})
 
 	}
 	if err := utils.CheckValidString(requestData.Code); err != nil {

@@ -41,7 +41,6 @@ func (uh *UserHandler) EgressSyncSettings(writer http.ResponseWriter, request *h
 	if err != nil {
 		return err
 	}
-
 	writer.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(writer).Encode(egressResponse{
 		NewSettings: newSettings,
@@ -98,6 +97,8 @@ func (uh *UserHandler) EgressSyncWeightLogs(writer http.ResponseWriter, request 
 	if err != nil {
 		return err
 	}
+	writer.Header().Set("Content-Type", "application/json")
+
 	if len(failed) != 0 {
 		writer.WriteHeader(http.StatusMultiStatus)
 	}
@@ -105,7 +106,6 @@ func (uh *UserHandler) EgressSyncWeightLogs(writer http.ResponseWriter, request 
 		NewLogs:    successful,
 		FailedLogs: failed,
 	}
-	writer.Header().Set("Content-Type", "application/json")
 
 	json.NewEncoder(writer).Encode(response)
 	return nil
@@ -160,6 +160,8 @@ func (uh *UserHandler) EgressSyncExerciseLogs(writer http.ResponseWriter, reques
 	if err != nil {
 		return err
 	}
+	writer.Header().Set("Content-Type", "application/json")
+
 	if len(failed) > 0 {
 		writer.WriteHeader(http.StatusMultiStatus)
 	}
@@ -167,7 +169,6 @@ func (uh *UserHandler) EgressSyncExerciseLogs(writer http.ResponseWriter, reques
 		NewLogs:    successful,
 		FailedLogs: failed,
 	}
-	writer.Header().Set("Content-Type", "application/json")
 
 	json.NewEncoder(writer).Encode(response)
 	return nil
@@ -224,6 +225,8 @@ func (uh *UserHandler) EgressSyncFoodLogs(writer http.ResponseWriter, request *h
 	if err != nil {
 		return err
 	}
+	writer.Header().Set("Content-Type", "application/json")
+
 	if len(failed) > 0 {
 		writer.WriteHeader(http.StatusMultiStatus)
 	}
@@ -231,7 +234,6 @@ func (uh *UserHandler) EgressSyncFoodLogs(writer http.ResponseWriter, request *h
 		NewLogs:    successful,
 		FailedLogs: failed,
 	}
-	writer.Header().Set("Content-Type", "application/json")
 
 	json.NewEncoder(writer).Encode(response)
 	return nil

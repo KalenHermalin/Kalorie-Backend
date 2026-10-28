@@ -30,12 +30,14 @@ func (us *UserService) UpdateUserSettings(ctx context.Context, userId string, se
 				// If no rows affected, more recent data exists so get it
 				newSettings, err = us.userStore.GetUserSettings(ctx, tx, userId)
 				if err != nil {
-					if errors.Is(err, store.ErrNotFound) {
+					if errors.Is(err, store.ErrNotFound) || errors.Is(err, store.ErrUserForeignKeyConstraint) {
 						return apperrors.New(apperrors.SessionOver, err)
 					}
 					return fmt.Errorf("failed to retrieve settings for user %s: %w", userId, err)
 				}
 				return nil
+			} else if errors.Is(err, store.ErrUserForeignKeyConstraint) {
+				return apperrors.New(apperrors.SessionOver, err)
 			}
 			// Unknown DB error
 			return fmt.Errorf("update user settings for user %s: %w", userId, err)
@@ -61,7 +63,7 @@ func (us *UserService) GetUserSettings(ctx context.Context, userId string, lastS
 		var inErr error
 		settings, inErr = us.userStore.GetUserSettings(ctx, tx, userId)
 		if inErr != nil {
-			if errors.Is(inErr, store.ErrNotFound) {
+			if errors.Is(inErr, store.ErrNotFound) || errors.Is(err, store.ErrUserForeignKeyConstraint) {
 				return apperrors.New(apperrors.SessionOver, inErr)
 			}
 			return fmt.Errorf("get user settings for user %s: %w", userId, inErr)
@@ -103,6 +105,8 @@ func (us *UserService) UpsertUserWeightLogs(ctx context.Context, userId string, 
 					var fErr error
 					newerLog, fErr = us.userStore.GetUserWeightLogById(ctx, tx, userId, log.ID)
 					return fErr
+				} else if errors.Is(err, store.ErrUserForeignKeyConstraint) {
+					return apperrors.New(apperrors.SessionOver, err)
 				}
 				return err
 			}
@@ -131,6 +135,9 @@ func (us *UserService) GetUserWeightLogs(ctx context.Context, userId string, las
 		return gErr
 	})
 	if err != nil {
+		if errors.Is(err, store.ErrUserForeignKeyConstraint) {
+			return nil, apperrors.New(apperrors.SessionOver, err)
+		}
 		return nil, err
 	}
 	var notSynced []*models.WeightLog
@@ -152,6 +159,7 @@ func (us *UserService) GetUserWeightLogs(ctx context.Context, userId string, las
 
 }
 
+// TODO Need to workout which foriegn key contraint for user or log id on the sets
 func (us *UserService) UpsertUserExerciseLogAndSets(ctx context.Context, userId string, exerciseLogs []*models.FullExerciseLog) (newerServerLogs []*models.FullExerciseLog, failed []string, err error) {
 	if exerciseLogs == nil {
 		return nil, nil, apperrors.New(apperrors.BadRequest, fmt.Errorf("no exercise logs submitted to upsert"))
@@ -164,7 +172,9 @@ func (us *UserService) UpsertUserExerciseLogAndSets(ctx context.Context, userId 
 		err = us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
 			err := us.userStore.UpsertUserExerciseLog(ctx, tx, userId, log)
 			if err != nil {
-				if errors.Is(err, store.ErrNoRowsAffected) {
+				if errors.Is(err, store.ErrUserForeignKeyConstraint) {
+					return err
+				} else if errors.Is(err, store.ErrNoRowsAffected) {
 					// Newer log data exist so we get it
 					var innerErr error
 					newerLog, innerErr = us.userStore.GetUserExerciseLogById(ctx, tx, userId, log.ExerciseLog.ID)
@@ -175,6 +185,9 @@ func (us *UserService) UpsertUserExerciseLogAndSets(ctx context.Context, userId 
 			return nil
 		})
 		if err != nil {
+			if errors.Is(err, store.ErrUserForeignKeyConstraint) {
+				return nil, nil, apperrors.New(apperrors.SessionOver, err)
+			}
 			loggerx.Log(ctx).Warn("log upsert failed", "error", err, "log_id", log.ExerciseLog.ID)
 			failed = append(failed, log.ExerciseLog.ID)
 		}
@@ -201,6 +214,9 @@ func (us *UserService) GetUserExerciseLogs(ctx context.Context, user_id string, 
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, store.ErrUserForeignKeyConstraint) {
+			return nil, apperrors.New(apperrors.SessionOver, err)
+		}
 		// Already wrapped from store.getuserexerciselogs
 		return nil, err
 	}

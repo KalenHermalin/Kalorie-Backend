@@ -81,12 +81,6 @@ type FullFoodLog struct {
 }
 
 type UserRepository interface {
-	UpsertUserWithAuth(ctx context.Context, tx *sql.Tx, payload *AuthPayload) (*User, error)
-	DeleteRefreshToken(ctx context.Context, tx *sql.Tx, token string, userId string) error
-	SaveRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string, expiresAt time.Time) error
-	FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string) (*User, error)
-	DeleteUser(ctx context.Context, tx *sql.Tx, userID string) error
-
 	UpdateUserSettings(ctx context.Context, tx *sql.Tx, userId string, settings *UserSettings) error
 	GetUserSettings(ctx context.Context, tx *sql.Tx, userId string) (*UserSettings, error)
 

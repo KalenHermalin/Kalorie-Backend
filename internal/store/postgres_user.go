@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"main/internal/models"
 	"time"
+
+	"github.com/lib/pq" // The underscore is required
 )
 
 type postgressUserRepo struct {
@@ -15,6 +17,9 @@ type postgressUserRepo struct {
 
 var ErrNoRowsAffected = errors.New("no rows affected")
 var ErrNotFound = errors.New("no row found")
+var ErrUserForeignKeyConstraint = errors.New("no user exists")
+var ErrLogIdForeignKeyConstraint = errors.New("no log id exists")
+var foreignKeyConstraintErrorCode = "23503"
 
 func NewPostgressUserStore(db *sql.DB) *postgressUserRepo {
 	return &postgressUserRepo{
@@ -23,90 +28,24 @@ func NewPostgressUserStore(db *sql.DB) *postgressUserRepo {
 
 }
 
-func (us *postgressUserRepo) SaveRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string, expiresAt time.Time) error {
-	query := `INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)`
-	_, err := tx.ExecContext(ctx, query, userId, refresh, expiresAt)
-	if err != nil {
-		return fmt.Errorf("save refresh token %s: %w", userId, err)
-	}
-	return nil
-
-}
-func (us *postgressUserRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string) (*models.User, error) {
-	query := `
-        SELECT u.id, u.email, u.created_at
-        FROM users u
-        JOIN refresh_tokens rt ON u.id = rt.user_id
-        WHERE rt.token = $1 AND rt.expires_at > NOW()`
-
-	user := &models.User{}
-	err := tx.QueryRowContext(ctx, query, refresh).Scan(&user.ID, &user.Email, &user.CreatedAt)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("find refresh token: %w", ErrNotFound)
-		}
-		return nil, fmt.Errorf("find refresh token: %w", err)
-	}
-	return user, nil
-}
-
-func (us *postgressUserRepo) DeleteRefreshToken(ctx context.Context, tx *sql.Tx, token string, userId string) error {
-	query := `DELETE FROM refresh_tokens WHERE user_id=$1 AND token=$2`
-	result, err := tx.ExecContext(ctx, query, userId, token)
-	if err != nil {
-		return fmt.Errorf("delete refresh token %s: %w", userId, err)
-	}
-
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("delete refresh token %s: %w", userId, err)
-	}
-
-	if rows == 0 {
-		return fmt.Errorf("delete refresh token %s: %w", userId, ErrNoRowsAffected)
-
-	}
-	return nil
-}
-func (us *postgressUserRepo) UpsertUserWithAuth(ctx context.Context, tx *sql.Tx, payload *models.AuthPayload) (*models.User, error) {
-	var user models.User
-
-	// 1. Upsert User (Update last_login if you have that column)
-	query := `INSERT INTO users (email) VALUES ($1) 
-                  ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email 
-                  RETURNING id, email, created_at`
-	if err := tx.QueryRowContext(ctx, query, payload.Email).Scan(&user.ID, &user.Email, &user.CreatedAt); err != nil {
-		return nil, fmt.Errorf("upsert user: %w", err)
-	}
-	// 2. Upsert Provider Identity
-	providerQuery := `INSERT INTO provider_identities (user_id, provider, provider_user_id) 
-                          VALUES ($1, $2, $3) 
-                          ON CONFLICT (provider, provider_user_id) DO NOTHING`
-	if _, err := tx.ExecContext(ctx, providerQuery, user.ID, payload.Provider, payload.ID); err != nil {
-		return nil, fmt.Errorf("upsert user provider identity: %w", err)
-	}
-	return &user, nil
-}
-
-func (us *postgressUserRepo) DeleteUser(ctx context.Context, tx *sql.Tx, userID string) error {
-	deleteQuery := `DELETE FROM users WHERE id = $1`
-	res, err := tx.ExecContext(ctx, deleteQuery, userID)
-	if err != nil {
-		return fmt.Errorf("delete user %s: %w", userID, err)
-	}
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		return fmt.Errorf("delete user %s: %w", userID, ErrNoRowsAffected)
-	}
-	return nil
-
-}
-
+// UpsertUserWeightLog updates or inserts a users weight log into the database.
+// It returns an error if something goes wrong and rollsback the transaction
+//
+// # Parameters
+//   - ctx is a [context.Context] retrieved from the http request
+//   - tx is a non-nil *[sql.Tx]
+//   - userId is a non empty string that is a in the users table (valid user)
+//   - payload is a non-nil *[models.WeightLog]
+//
+// # Errors
+//   - Returns [ErrUserForeignKeyConstraint] if the userId provided is no longer in the database, happens when a user deletes account but a session, with a valid access token, is still available on another device. (rare because of 15 min validity)
+//   - Returns [ErrNoRowsAffected] when payload.updated_at is older than stored weightlog. Happens when another device synced a newer log data
+//   - Returns fmt.error for any other errors
 func (us *postgressUserRepo) UpsertUserWeightLog(ctx context.Context, tx *sql.Tx, userId string, payload *models.WeightLog) error {
 	query := `
         INSERT INTO weight_logs (id, user_id, weight_kg, log_date, updated_at, deleted_at)
         VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT (id, user_id, log_date) 
+        ON CONFLICT (user_id, log_date) 
         DO UPDATE SET 
             weight_kg = EXCLUDED.weight_kg,
             updated_at = EXCLUDED.updated_at,
@@ -122,17 +61,37 @@ func (us *postgressUserRepo) UpsertUserWeightLog(ctx context.Context, tx *sql.Tx
 		payload.DeletedAt, // $6
 	)
 	if err != nil {
-		return fmt.Errorf("upsert weight log %s: %w", userId, err)
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+				return fmt.Errorf("upsert weight log for user %s: %w", userId, ErrUserForeignKeyConstraint)
+
+			}
+		}
+		return fmt.Errorf("upsert weight log for %s: %w", userId, err)
 	}
 
 	rowsAff, _ := res.RowsAffected()
 	if rowsAff == 0 {
-		return fmt.Errorf("upsert weight log %s: %w", userId, ErrNoRowsAffected)
+		return fmt.Errorf("upsert weight log for %s: %w", userId, ErrNoRowsAffected)
 	}
 	return nil
 
 }
 
+// GetUserWeightLogById retrieves a users weight log by the log id
+// It returns a tuple of ([*models.WeightLog], [error]), one of which is nil, and one will have a value.
+// Standard is to check if err == nil, then access weight log
+//
+// # Parameters
+//   - ctx is a [context.Context] retrieved from the http request
+//   - tx is a non-nil *[sql.Tx]
+//   - userId is a non empty string that is a in the users table (valid user)
+//   - logId is a non empty string of a weight log stored in the database
+//
+// # Errors
+//   - Returns [ErrUserForeignKeyConstraint] if the userId provided is no longer in the database, happens when a user deletes account but a session, with a valid access token, is still available on another device. (rare because of 15 min validity)
+//   - Returns [ErrNotFound] when no log with the specified id is found.
+//   - Returns fmt.error for any other errors
 func (us *postgressUserRepo) GetUserWeightLogById(ctx context.Context, tx *sql.Tx, userId string, logId string) (*models.WeightLog, error) {
 	query := `
 	SELECT id, weight_kg, log_date, updated_at, deleted_at
@@ -149,15 +108,32 @@ func (us *postgressUserRepo) GetUserWeightLogById(ctx context.Context, tx *sql.T
 	)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("get weight for %s for user %s: %w", logId, userId, ErrNotFound)
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+				return nil, fmt.Errorf("get weight log %s for user %s: %w", logId, userId, ErrUserForeignKeyConstraint)
+			}
 		}
-		return nil, fmt.Errorf("get weight for %s for user %s: %w", logId, userId, err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("get weight log %s for user %s: %w", logId, userId, ErrNotFound)
+		}
+		return nil, fmt.Errorf("get weight log %s for user %s: %w", logId, userId, err)
 	}
 
 	return log, nil
 }
 
+// GetUserWeightLogs retrieves all users weight logs
+// It returns a tuple of ([][*models.WeightLog], [error]), one of which is nil, and one will have a value.
+// Standard is to check if err == nil, then access weight log
+//
+// # Parameters
+//   - ctx is a [context.Context] retrieved from the http request
+//   - tx is a non-nil *[sql.Tx]
+//   - userId is a non empty string that is a in the users table (valid user)
+//
+// # Errors
+//   - Returns [ErrUserForeignKeyConstraint] if the userId provided is no longer in the database, happens when a user deletes account but a session, with a valid access token, is still available on another device. (rare because of 15 min validity)
+//   - Returns fmt.error for any other errors
 func (us *postgressUserRepo) GetUserWeightLogs(ctx context.Context, tx *sql.Tx, userId string) ([]*models.WeightLog, error) {
 	query := `
     SELECT id, weight_kg, log_date, updated_at, deleted_at
@@ -167,6 +143,11 @@ func (us *postgressUserRepo) GetUserWeightLogs(ctx context.Context, tx *sql.Tx, 
 
 	rows, err := tx.QueryContext(ctx, query, userId)
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+				return nil, fmt.Errorf("get weight logs for user %s: %w", userId, ErrUserForeignKeyConstraint)
+			}
+		}
 		return nil, fmt.Errorf("get weight logs %s: %w", userId, err)
 	}
 	defer rows.Close() // Critical: Always close rows to free up DB connections
@@ -196,6 +177,19 @@ func (us *postgressUserRepo) GetUserWeightLogs(ctx context.Context, tx *sql.Tx, 
 	return logs, nil
 }
 
+// GetUserSettings retrieves the specified users settings
+// It returns a tuple of ([*models.UserSettings], [error]), one of which is nil, and one will have a value.
+// Standard is to check if err == nil, then access user settings
+//
+// # Parameters
+//   - ctx is a [context.Context] retrieved from the http request
+//   - tx is a non-nil *[sql.Tx]
+//   - userId is a non empty string that is a in the users table (valid user)
+//
+// # Errors
+//   - Returns [ErrUserForeignKeyConstraint] if the userId provided is no longer in the database, happens when a user deletes account but a session, with a valid access token, is still available on another device. (rare because of 15 min validity)
+//   - Returns [ErrNotFound] when no setting row is found.
+//   - Returns fmt.error for any other errors
 func (us *postgressUserRepo) GetUserSettings(ctx context.Context, tx *sql.Tx, userId string) (*models.UserSettings, error) {
 
 	query := `
@@ -223,6 +217,11 @@ WHERE user_id = $1;`
 		&settings.Theme,          // string
 	)
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+				return nil, fmt.Errorf("get user settings for user %s: %w", userId, ErrUserForeignKeyConstraint)
+			}
+		}
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("get settings %s: %w", userId, ErrNotFound)
 		}
@@ -232,6 +231,20 @@ WHERE user_id = $1;`
 
 }
 
+// UpdateUserSettings updates a users setting in the database
+// It returns an [error] if something goes wrong.
+// Standard is to check if err == nil, then proceed
+//
+// # Parameters
+//   - ctx is a [context.Context] retrieved from the http request
+//   - tx is a non-nil *[sql.Tx]
+//   - userId is a non empty string that is a in the users table (valid user)
+//   - settings is a non nil *[models.UserSettings]
+//
+// # Errors
+//   - Returns [ErrUserForeignKeyConstraint] if the userId provided is no longer in the database, happens when a user deletes account but a session, with a valid access token, is still available on another device. (rare because of 15 min validity)
+//   - Returns [ErrNoRowsAffected] when the settings.updated_at is older than the store updated_at. Happens when another device changed the settings
+//   - Returns fmt.error for any other errors
 func (us *postgressUserRepo) UpdateUserSettings(ctx context.Context, tx *sql.Tx, userId string, settings *models.UserSettings) error {
 
 	// 1. Upsert User (Update last_login if you have that column)
@@ -240,6 +253,11 @@ func (us *postgressUserRepo) UpdateUserSettings(ctx context.Context, tx *sql.Tx,
           WHERE user_id = $1 AND $7 > updated_at`
 	res, err := tx.ExecContext(ctx, query, userId, settings.Units, settings.CaloriesTarget, settings.ProteinTarget, settings.CarbsTarget, settings.FatTarget, settings.UpdatedAt, settings.DeletedAt, settings.Theme)
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+				return fmt.Errorf("update user settings for user %s: %w", userId, ErrUserForeignKeyConstraint)
+			}
+		}
 		return fmt.Errorf("update settings %s: %w", userId, err)
 	}
 
@@ -251,17 +269,77 @@ func (us *postgressUserRepo) UpdateUserSettings(ctx context.Context, tx *sql.Tx,
 
 }
 
+// TODO: Finish this docstring, cant finish because i have to decide if i want to redesign the function or what maybe combine the sql into one statement that does both the log and sets in one
+// UpsertUserExerciseLog updates or inserts a users exercise log and its sets
+// It returns a [error] if something goes wrong
+// Standard is to check if err == nil, then continue
+//
+// # Parameters
+//   - ctx is a [context.Context] retrieved from the http request
+//   - tx is a non-nil *[sql.Tx]
+//   - userId is a non empty string that is a in the users table (valid user)
+//   - payload is a non-nil *[models.FullExerciseLog]
+//
+// # Errors
+//   - Returns [ErrUserForeignKeyConstraint] if the userId provided is no longer in the database, happens when a user deletes account but a session, with a valid access token, is still available on another device. (rare because of 15 min validity)
+//   - Returns [ErrNotFound] when no log with the specified id is found.
+//   - Returns fmt.error for any other errors
 func (us *postgressUserRepo) UpsertUserExerciseLog(ctx context.Context, tx *sql.Tx, userId string, payload *models.FullExerciseLog) error {
-	query := `
-INSERT INTO exercise_logs (id, user_id, exercise_id, created_at, updated_at, deleted_at)
-VALUES ($1, $2, $3, $4, $5, $6)
-ON CONFLICT (id, user_id) 
-DO UPDATE SET
-    exercise_id = EXCLUDED.exercise_id,
-    updated_at = EXCLUDED.updated_at,
-    deleted_at = EXCLUDED.deleted_at
-WHERE EXCLUDED.updated_at > exercise_logs.updated_at;`
 
+	query := `
+	WITH upsert_log AS (
+		INSERT INTO exercise_logs (id, user_id, exercise_id, created_at, updated_at, deleted_at)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	ON CONFLICT (id) 
+	DO UPDATE SET
+		exercise_id = EXCLUDED.exercise_id,
+		updated_at = EXCLUDED.updated_at,
+		deleted_at = EXCLUDED.deleted_at
+	WHERE EXCLUDED.updated_at > exercise_logs.updated_at
+	)
+	INSERT INTO exercise_sets (id, log_id, set_number, weight, reps, updated_at, deleted_at)
+	SELECT
+		unnest($7::uuid[]),
+		$1,
+		unnest($8::integer[]),
+		unnest($9::real[]),
+		unnest($10::integer[]),
+		unnest($11::TIMESTAMPTZ[]),
+		unnest($12::TIMESTAMPTZ[])
+	ON CONFLICT (id) 
+	DO UPDATE SET
+		set_number = EXCLUDED.set_number,
+		reps = EXCLUDED.reps,
+		updated_at = EXCLUDED.updated_at,
+		weight = EXCLUDED.weight,
+		deleted_at = EXCLUDED.deleted_at
+	WHERE EXCLUDED.updated_at > exercise_sets.updated_at;
+`
+	/*query := `
+	INSERT INTO exercise_logs (id, user_id, exercise_id, created_at, updated_at, deleted_at)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	ON CONFLICT (id)
+	DO UPDATE SET
+	    exercise_id = EXCLUDED.exercise_id,
+	    updated_at = EXCLUDED.updated_at,
+	    deleted_at = EXCLUDED.deleted_at
+	WHERE EXCLUDED.updated_at > exercise_logs.updated_at;`*/
+	ids := make([]string, len(payload.ExerciseSets))
+	reps := make([]int, len(payload.ExerciseSets))
+	setNumbers := make([]int, len(payload.ExerciseSets))
+	weights := make([]float32, len(payload.ExerciseSets))
+	updateAts := make([]time.Time, len(payload.ExerciseSets))
+	deletedAts := make([]*time.Time, len(payload.ExerciseSets))
+
+	for i, s := range payload.ExerciseSets {
+		ids[i] = s.ID
+		reps[i] = s.Reps
+		setNumbers[i] = s.Set_number
+		weights[i] = s.Weight
+		updateAts[i] = s.UpdatedAt
+		deletedAts[i] = s.DeletedAt
+
+	}
 	res, err := tx.ExecContext(ctx, query,
 		payload.ExerciseLog.ID,         // $1
 		userId,                         // $2
@@ -269,23 +347,36 @@ WHERE EXCLUDED.updated_at > exercise_logs.updated_at;`
 		payload.ExerciseLog.CreatedAt,  // $4
 		payload.ExerciseLog.UpdatedAt,  // $5
 		payload.ExerciseLog.DeletedAt,  // $6
+		pq.Array(ids),                  // $7
+		pq.Array(setNumbers),           // $8
+		pq.Array(weights),              // $9
+		pq.Array(reps),                 // $10
+		pq.Array(updateAts),            // $11
+		pq.Array(deletedAts),           // $12
+
 	)
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+				return fmt.Errorf("upsert exercise log %s for user %s: %w", payload.ExerciseLog.ID, userId, ErrUserForeignKeyConstraint)
+			}
+		}
 		return fmt.Errorf("upsert exercise log %s: %w", userId, err)
 	}
 	rowsAff, _ := res.RowsAffected()
 	if rowsAff == 0 {
 		return fmt.Errorf("upsert exercise log %s: %w", userId, ErrNoRowsAffected)
 	}
-	err = us.upsertUserExerciseSets(ctx, tx, payload.ExerciseSets)
+	/*err = us.upsertUserExerciseSets(ctx, tx, payload.ExerciseSets)
 	if err != nil {
 		return err
-	}
+	}*/
 
 	return nil
 
 }
 
+// TODO: Rework sql to use a join (inner or left)
 func (us *postgressUserRepo) GetUserExerciseLogs(ctx context.Context, tx *sql.Tx, userId string) ([]*models.FullExerciseLog, error) {
 	queryExerciseLog := `
     SELECT id, exercise_id, created_at, updated_at, deleted_at
@@ -300,6 +391,11 @@ func (us *postgressUserRepo) GetUserExerciseLogs(ctx context.Context, tx *sql.Tx
     `
 	rows, err := tx.QueryContext(ctx, queryExerciseLog, userId)
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+				return nil, fmt.Errorf("get exercise logs for user %s: %w", userId, ErrUserForeignKeyConstraint)
+			}
+		}
 		return nil, fmt.Errorf("get exercise logs %s: %w", userId, err)
 	}
 	defer rows.Close()
@@ -335,6 +431,11 @@ func (us *postgressUserRepo) GetUserExerciseLogs(ctx context.Context, tx *sql.Tx
 	}
 	rows, err = tx.QueryContext(ctx, queryExerciseSet, logIds)
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+				return nil, fmt.Errorf("get exercise sets for log ids: %w", ErrLogIdForeignKeyConstraint)
+			}
+		}
 		return nil, fmt.Errorf("get exercise logs set %s: %w", userId, err)
 	}
 	defer rows.Close()
@@ -372,6 +473,7 @@ func (us *postgressUserRepo) GetUserExerciseLogs(ctx context.Context, tx *sql.Tx
 
 }
 
+// TODO: Rework sql to use a join (inner or left)
 // Returns the full Exercise Log including sets
 func (us *postgressUserRepo) GetUserExerciseLogById(ctx context.Context, tx *sql.Tx, userId, logId string) (*models.FullExerciseLog, error) {
 	queryExerciseLog := `
@@ -389,6 +491,11 @@ func (us *postgressUserRepo) GetUserExerciseLogById(ctx context.Context, tx *sql
 		&log.ExerciseLog.DeletedAt,
 	)
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+				return nil, fmt.Errorf("get exercise log %s for user %s: %w", logId, userId, ErrUserForeignKeyConstraint)
+			}
+		}
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("get exercise log %s for user %s: %w", logId, userId, ErrNotFound)
 		}
@@ -397,12 +504,19 @@ func (us *postgressUserRepo) GetUserExerciseLogById(ctx context.Context, tx *sql
 
 	log.ExerciseSets, err = us.getUserExerciseSetsByLogId(ctx, tx, logId)
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+				return nil, fmt.Errorf("get exercise log %s: %w", logId, ErrLogIdForeignKeyConstraint)
+			}
+		}
 		return nil, err
 	}
 
 	return log, nil
 
 }
+
+// TODO: Remove once the other exercise funtions are reworked
 func (us *postgressUserRepo) upsertUserExerciseSets(ctx context.Context, tx *sql.Tx, payload []*models.ExerciseSet) error {
 	if payload == nil {
 		return errors.New("upsert exercise sets: nil payload")
@@ -411,7 +525,7 @@ func (us *postgressUserRepo) upsertUserExerciseSets(ctx context.Context, tx *sql
 	query := `
 INSERT INTO exercise_sets (id, log_id, set_number, weight, reps, updated_at, deleted_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-ON CONFLICT (id, log_id) 
+ON CONFLICT (id) 
 DO UPDATE SET
     set_number = EXCLUDED.set_number,
     reps = EXCLUDED.reps,
@@ -440,6 +554,7 @@ WHERE EXCLUDED.updated_at > exercise_sets.updated_at;`
 
 }
 
+// TODO: Remove once the other exercise funtions are reworked
 func (us *postgressUserRepo) getUserExerciseSetsByLogId(ctx context.Context, tx *sql.Tx, logId string) ([]*models.ExerciseSet, error) {
 	queryExerciseSet := `
     SELECT id, log_id, set_number, weight, reps, updated_at, deleted_at
@@ -476,11 +591,12 @@ func (us *postgressUserRepo) getUserExerciseSetsByLogId(ctx context.Context, tx 
 
 }
 
+// TODO: same [postgressUserRepo.UpsertUserExerciseLog] combine the sql into one statement that does both the log and sets in one
 func (us *postgressUserRepo) UpsertUserFoodLog(ctx context.Context, tx *sql.Tx, userId string, payload *models.FullFoodLog) error {
 	query := `
 INSERT INTO food_logs (id, user_id, time, name, created_at, updated_at, deleted_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-ON CONFLICT (id, user_id) 
+ON CONFLICT (id) 
 DO UPDATE SET
     name = EXCLUDED.name,
     time = EXCLUDED.time,
@@ -498,6 +614,11 @@ WHERE EXCLUDED.updated_at > food_logs.updated_at;`
 		payload.FoodLog.DeletedAt, // $7
 	)
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+				return fmt.Errorf("get food log %s for user %s: %w", payload.FoodLog.ID, userId, ErrUserForeignKeyConstraint)
+			}
+		}
 		return fmt.Errorf("upsert food log %s for user %s: %w", payload.FoodLog.ID, userId, err)
 	}
 	rowsAff, _ := res.RowsAffected()
@@ -506,12 +627,18 @@ WHERE EXCLUDED.updated_at > food_logs.updated_at;`
 	}
 	err = us.upsertUserFoodLogEntry(ctx, tx, payload.FoodLogEntries)
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+				return fmt.Errorf("get food log %s for user %s: %w", payload.FoodLog.ID, userId, ErrLogIdForeignKeyConstraint)
+			}
+		}
 		return err
 	}
 	return nil
 
 }
 
+// TODO: Rework sql to use a join (inner or left)
 func (us *postgressUserRepo) GetUserFoodLogs(ctx context.Context, tx *sql.Tx, userId string) ([]*models.FullFoodLog, error) {
 	queryFoodLog := `
     SELECT id, time, name, created_at, updated_at, deleted_at
@@ -525,6 +652,11 @@ func (us *postgressUserRepo) GetUserFoodLogs(ctx context.Context, tx *sql.Tx, us
 
 	rows, err := tx.QueryContext(ctx, queryFoodLog, userId)
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+				return nil, fmt.Errorf("get food logs for user %s: %w", userId, ErrUserForeignKeyConstraint)
+			}
+		}
 		return nil, fmt.Errorf("get food logs %s: %w", userId, err)
 	}
 
@@ -564,6 +696,11 @@ func (us *postgressUserRepo) GetUserFoodLogs(ctx context.Context, tx *sql.Tx, us
 
 	rows, err = tx.QueryContext(ctx, queryFoodLogEntries, logIds)
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+				return nil, fmt.Errorf("get food logs for user %s: %w", userId, ErrLogIdForeignKeyConstraint)
+			}
+		}
 		return nil, fmt.Errorf("get food logs entries %s : %w", userId, err)
 	}
 	defer rows.Close()
@@ -605,6 +742,7 @@ func (us *postgressUserRepo) GetUserFoodLogs(ctx context.Context, tx *sql.Tx, us
 
 }
 
+// TODO: Rework sql to use a join (inner or left)
 func (us *postgressUserRepo) GetUserFoodLogById(ctx context.Context, tx *sql.Tx, userId, logId string) (*models.FullFoodLog, error) {
 	queryFoodLog := `
     SELECT id, time, name, created_at, updated_at, deleted_at
@@ -621,6 +759,11 @@ func (us *postgressUserRepo) GetUserFoodLogById(ctx context.Context, tx *sql.Tx,
 		&log.FoodLog.DeletedAt,
 	)
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+				return nil, fmt.Errorf("get food log %s for user %s: %w", logId, userId, ErrUserForeignKeyConstraint)
+			}
+		}
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("get food log %s for user %s: %w", logId, userId, ErrNotFound)
 		}
@@ -636,6 +779,7 @@ func (us *postgressUserRepo) GetUserFoodLogById(ctx context.Context, tx *sql.Tx,
 
 }
 
+// TODO: Remove once the other exercise funtions are reworked
 func (us *postgressUserRepo) upsertUserFoodLogEntry(ctx context.Context, tx *sql.Tx, payload []*models.FoodLogEntry) error {
 	if payload == nil {
 		return errors.New("upsert food log entry: nil payload")
@@ -644,7 +788,7 @@ func (us *postgressUserRepo) upsertUserFoodLogEntry(ctx context.Context, tx *sql
 	query := `
 INSERT INTO food_log_items (id, log_id, food_id, food_name, serving_id, quantity, unit, cal, fat, carbs, protein, updated_at, deleted_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-ON CONFLICT (id, log_id) 
+ON CONFLICT (id) 
 DO UPDATE SET
     food_name = EXCLUDED.food_name,
     serving_id = EXCLUDED.serving_id,
@@ -676,6 +820,11 @@ WHERE EXCLUDED.updated_at > food_log_items.updated_at;`
 			entry.DeletedAt, // $13
 		)
 		if err != nil {
+			if pqErr, ok := err.(*pq.Error); ok {
+				if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+					return fmt.Errorf("get food logs for user %s: %w", entry.LogId, ErrLogIdForeignKeyConstraint)
+				}
+			}
 			return fmt.Errorf("upsert food log entry %s: %w", entry.ID, err)
 		}
 	}
@@ -683,6 +832,8 @@ WHERE EXCLUDED.updated_at > food_log_items.updated_at;`
 	return nil
 
 }
+
+// TODO: Remove once the other exercise funtions are reworked
 
 func (us *postgressUserRepo) getUserFoodLogEntriesByLogId(ctx context.Context, tx *sql.Tx, logId string) ([]*models.FoodLogEntry, error) {
 	queryFoodLogEntries := `
@@ -692,6 +843,11 @@ func (us *postgressUserRepo) getUserFoodLogEntriesByLogId(ctx context.Context, t
 	var entries []*models.FoodLogEntry
 	rows, err := tx.QueryContext(ctx, queryFoodLogEntries, logId)
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+				return nil, fmt.Errorf("get food log entries for log %s: %w", logId, ErrLogIdForeignKeyConstraint)
+			}
+		}
 		return nil, fmt.Errorf("get food log entry for log %s: %w", logId, err)
 	}
 	defer rows.Close()

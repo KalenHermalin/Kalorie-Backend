@@ -16,12 +16,12 @@ import (
 
 type AuthService struct {
 	providers        []models.AuthProvider
-	us               models.UserRepository
+	us               models.AuthRepository
 	jwtAccessSecret  string
 	jwtRefreshSecret string
 }
 
-func NewAuthService(ur models.UserRepository, accessSecret, refreshSecret string, auth ...models.AuthProvider) *AuthService {
+func NewAuthService(ur models.AuthRepository, accessSecret, refreshSecret string, auth ...models.AuthProvider) *AuthService {
 	return &AuthService{us: ur, jwtAccessSecret: accessSecret, jwtRefreshSecret: refreshSecret, providers: auth}
 }
 
