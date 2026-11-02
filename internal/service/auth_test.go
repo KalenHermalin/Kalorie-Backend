@@ -13,10 +13,30 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type MockUserRepo struct {
+type MockAuthRepo struct {
 	mockUser    *models.User
 	mockRefresh string
 	mockErr     error
+}
+
+// DeleteRefreshToken implements [models.UserRepository].
+func (m *MockAuthRepo) DeleteRefreshToken(ctx context.Context, tx *sql.Tx, token string, userId string) error {
+	panic("unimplemented")
+}
+
+// DeleteUser implements [models.UserRepository].
+func (m *MockAuthRepo) DeleteUser(ctx context.Context, tx *sql.Tx, userID string) error {
+	panic("unimplemented")
+}
+
+// FindRefreshToken implements [models.UserRepository].
+func (m *MockAuthRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string) (*models.User, error) {
+	panic("unimplemented")
+}
+
+// SaveRefreshToken implements [models.UserRepository].
+func (m *MockAuthRepo) SaveRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string, expiresAt time.Time) error {
+	return nil
 }
 
 type MockAuthProvider struct {
@@ -30,30 +50,17 @@ func (m *MockAuthProvider) GetProviderName() string { return m.name }
 func (m *MockAuthProvider) HandleCodeExchangeWithVerifier(ctx context.Context, code, verifier string) (*models.AuthPayload, error) {
 	return m.payload, m.err
 }
-func (m *MockUserRepo) UpsertUserWithAuth(ctx context.Context, tx *sql.Tx, p *models.AuthPayload) (*models.User, error) {
+func (m *MockAuthRepo) UpsertUserWithAuth(ctx context.Context, tx *sql.Tx, p *models.AuthPayload) (*models.User, error) {
 	return m.mockUser, m.mockErr
 }
-func (m *MockUserRepo) WithTx(ctx context.Context, fn func(*sql.Tx) error) error {
+func (m *MockAuthRepo) WithTx(ctx context.Context, fn func(*sql.Tx) error) error {
 	return fn(nil)
 }
 
-func (m *MockUserRepo) SaveRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string, expiresAt time.Time) error {
-	return nil
-}
-func (m *MockUserRepo) DeleteRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string) error {
-	return nil
-}
-func (m *MockUserRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string) (*models.User, error) {
-	return nil, nil
-}
-
-func (us *MockUserRepo) UpdateUserSettings(ctx context.Context, tx *sql.Tx, userId string, settings *models.UserSettings) error
-
-func (us *MockUserRepo) GetUserSettings(ctx context.Context, tx *sql.Tx, userId string) (*models.UserSettings, error)
 func TestSignIn_FullFlow(t *testing.T) {
 	// 1. Setup mocks
 	mockUser := &models.User{ID: "1", Email: "kalen@laurier.ca", CreatedAt: time.Now()}
-	repo := &MockUserRepo{mockUser: mockUser, mockRefresh: "fake_refresh_token"}
+	repo := &MockAuthRepo{mockUser: mockUser, mockRefresh: "fake_refresh_token"}
 
 	provider := &MockAuthProvider{
 		name:    "github",
@@ -74,13 +81,13 @@ func TestSignIn_FullFlow(t *testing.T) {
 		t.Error("Access token should not be empty")
 	}
 	if resp.User.ID != mockUser.ID {
-		t.Errorf("Expected user ID %d, got %d", mockUser.ID, resp.User.ID)
+		t.Errorf("Expected user ID %s, got %s", mockUser.ID, resp.User.ID)
 	}
 }
 
 func TestSignIn_DatabaseFailure(t *testing.T) {
 	// 1. Setup mocks
-	repo := &MockUserRepo{mockErr: errors.New("Database Connection Failed")}
+	repo := &MockAuthRepo{mockErr: errors.New("Database Connection Failed")}
 
 	provider := &MockAuthProvider{
 		name:    "github",
@@ -104,7 +111,7 @@ func TestSignIn_DatabaseFailure(t *testing.T) {
 
 func TestSignIn_ProviderFailure(t *testing.T) {
 	// Dont need DB because we fail before reaching it
-	repo := &MockUserRepo{}
+	repo := &MockAuthRepo{}
 
 	provider := &MockAuthProvider{
 		name: "github",
@@ -150,7 +157,7 @@ func TestGenerateJWT(t *testing.T) {
 
 	// 4. Assertions
 	if claims.UserID != testUserID {
-		t.Errorf("Expected userID %d, got %d", testUserID, claims.UserID)
+		t.Errorf("Expected userID %s, got %s", testUserID, claims.UserID)
 	}
 	if claims.Email != testEmail {
 		t.Errorf("Expected email %s, got %s", testEmail, claims.Email)

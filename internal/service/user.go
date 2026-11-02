@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"log/slog"
+	"fmt"
 	"main/internal/apperrors"
+	"main/internal/loggerx"
 	"main/internal/models"
 	"main/internal/store"
-	"net/http"
 	"time"
 )
 
@@ -20,11 +20,9 @@ func NewUserService(store models.UserRepository) *UserService {
 	return &UserService{userStore: store}
 }
 
-func (us *UserService) UpdateUserSettings(ctx context.Context, userId string, settings *models.UserSettings) (*models.UserSettings, error) {
+func (us *UserService) UpdateUserSettings(ctx context.Context, userId string, settings *models.UserSettings) (newSettings *models.UserSettings, isModified bool, err error) {
 
-	var newSettings *models.UserSettings
-
-	err := us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
+	err = us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
 		settings.UpdatedAt = settings.UpdatedAt.UTC().Truncate(time.Microsecond)
 		err := us.userStore.UpdateUserSettings(ctx, tx, userId, settings)
 		if err != nil {
@@ -32,101 +30,96 @@ func (us *UserService) UpdateUserSettings(ctx context.Context, userId string, se
 				// If no rows affected, more recent data exists so get it
 				newSettings, err = us.userStore.GetUserSettings(ctx, tx, userId)
 				if err != nil {
-					// There was a get error, meaning the row really doesnt exist
-					return apperrors.ErrUserSettingsMissing
+					if errors.Is(err, store.ErrNotFound) || errors.Is(err, store.ErrUserForeignKeyConstraint) {
+						return apperrors.New(apperrors.SessionOver, err)
+					}
+					return fmt.Errorf("failed to retrieve settings for user %s: %w", userId, err)
 				}
-				// No rows exist, major error
-				return apperrors.ErrSyncConflict
+				return nil
+			} else if errors.Is(err, store.ErrUserForeignKeyConstraint) {
+				return apperrors.New(apperrors.SessionOver, err)
 			}
 			// Unknown DB error
-			return err
+			return fmt.Errorf("update user settings for user %s: %w", userId, err)
 		}
 		return nil
 	})
 	if err != nil {
-		if errors.Is(err, apperrors.ErrUserSettingsMissing) {
-			return nil, err
-		} else if errors.Is(err, apperrors.ErrSyncConflict) {
-			return newSettings, err
-		}
-
-		slog.Error("Error: Updating User Settings", "error", err.Error(), "userID", userId)
-		return nil, apperrors.ErrInternalServer
+		// err is already wrapped or a KError
+		return nil, false, err
 	}
+
 	// Success
-	return nil, nil
+	if newSettings != nil {
+		return newSettings, true, nil
+	}
+	return nil, false, nil
 
 }
-func (us *UserService) GetUserSettings(ctx context.Context, userId string, last_synced *time.Time) (*models.UserSettings, error) {
 
-	var settings *models.UserSettings
-	err := us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
-		var err error
-		settings, err = us.userStore.GetUserSettings(ctx, tx, userId)
-		return err
+func (us *UserService) GetUserSettings(ctx context.Context, userId string, lastSynced *time.Time) (settings *models.UserSettings, isModified bool, err error) {
+
+	err = us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
+		var inErr error
+		settings, inErr = us.userStore.GetUserSettings(ctx, tx, userId)
+		if inErr != nil {
+			if errors.Is(inErr, store.ErrNotFound) || errors.Is(err, store.ErrUserForeignKeyConstraint) {
+				return apperrors.New(apperrors.SessionOver, inErr)
+			}
+			return fmt.Errorf("get user settings for user %s: %w", userId, inErr)
+		}
+		return nil
 	})
 	if err != nil {
-		slog.Error("Error: Getting User Settings", "error", err.Error(), "userID", userId)
-		if errors.Is(err, store.ErrNoRowsAffected) {
-			return nil, apperrors.ErrUserSettingsMissing
-		}
-
-		return nil, apperrors.ErrInternalServer
+		// Error is already wrapped or a KError
+		return nil, false, err
 	}
 
-	if last_synced != nil && !settings.UpdatedAt.After(*last_synced) {
-		return nil, apperrors.ErrNotModified
+	if lastSynced != nil && !settings.UpdatedAt.After(*lastSynced) {
+		return nil, false, nil
 	}
-	return settings, nil
+	return settings, true, nil
 
 }
 
 const MAXBATCHSIZE = 200
 
-func (us *UserService) UpsertUserWeightLogs(ctx context.Context, userId string, weightLogs []*models.WeightLog) (newServerLogs []*models.WeightLog, notSyncedLogs []string, err *apperrors.AppError) {
+func (us *UserService) UpsertUserWeightLogs(ctx context.Context, userId string, weightLogs []*models.WeightLog) (newServerLogs []*models.WeightLog, notSyncedLogs []string, err error) {
 	if weightLogs == nil {
 
-		slog.Error("Error: user serivce got nil weight log slice", "error", "userID", userId)
-		return nil, nil, apperrors.ErrInternalServer
+		return nil, nil, apperrors.New(apperrors.BadRequest, fmt.Errorf("no weight logs to sync"))
 	}
 	if len(weightLogs) > MAXBATCHSIZE {
-		return nil, nil, apperrors.NewAppError("ERR_BATCH_TOO_LARGE", "The batch size has a limit of 200 items", 400)
+		return nil, nil, apperrors.New(apperrors.MaxBatchSizeExceeded, nil)
 	}
 	newServerLogs = []*models.WeightLog{}
 	notSyncedLogs = []string{}
 
 	for _, log := range weightLogs {
-		applied := false
-		var fetchErr error
 		var newerLog *models.WeightLog
 
-		transactionErr := us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
+		err = us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
 			err := us.userStore.UpsertUserWeightLog(ctx, tx, userId, log)
 			if err != nil {
-				applied = false
-			} else {
-				applied = true
-				return nil
+				if errors.Is(err, store.ErrNoRowsAffected) {
+					var fErr error
+					newerLog, fErr = us.userStore.GetUserWeightLogById(ctx, tx, userId, log.ID)
+					return fErr
+				} else if errors.Is(err, store.ErrUserForeignKeyConstraint) {
+					return apperrors.New(apperrors.SessionOver, err)
+				}
+				return err
 			}
-			newerLog, fetchErr = us.userStore.GetUserWeightLogById(ctx, tx, userId, log.ID)
 			return nil
 		})
 
-		/*
-			If the transaction itself failed for some reason
-			that is if beginTx/commit fuils due to connection drop or etc
-		*/
-		if transactionErr != nil {
+		if err != nil {
+			loggerx.Log(ctx).Warn("log upsert failed", "error", err, "log_id", log.ID)
 			notSyncedLogs = append(notSyncedLogs, log.ID)
 			continue
 		}
-		if applied {
-			continue
-		}
-		if fetchErr == nil && newerLog != nil {
+		if newerLog != nil {
 			newServerLogs = append(newServerLogs, newerLog)
-		} else {
-			notSyncedLogs = append(notSyncedLogs, log.ID)
 		}
 
 	}
@@ -134,231 +127,181 @@ func (us *UserService) UpsertUserWeightLogs(ctx context.Context, userId string, 
 
 }
 
-func (us *UserService) GetUserWeightLogs(ctx context.Context, userId string, last_synced *time.Time) ([]*models.WeightLog, error) {
+func (us *UserService) GetUserWeightLogs(ctx context.Context, userId string, lastSynced *time.Time) (weightLogs []*models.WeightLog, err error) {
 
-	if last_synced == nil {
-		return nil, apperrors.ErrInternalServer
-	}
-
-	var weightLogs []*models.WeightLog
-	err := us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
-		var err error
-		weightLogs, err = us.userStore.GetUserWeightLogs(ctx, tx, userId)
-		return err
+	err = us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
+		var gErr error
+		weightLogs, gErr = us.userStore.GetUserWeightLogs(ctx, tx, userId)
+		return gErr
 	})
 	if err != nil {
-		slog.Error("Error: Getting User Weight Logs", "error", err.Error(), "userID", userId)
-		if errors.Is(err, store.ErrNoRowsAffected) {
-			return nil, apperrors.ErrUserSettingsMissing
+		if errors.Is(err, store.ErrUserForeignKeyConstraint) {
+			return nil, apperrors.New(apperrors.SessionOver, err)
 		}
-
-		return nil, apperrors.ErrInternalServer
+		return nil, err
 	}
-	var not_synced []*models.WeightLog
+	var notSynced []*models.WeightLog
 	for _, log := range weightLogs {
-		if log.UpdatedAt.After(*last_synced) {
-			not_synced = append(not_synced, log)
+		if lastSynced != nil {
+			if log.UpdatedAt.After(*lastSynced) {
+				notSynced = append(notSynced, log)
+			}
 		}
 
 	}
-	return not_synced, nil
+	if notSynced != nil {
+		return notSynced, nil
+	}
+	if lastSynced != nil {
+		return nil, nil
+	}
+	return weightLogs, nil
 
 }
 
-func (us *UserService) UpsertUserExerciseLogAndSets(ctx context.Context, userId string, exerciseLogs []*models.FullExerciseLog) ([]*models.FullExerciseLog, []*models.FullExerciseLog, error) {
+// TODO Need to workout which foriegn key contraint for user or log id on the sets
+func (us *UserService) UpsertUserExerciseLogAndSets(ctx context.Context, userId string, exerciseLogs []*models.FullExerciseLog) (newerServerLogs []*models.FullExerciseLog, failed []string, err error) {
 	if exerciseLogs == nil {
-
-		slog.Error("Error: user serivce got nil exercise log slice", "error", "userID", userId)
-		return nil, nil, apperrors.ErrInternalServer
+		return nil, nil, apperrors.New(apperrors.BadRequest, fmt.Errorf("no exercise logs submitted to upsert"))
 	}
-	var failedUpsertLogs []*models.FullExerciseLog
-	var newerServerLogs []*models.FullExerciseLog
-	err := us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
-		var upsertError error
-		failedCount := 0
-		for i, log := range exerciseLogs {
+	newerServerLogs = []*models.FullExerciseLog{}
+	failed = []string{}
+	for _, log := range exerciseLogs {
+		var newerLog *models.FullExerciseLog
 
-			err := us.userStore.UpsertUserExerciseLog(ctx, tx, userId, log.ExerciseLog)
+		err = us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
+			err := us.userStore.UpsertUserExerciseLog(ctx, tx, userId, log)
 			if err != nil {
-				// Newer log data exist so we get it
-				newLog, err := us.userStore.GetUserExerciseLogById(ctx, tx, userId, log.ExerciseLog.ID)
-				if err != nil {
-					slog.Error("Upsert did not work, caused get to fail, log is missing in db", "error", err.Error(), "user_id", userId, "log_id", log.ExerciseLog.ID)
-					failedCount++
-					upsertError = err
-					failedUpsertLogs = append(failedUpsertLogs, log)
-
-				} else if newLog != nil {
-					sets, err := us.userStore.GetUserExerciseSetsByLogId(ctx, tx, newLog.ID)
-					if err != nil {
-
-					}
-					newFullLog := &models.FullExerciseLog{
-						ExerciseLog:  newLog,
-						ExerciseSets: sets,
-					}
-					newerServerLogs = append(newerServerLogs, newFullLog)
+				if errors.Is(err, store.ErrUserForeignKeyConstraint) {
+					return err
+				} else if errors.Is(err, store.ErrNoRowsAffected) {
+					// Newer log data exist so we get it
+					var innerErr error
+					newerLog, innerErr = us.userStore.GetUserExerciseLogById(ctx, tx, userId, log.ExerciseLog.ID)
+					return innerErr
 				}
+				return err
 			}
-			err = us.userStore.UpsertUserExerciseSets(ctx, tx, log.ExerciseSets)
-			if err != nil {
-
-				slog.Error("Upsert for exercise set failed, should be impossible", "error", err.Error(), "user_id", userId, "log_id", log.ExerciseLog.ID)
-				failedUpsertLogs = append(failedUpsertLogs, exerciseLogs[i:]...)
-				return apperrors.ErrInternalServer
+			return nil
+		})
+		if err != nil {
+			if errors.Is(err, store.ErrUserForeignKeyConstraint) {
+				return nil, nil, apperrors.New(apperrors.SessionOver, err)
 			}
+			loggerx.Log(ctx).Warn("log upsert failed", "error", err, "log_id", log.ExerciseLog.ID)
+			failed = append(failed, log.ExerciseLog.ID)
 		}
-		if failedCount > 0 && failedCount < len(exerciseLogs) {
-			slog.Error("failed to sync logs", "failed_count", failedCount, "total_count", len(exerciseLogs), "error", upsertError)
-			return apperrors.ErrSoftWeightLog
-		}
-		if failedCount == len(exerciseLogs) {
-			// Some kind of hard error?
-			slog.Error("failed to sync logs all logs", "failed_count", failedCount, "total_count", len(exerciseLogs), "error", upsertError)
-			return apperrors.NewAppError("ERR_UPSERTING_WEIGHT_LOG", "There was an internal error updating your weight logs", http.StatusInternalServerError)
-
+		if newerLog != nil {
+			newerServerLogs = append(newerServerLogs, newerLog)
 		}
 
-		return nil
-	})
-
-	if err != nil {
-		if errors.Is(err, apperrors.ErrSoftWeightLog) {
-			return newerServerLogs, failedUpsertLogs, err
-		} else if errors.Is(err, apperrors.ErrInternalServer) {
-			return nil, nil, err
-		}
-		return nil, failedUpsertLogs, err
 	}
-	return newerServerLogs, nil, nil
+
+	return newerServerLogs, failed, nil
 
 }
 
-func (us *UserService) GetUserExerciseLogs(ctx context.Context, user_id string, last_sync *time.Time) ([]*models.FullExerciseLog, error) {
-	if last_sync == nil {
+func (us *UserService) GetUserExerciseLogs(ctx context.Context, user_id string, lastSync *time.Time) ([]*models.FullExerciseLog, error) {
 
-		return nil, apperrors.ErrInternalServer
-	}
 	var exerciseLogs []*models.FullExerciseLog
 
 	err := us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
 		var err error
 		exerciseLogs, err = us.userStore.GetUserExerciseLogs(ctx, tx, user_id)
 		if err != nil {
-			slog.Error("Internal error occured when getting exercise logs", "error", err.Error(), "user_id", user_id, "last_sync", last_sync)
-			return apperrors.ErrInternalServer
+			return err
 		}
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, store.ErrUserForeignKeyConstraint) {
+			return nil, apperrors.New(apperrors.SessionOver, err)
+		}
+		// Already wrapped from store.getuserexerciselogs
 		return nil, err
 	}
-	var not_synced []*models.FullExerciseLog
+	var newLogs []*models.FullExerciseLog
 
 	for _, log := range exerciseLogs {
-		if log.ExerciseLog.UpdatedAt.After(*last_sync) {
-			not_synced = append(not_synced, log)
+		if lastSync != nil {
+			if log.ExerciseLog.UpdatedAt.After(*lastSync) {
+				newLogs = append(newLogs, log)
+			}
+		} else {
+			newLogs = append(newLogs, log)
 		}
 	}
-	return not_synced, nil
+	return newLogs, nil
 
 }
-func (us *UserService) UpsertUserFoodLogsAndEntries(ctx context.Context, userId string, FoodLogs []*models.FullFoodLog) ([]*models.FullFoodLog, []*models.FullFoodLog, error) {
+
+func (us *UserService) UpsertUserFoodLogsAndEntries(ctx context.Context, userId string, FoodLogs []*models.FullFoodLog) (newerServerLogs []*models.FullFoodLog, failed []string, err error) {
 	if FoodLogs == nil {
-
-		slog.Error("Error: user serivce got nil exercise log slice", "error", "userID", userId)
-		return nil, nil, apperrors.ErrInternalServer
+		return nil, nil, apperrors.New(apperrors.BadRequest, fmt.Errorf("no food logs submitted to upsert"))
 	}
-	var failedUpsertLogs []*models.FullFoodLog
-	var newerServerLogs []*models.FullFoodLog
-	err := us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
-		var upsertError error
-		failedCount := 0
-		for i, log := range FoodLogs {
+	newerServerLogs = []*models.FullFoodLog{}
+	failed = []string{}
 
-			err := us.userStore.UpsertUserFoodLog(ctx, tx, userId, log.FoodLog)
+	for _, log := range FoodLogs {
+		var newerLog *models.FullFoodLog
+
+		err = us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
+			err := us.userStore.UpsertUserFoodLog(ctx, tx, userId, log)
 			if err != nil {
-				// Newer log data exist so we get it
-				slog.Error("Error in upsert", "error", err, "log_id", log.FoodLog.ID)
-				newLog, err := us.userStore.GetUserFoodLogById(ctx, tx, userId, log.FoodLog.ID)
-				if err != nil {
-					slog.Error("Upsert did not work, caused get to fail, log is missing in db", "error", err.Error(), "user_id", userId, "log_id", log.FoodLog.ID)
-					failedCount++
-					upsertError = err
-					failedUpsertLogs = append(failedUpsertLogs, log)
-
-				} else if newLog != nil {
-					sets, err := us.userStore.GetUserFoodLogEntriesByLogId(ctx, tx, newLog.ID)
-					if err != nil {
-
-					}
-					newFullLog := &models.FullFoodLog{
-						FoodLog:        newLog,
-						FoodLogEntries: sets,
-					}
-					newerServerLogs = append(newerServerLogs, newFullLog)
+				if errors.Is(err, store.ErrNoRowsAffected) {
+					var innerErr error
+					// Newer log data exist so we get it
+					newerLog, innerErr = us.userStore.GetUserFoodLogById(ctx, tx, userId, log.FoodLog.ID)
+					return innerErr
 				}
+				return err
 			}
-			err = us.userStore.UpsertUserFoodLogEntry(ctx, tx, log.FoodLogEntries)
-			if err != nil {
+			return nil
+		})
 
-				slog.Error("Upsert for food log failed, should be impossible", "error", err.Error(), "user_id", userId, "log_id", log.FoodLog.ID)
-				failedUpsertLogs = append(failedUpsertLogs, FoodLogs[i:]...)
-				return apperrors.ErrInternalServer
+		if err != nil {
+			if errors.Is(err, store.ErrUserForeignKeyConstraint) {
+				return nil, nil, apperrors.New(apperrors.SessionOver, err)
 			}
+			loggerx.Log(ctx).Warn("log upsert failed", "error", err, "log_id", log.FoodLog.ID)
+			failed = append(failed, log.FoodLog.ID)
+			continue
 		}
-		if failedCount > 0 && failedCount < len(FoodLogs) {
-			slog.Error("failed to sync logs", "failed_count", failedCount, "total_count", len(FoodLogs), "error", upsertError)
-			return apperrors.ErrSoftWeightLog
-		}
-		if failedCount == len(FoodLogs) {
-			// Some kind of hard error?
-			slog.Error("failed to sync logs all logs", "failed_count", failedCount, "total_count", len(FoodLogs), "error", upsertError)
-			return apperrors.NewAppError("ERR_UPSERTING_WEIGHT_LOG", "There was an internal error updating your weight logs", http.StatusInternalServerError)
-
+		if newerLog != nil {
+			newerServerLogs = append(newerServerLogs, newerLog)
 		}
 
-		return nil
-	})
-
-	if err != nil {
-		if errors.Is(err, apperrors.ErrSoftWeightLog) {
-			return newerServerLogs, failedUpsertLogs, err
-		} else if errors.Is(err, apperrors.ErrInternalServer) {
-			return nil, nil, err
-		}
-		return nil, failedUpsertLogs, err
 	}
-	return newerServerLogs, nil, nil
+	return newerServerLogs, failed, nil
 
 }
 
 func (us *UserService) GetUserFoodLogs(ctx context.Context, user_id string, last_sync *time.Time) ([]*models.FullFoodLog, error) {
-	if last_sync == nil {
-
-		return nil, apperrors.ErrInternalServer
-	}
 	var foodLogs []*models.FullFoodLog
 
 	err := us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
 		var err error
 		foodLogs, err = us.userStore.GetUserFoodLogs(ctx, tx, user_id)
 		if err != nil {
-			slog.Error("Internal error occured when getting food logs", "error", err.Error(), "user_id", user_id, "last_sync", last_sync)
-			return apperrors.ErrInternalServer
+			return err
 		}
 		return nil
 	})
 	if err != nil {
+		// Already a wrapped error
 		return nil, err
 	}
-	var not_synced []*models.FullFoodLog
+	var newLogs []*models.FullFoodLog
 
 	for _, log := range foodLogs {
-		if log.FoodLog.UpdatedAt.After(*last_sync) {
-			not_synced = append(not_synced, log)
+		if last_sync != nil {
+			if log.FoodLog.UpdatedAt.After(*last_sync) {
+				newLogs = append(newLogs, log)
+			}
+		} else {
+			newLogs = append(newLogs, log)
 		}
 	}
-	return not_synced, nil
+	return newLogs, nil
 
 }

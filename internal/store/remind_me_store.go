@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/lib/pq"
 )
@@ -22,7 +23,7 @@ func NewRemindMeStore(db *sql.DB) *remindMeStore {
 
 }
 
-var EmailAlreadyExist = errors.New("Email already exists")
+var ErrEmailExists = errors.New("email already exists")
 
 func (us *remindMeStore) Remind_user(ctx context.Context, email string) error {
 	query := `INSERT INTO remind_user (email) VALUES ($1)`
@@ -30,10 +31,13 @@ func (us *remindMeStore) Remind_user(ctx context.Context, email string) error {
 	var pqError *pq.Error
 	if errors.As(err, &pqError) {
 		if pqError.Code.Name() == "unique_violation" {
-			return EmailAlreadyExist
+			return fmt.Errorf("remind user: %w", ErrEmailExists)
 		}
 
 	}
-	return err
+	if err != nil {
+		return fmt.Errorf("remind user: %w", err)
+	}
+	return nil
 
 }

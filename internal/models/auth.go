@@ -2,6 +2,8 @@ package models
 
 import (
 	"context"
+	"database/sql"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -24,11 +26,18 @@ type AuthResponse struct {
 }
 type AuthProvider interface {
 	GetProviderName() string
-	//TODO: make a HandleCodeExchange without the verifier needed
 	HandleCodeExchangeWithVerifier(ctx context.Context, code, verifier string) (*AuthPayload, error)
 	GetPlatform() string
 }
 
+type AuthRepository interface {
+	UpsertUserWithAuth(ctx context.Context, tx *sql.Tx, payload *AuthPayload) (*User, error)
+	DeleteRefreshToken(ctx context.Context, tx *sql.Tx, token string, userId string) error
+	SaveRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string, expiresAt time.Time) error
+	FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string) (*User, error)
+	DeleteUser(ctx context.Context, tx *sql.Tx, userID string) error
+	WithTx(ctx context.Context, fn func(*sql.Tx) error) error
+}
 type CustomClaimsAccess struct {
 	UserID string `json:"sub"`
 	Email  string `json:"email"`

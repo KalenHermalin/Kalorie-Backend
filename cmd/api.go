@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"main/internal/handlers"
 	"main/internal/middlewares"
 	"net/http"
@@ -28,9 +29,10 @@ type config struct {
 
 func (app *application) mount() http.Handler {
 	mux := chi.NewRouter()
+	logger := slog.Default()
 	mux.Use(middleware.RequestID)
 	mux.Use(middleware.RealIP)
-	mux.Use(middleware.Logger)
+	mux.Use(middlewares.RequestLogger(logger))
 	mux.Use(middleware.Recoverer)
 	mux.Use(middleware.Timeout(time.Minute))
 
@@ -47,34 +49,34 @@ func (app *application) mount() http.Handler {
 
 	mux.Route("/api", func(r chi.Router) {
 		r.Get("/system/health", app.systemHandler.HealthHandler)
-		r.Post("/waitlist", app.docsHandler.RemindMe)
+		r.Post("/waitlist", handlers.Handle(app.docsHandler.RemindMe))
 		r.Route("/auth", func(r chi.Router) {
-			r.Post("/login", app.authHandler.HandleLoginSignup)
-			r.Post("/refresh", app.authHandler.HandleRefresh)
+			r.Post("/login", handlers.Handle(app.authHandler.HandleLoginSignup))
+			r.Post("/refresh", handlers.Handle(app.authHandler.HandleRefresh))
 			r.Group(func(r chi.Router) {
 				r.Use(middlewares.Auth(app.config.jwtAccessSecret))
-				r.Post("/logout", app.authHandler.HandleLogOut)
-				r.Delete("/account", app.authHandler.HandleDeleteUser)
+				r.Post("/logout", handlers.Handle(app.authHandler.HandleLogOut))
+				r.Delete("/account", handlers.Handle(app.authHandler.HandleDeleteUser))
 
 			})
 		})
 		r.Route("/v1", func(r chi.Router) {
 			r.Use(middlewares.Auth(app.config.jwtAccessSecret))
 
-			r.Put("/settings/sync", app.userHandler.EgressSyncSettings)
-			r.Get("/settings/sync", app.userHandler.IngressSyncSettings)
+			r.Put("/settings/sync", handlers.Handle(app.userHandler.EgressSyncSettings))
+			r.Get("/settings/sync", handlers.Handle(app.userHandler.IngressSyncSettings))
 
-			r.Put("/weight-logs/sync", app.userHandler.EgressSyncWeightLogs)
-			r.Get("/weight-logs/sync", app.userHandler.IngressSyncWeightLogs)
+			r.Put("/weight-logs/sync", handlers.Handle(app.userHandler.EgressSyncWeightLogs))
+			r.Get("/weight-logs/sync", handlers.Handle(app.userHandler.IngressSyncWeightLogs))
 
-			r.Put("/food-logs/sync", app.userHandler.EgressSyncFoodLogs)
-			r.Get("/food-logs/sync", app.userHandler.IngressSyncFoodLogs)
+			r.Put("/food-logs/sync", handlers.Handle(app.userHandler.EgressSyncFoodLogs))
+			r.Get("/food-logs/sync", handlers.Handle(app.userHandler.IngressSyncFoodLogs))
 
-			r.Put("/exercise-logs/sync", app.userHandler.EgressSyncExerciseLogs)
-			r.Get("/exercise-logs/sync", app.userHandler.IngressSyncExerciseLogs)
+			r.Put("/exercise-logs/sync", handlers.Handle(app.userHandler.EgressSyncExerciseLogs))
+			r.Get("/exercise-logs/sync", handlers.Handle(app.userHandler.IngressSyncExerciseLogs))
 
-			r.Post("/analyze/food", app.llmHandler.AnalyzeFoodHandler)
-			r.Post("/analyze/label", app.llmHandler.AnalyzeLabelHandler)
+			r.Post("/analyze/food", handlers.Handle(app.llmHandler.AnalyzeFoodHandler))
+			r.Post("/analyze/label", handlers.Handle(app.llmHandler.AnalyzeLabelHandler))
 		})
 	})
 	return mux

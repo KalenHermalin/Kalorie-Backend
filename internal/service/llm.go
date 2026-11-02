@@ -3,62 +3,60 @@ package service
 import (
 	"context"
 	"errors"
-	"log/slog"
+	"fmt"
 	"main/internal/apperrors"
+	"main/internal/llm"
 	"main/internal/models"
 	"main/internal/utils"
 )
 
 type LLMService struct {
-	Providers []models.LLMProvider
+	Provider models.LLMProvider
 }
 
-func NewLLMService(providers ...models.LLMProvider) *LLMService {
-	return &LLMService{Providers: providers}
+func NewLLMService(provider models.LLMProvider) *LLMService {
+	return &LLMService{Provider: provider}
 }
 
-func (s *LLMService) AnalyzeFood(ctx context.Context, requestData *models.AnalayzeFoodRequestPayload) (*models.MealPayload, error) {
+func (s *LLMService) AnalyzeFood(ctx context.Context, requestData *models.AnalayzeFoodRequestPayload) (payload *models.MealPayload, err error) {
+	if requestData.Picture == nil {
+		return nil, apperrors.New(apperrors.BadRequest, fmt.Errorf("no picture submitted"))
+	}
+	pctx, cancel := context.WithTimeout(ctx, s.Provider.GetTimeoutTime())
+	payload, err = s.Provider.AnalyzePicture(pctx, requestData.Picture, requestData.Description, utils.ANALYZEFOODSYSTEMPROMPT)
+	cancel()
+	if err == nil {
+		return payload, nil
+	}
+	if errors.Is(err, llm.NoFoodFound) {
+		return nil, apperrors.New(apperrors.NoFoodFound, err)
+	}
+	if errors.Is(err, llm.ProviderError) {
+		return nil, apperrors.New(apperrors.LlmProviderDown, err)
+	}
 
-	for _, provider := range s.Providers {
-		pctx, cancel := context.WithTimeout(ctx, provider.GetTimeoutTime())
-		payload, err := provider.AnalyzePicture(pctx, requestData.Picture, requestData.Description, utils.ANALYZEFOODSYSTEMPROMPT)
-		cancel()
-		if err == nil {
-			return payload, nil
-		}
-		if errors.Is(err, apperrors.ErrNoFoodFound) {
-			return nil, err
-		}
-		if errors.Is(err, apperrors.ErrLLMProvider) {
-			continue
-		}
-		slog.Error("Error:" + err.Error())
-		break
+	return nil, apperrors.New(apperrors.Internal, err)
+
+}
+
+func (s *LLMService) AnalyzeLabel(ctx context.Context, requestData *models.AnalayzeLabelRequestPayload) (payload *models.LabelPayload, err error) {
+	if requestData.Picture == nil {
+		return nil, apperrors.New(apperrors.BadRequest, fmt.Errorf("no picture submitted"))
+	}
+	pctx, cancel := context.WithTimeout(ctx, s.Provider.GetTimeoutTime())
+	payload, err = s.Provider.AnalyzeLabel(pctx, requestData.Picture, utils.ANALYZELABELSYSTEMPROMPT)
+	cancel()
+	if err == nil {
+		return payload, nil
+	}
+	if errors.Is(err, llm.NoLabelFound) {
+		return nil, apperrors.New(apperrors.NoLabelFound, err)
+	}
+	if errors.Is(err, llm.ProviderError) {
+		return nil, apperrors.New(apperrors.LlmProviderDown, err)
 
 	}
-	return nil, apperrors.ErrInternalServer
 
-}
-
-func (s *LLMService) AnalyzeLabel(ctx context.Context, requestData *models.AnalayzeLabelRequestPayload) (*models.LabelPayload, error) {
-
-	for _, provider := range s.Providers {
-		pctx, cancel := context.WithTimeout(ctx, provider.GetTimeoutTime())
-		payload, err := provider.AnalyzeLabel(pctx, requestData.Picture, utils.ANALYZELABELSYSTEMPROMPT)
-		cancel()
-		if err == nil {
-			return payload, nil
-		}
-		if errors.Is(err, apperrors.ErrNoLabelFound) {
-			return nil, err
-		}
-		if errors.Is(err, apperrors.ErrLLMProvider) {
-			continue
-		}
-		slog.Error("Error:" + err.Error())
-		break
-
-	}
-	return nil, apperrors.ErrInternalServer
+	return nil, apperrors.New(apperrors.Internal, err)
 
 }

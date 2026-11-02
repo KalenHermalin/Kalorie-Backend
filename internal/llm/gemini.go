@@ -3,7 +3,7 @@ package llm
 import (
 	"context"
 	"encoding/json"
-	"main/internal/apperrors"
+	"fmt"
 	"main/internal/models"
 	"strings"
 	"time"
@@ -29,6 +29,11 @@ func NewGeminiProvider(ctx context.Context, apiKey string, model string) (*Gemin
 }
 func (gm *GeminiProvider) GetTimeoutTime() time.Duration {
 	return time.Second * 15
+}
+
+func (gm *GeminiProvider) GetName() *string {
+	name := "gemini"
+	return &name
 }
 func (gm *GeminiProvider) AnalyzePicture(ctx context.Context, picture []byte, description, systemPrompt string) (*models.MealPayload, error) {
 	//TODO: Seperate concerns, meaning build the genAI parts in sub function and return?
@@ -71,16 +76,16 @@ func (gm *GeminiProvider) AnalyzePicture(ctx context.Context, picture []byte, de
 	})
 
 	if err != nil {
-		return nil, apperrors.ErrLLMProvider
+		return nil, fmt.Errorf("%w : %w", ProviderError, err)
 	}
 	var geminiResponse models.MealResponse
 	err = json.Unmarshal([]byte(result.Text()), &geminiResponse)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json decoding: %w", err)
 	}
 
 	if !geminiResponse.Success {
-		return nil, apperrors.ErrNoFoodFound
+		return nil, NoFoodFound
 	}
 	return &geminiResponse.Payload, nil
 
@@ -129,15 +134,15 @@ func (gm *GeminiProvider) AnalyzeLabel(ctx context.Context, picture []byte, syst
 	})
 
 	if err != nil {
-		return nil, apperrors.ErrLLMProvider
+		return nil, fmt.Errorf("%w : %w", ProviderError, err)
 	}
 	var geminiResponse models.LabelResponse
 	err = json.Unmarshal([]byte(result.Text()), &geminiResponse)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json decoding: %w", err)
 	}
 	if !geminiResponse.Success {
-		return nil, apperrors.ErrNoLabelFound
+		return nil, NoLabelFound
 	}
 	return &geminiResponse.Payload, nil
 

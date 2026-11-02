@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
-	"log/slog"
 	"main/internal/apperrors"
 	"main/internal/middlewares"
 	"main/internal/service"
@@ -30,120 +28,80 @@ type logOutRequestBody struct {
 	Refresh string `json:"refresh"`
 }
 
-func (ah *AuthHandler) HandleRefresh(writer http.ResponseWriter, request *http.Request) {
+func (ah *AuthHandler) HandleRefresh(writer http.ResponseWriter, request *http.Request) error {
 
 	requestData := &logOutRequestBody{}
 	if err := utils.DecodePayload(request.Body, requestData); err != nil {
-		slog.Error("Error: decoding refresh request body", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrBadRequestBody)
-		return
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "body", Problem: "malformed request body"})
+
+	}
+	if err := utils.CheckValidString(requestData.Refresh); err != nil {
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "refresh", Problem: "missing refresh token"})
 	}
 	resp, err := ah.auth.RefreshAccessToken(request.Context(), requestData.Refresh)
 	if err != nil {
-		// Error should always be an app error but just in case
-		var appErr *apperrors.AppError
-		if errors.As(err, &appErr) {
-			apperrors.WriteError(writer, *appErr)
-			return
-
-		}
-
-		slog.Error("Error: Sign Up / Login Failed", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrInternalServer)
-		return
+		return err
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(writer).Encode(resp) // Now 'resp' is used!
+	return nil
 }
 
-func (ah *AuthHandler) HandleLogOut(writer http.ResponseWriter, request *http.Request) {
-	// Get userId from auth middleware
-	userId, ok := request.Context().Value(middlewares.UserIDKey).(string)
-	if !ok {
-		apperrors.WriteError(writer, *apperrors.ErrUnauthoirized)
-		return
-	}
-
+func (ah *AuthHandler) HandleLogOut(writer http.ResponseWriter, request *http.Request) error {
+	userId := middlewares.GetUserID(request.Context())
 	// Get refresh token from request body
 	requestData := &logOutRequestBody{}
 	if err := utils.DecodePayload(request.Body, requestData); err != nil {
-		slog.Error("Error: decoding logout request body", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrInvalidRequest)
-		return
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "body", Problem: "malformed request body"})
+
+	}
+	if err := utils.CheckValidString(requestData.Refresh); err != nil {
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "refresh", Problem: "missing refresh token"})
 	}
 	err := ah.auth.LogOut(request.Context(), userId, requestData.Refresh)
 	if err != nil {
-		slog.Error("Error: deleting refresh token in database", "error", err.Error())
-		var appErr *apperrors.AppError
-		if errors.As(err, &appErr) {
-			apperrors.WriteError(writer, *appErr)
-			return
-
-		}
-
-		slog.Error("logout had an error", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.NewAppError("ERR_LOGOUT_FAILED", "Unkown logout error occured. Please try again in a few", http.StatusInternalServerError))
-		return
+		return err
 	}
 	writer.WriteHeader(http.StatusOK)
 	writer.Write([]byte("Success"))
+	return nil
 }
 
-func (ah *AuthHandler) HandleDeleteUser(writer http.ResponseWriter, request *http.Request) {
-	userId, ok := request.Context().Value(middlewares.UserIDKey).(string)
-	if !ok {
-		apperrors.WriteError(writer, *apperrors.ErrUnauthoirized)
-		return
-	}
+func (ah *AuthHandler) HandleDeleteUser(writer http.ResponseWriter, request *http.Request) error {
+	userId := middlewares.GetUserID(request.Context())
+
 	err := ah.auth.DeleteUser(request.Context(), userId)
 	if err != nil {
-		var appErr *apperrors.AppError
-		if errors.As(err, &appErr) {
-			apperrors.WriteError(writer, *appErr)
-			return
-
-		}
-
-		slog.Error("delete user had an error", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.NewAppError("ERR_DELETE_FAILED", "Unkown delete error occured. Please try again in a few", http.StatusInternalServerError))
-		return
+		return err
 	}
 	writer.WriteHeader(http.StatusOK)
 	writer.Write([]byte("Success"))
+	return nil
 }
-func (ah *AuthHandler) HandleLoginSignup(writer http.ResponseWriter, request *http.Request) {
+func (ah *AuthHandler) HandleLoginSignup(writer http.ResponseWriter, request *http.Request) error {
 
 	var requestData authRequestBody
 	if err := utils.DecodePayload(request.Body, &requestData); err != nil {
-		// Bad Request because all we did was decode it and got an error meaning invalid JSON
-		slog.Error("Error: decoding login request body", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrInvalidRequest)
-		return
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "body", Problem: "malformed request body"})
+
 	}
 	if err := utils.CheckValidString(requestData.Code); err != nil {
-		slog.Error("Error: code is empty", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrInvalidRequest)
-		return
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "code", Problem: "code is empty"})
+
 	}
 	if err := utils.CheckValidString(requestData.Provider); err != nil {
-		slog.Error("Error: provider is empty", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrInvalidRequest)
-		return
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "provider", Problem: "provider is empty"})
+	}
+	if err := utils.CheckValidString(requestData.Verifier); err != nil {
+		return apperrors.NewBadRequestWithFields(err, apperrors.FieldError{Field: "verifier", Problem: "verifier is empty"})
 	}
 	resp, err := ah.auth.SignIn(request.Context(), requestData.Code, requestData.Provider, requestData.Verifier, requestData.Platform)
 	if err != nil {
-		var appErr *apperrors.AppError
-		if errors.As(err, &appErr) {
-			apperrors.WriteError(writer, *appErr)
-			return
-
-		}
-		slog.Error("Error: Sign Up / Login Failed", "error", err.Error())
-		apperrors.WriteError(writer, *apperrors.ErrInternalServer)
-		return
+		return err
 	}
 	writer.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(writer).Encode(resp)
+	return nil
 
 }

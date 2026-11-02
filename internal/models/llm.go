@@ -37,6 +37,7 @@ type LLMProvider interface {
 	AnalyzeLabel(ctx context.Context, picture []byte, systemPrompt string) (*LabelPayload, error)
 	AnalyzePicture(ctx context.Context, picture []byte, description, systemPrompt string) (*MealPayload, error)
 	GetTimeoutTime() time.Duration
+	GetName() *string
 }
 
 type AnalayzeFoodRequestPayload struct {

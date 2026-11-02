@@ -32,7 +32,7 @@ func CheckDBConnection(db *sql.DB) {
 }
 
 func TestDeleteRefreshToken(t *testing.T) {
-	store := NewPostgressUserStore(testDB) // Pass the transaction as the DB
+	store := NewPostgressAuthStore(testDB) // Pass the transaction as the DB
 	clearTables(t)
 	defer clearTables(t)
 	payload := &models.AuthPayload{
@@ -75,7 +75,7 @@ func TestDeleteRefreshToken(t *testing.T) {
 }
 
 func TestRefreshRefreshToken(t *testing.T) {
-	store := NewPostgressUserStore(testDB) // Pass the transaction as the DB
+	store := NewPostgressAuthStore(testDB) // Pass the transaction as the DB
 	clearTables(t)
 	defer clearTables(t)
 	payload := &models.AuthPayload{
@@ -134,7 +134,8 @@ func TestRefreshRefreshToken(t *testing.T) {
 }
 func TestUpdateUserSettingsSuccess(t *testing.T) {
 
-	store := NewPostgressUserStore(testDB) // Pass the transaction as the DB
+	userStore := NewPostgressUserStore(testDB) // Pass the transaction as the DB
+	authStore := NewPostgressAuthStore(testDB) // Pass the transaction as the DB
 	clearTables(t)
 	defer clearTables(t)
 	payload := &models.AuthPayload{
@@ -143,9 +144,9 @@ func TestUpdateUserSettingsSuccess(t *testing.T) {
 		Provider: "github",
 	}
 
-	store.WithTx(context.Background(), func(tx *sql.Tx) error {
+	userStore.WithTx(context.Background(), func(tx *sql.Tx) error {
 
-		user, err := store.UpsertUserWithAuth(context.Background(), tx, payload)
+		user, err := authStore.UpsertUserWithAuth(context.Background(), tx, payload)
 		if err != nil {
 			t.Fatalf("Failed to insert new user: %v", err)
 		}
@@ -164,12 +165,12 @@ func TestUpdateUserSettingsSuccess(t *testing.T) {
 			UpdatedAt:      now,
 			DeletedAt:      nil,
 		}
-		err = store.UpdateUserSettings(context.Background(), tx, user.ID, settings)
+		err = userStore.UpdateUserSettings(context.Background(), tx, user.ID, settings)
 		if err != nil {
 			t.Errorf("%s", "Expected success but got:"+err.Error())
 		}
 
-		newSettings, err := store.GetUserSettings(context.Background(), tx, user.ID)
+		newSettings, err := userStore.GetUserSettings(context.Background(), tx, user.ID)
 		if err != nil {
 
 			t.Errorf("%s", "Error retreiving new settings:"+err.Error())
@@ -182,7 +183,8 @@ func TestUpdateUserSettingsSuccess(t *testing.T) {
 }
 func TestUpdateUserSettingsFailure(t *testing.T) {
 
-	store := NewPostgressUserStore(testDB) // Pass the transaction as the DB
+	store := NewPostgressUserStore(testDB)     // Pass the transaction as the DB
+	authStore := NewPostgressAuthStore(testDB) // Pass the transaction as the DB
 	clearTables(t)
 	defer clearTables(t)
 	payload := &models.AuthPayload{
@@ -193,7 +195,7 @@ func TestUpdateUserSettingsFailure(t *testing.T) {
 
 	store.WithTx(context.Background(), func(tx *sql.Tx) error {
 
-		user, err := store.UpsertUserWithAuth(context.Background(), tx, payload)
+		user, err := authStore.UpsertUserWithAuth(context.Background(), tx, payload)
 		if err != nil {
 			t.Fatalf("Failed to insert new user: %v", err)
 		}
@@ -245,7 +247,7 @@ func AssertSettingsEqual(t *testing.T, expected, actual *models.UserSettings) {
 }
 func TestUpsertUserWithAuth(t *testing.T) {
 	// Start a transaction to keep the test "atomic"
-	store := NewPostgressUserStore(testDB) // Pass the transaction as the DB
+	store := NewPostgressAuthStore(testDB) // Pass the transaction as the DB
 	clearTables(t)
 	defer clearTables(t)
 	payload := &models.AuthPayload{
@@ -282,7 +284,8 @@ func TestUpsertUserWithAuth(t *testing.T) {
 
 func TestUpsertUserWeightLog(t *testing.T) {
 	// Start a transaction to keep the test "atomic"
-	store := NewPostgressUserStore(testDB) // Pass the transaction as the DB
+	store := NewPostgressUserStore(testDB)     // Pass the transaction as the DB
+	authStore := NewPostgressAuthStore(testDB) // Pass the transaction as the DB
 	clearTables(t)
 	defer clearTables(t)
 	payload := &models.AuthPayload{
@@ -293,7 +296,7 @@ func TestUpsertUserWeightLog(t *testing.T) {
 
 	store.WithTx(context.Background(), func(tx *sql.Tx) error {
 
-		user, err := store.UpsertUserWithAuth(context.Background(), tx, payload)
+		user, err := authStore.UpsertUserWithAuth(context.Background(), tx, payload)
 		if err != nil {
 			t.Fatalf("Failed to insert new user: %v", err)
 		}

@@ -39,14 +39,8 @@ func main() {
 		slog.Error(err.Error())
 		os.Exit(1)
 	}
-	openRouterApiKey, ok := os.LookupEnv("OPENROUTER_API_KEY")
-	if !ok {
-		slog.Error("Error: Missing env variable", "key", "OPENROUTER_API_KEY")
-		os.Exit(1)
 
-	}
-	openrouter := llm.NewOpenRouterProvider(context.Background(), openRouterApiKey, "openrouter/free")
-	llmService := service.NewLLMService(openrouter, gemini)
+	llmService := service.NewLLMService(gemini)
 	llmHandler := handlers.NewLLMHandler(*llmService)
 	// Setting up User Store, Service and Handler
 
@@ -116,7 +110,8 @@ func main() {
 		slog.Error("Error: Missing env variable", "key", "JWT_REFRESH_SECRET")
 		os.Exit(1)
 	}
-	authService := service.NewAuthService(userStore, jwtAccessSecret, jwtRefreshSecret, authProviders...)
+	authStore := store.NewPostgressAuthStore(db)
+	authService := service.NewAuthService(authStore, jwtAccessSecret, jwtRefreshSecret, authProviders...)
 	authHandler := handlers.NewAuthHandler(*authService)
 
 	// Setting Up User Handler
