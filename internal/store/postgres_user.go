@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"main/internal/models"
-	"time"
 
 	"github.com/lib/pq" // The underscore is required
 )
@@ -269,7 +268,6 @@ func (us *postgressUserRepo) UpdateUserSettings(ctx context.Context, tx *sql.Tx,
 
 }
 
-// TODO: Finish this docstring, cant finish because i have to decide if i want to redesign the function or what maybe combine the sql into one statement that does both the log and sets in one
 // UpsertUserExerciseLog updates or inserts a users exercise log and its sets
 // It returns a [error] if something goes wrong
 // Standard is to check if err == nil, then continue
@@ -282,95 +280,46 @@ func (us *postgressUserRepo) UpdateUserSettings(ctx context.Context, tx *sql.Tx,
 //
 // # Errors
 //   - Returns [ErrUserForeignKeyConstraint] if the userId provided is no longer in the database, happens when a user deletes account but a session, with a valid access token, is still available on another device. (rare because of 15 min validity)
-//   - Returns [ErrNotFound] when no log with the specified id is found.
+//   - Returns [ErrNoRowsAffected] when the upsert for the log fails, meaing there is a newer log version
 //   - Returns fmt.error for any other errors
 func (us *postgressUserRepo) UpsertUserExerciseLog(ctx context.Context, tx *sql.Tx, userId string, payload *models.FullExerciseLog) error {
-
 	query := `
-	WITH upsert_log AS (
-		INSERT INTO exercise_logs (id, user_id, exercise_id, created_at, updated_at, deleted_at)
-	VALUES ($1, $2, $3, $4, $5, $6)
-	ON CONFLICT (id) 
-	DO UPDATE SET
-		exercise_id = EXCLUDED.exercise_id,
-		updated_at = EXCLUDED.updated_at,
-		deleted_at = EXCLUDED.deleted_at
-	WHERE EXCLUDED.updated_at > exercise_logs.updated_at
-	)
-	INSERT INTO exercise_sets (id, log_id, set_number, weight, reps, updated_at, deleted_at)
-	SELECT
-		unnest($7::uuid[]),
-		$1,
-		unnest($8::integer[]),
-		unnest($9::real[]),
-		unnest($10::integer[]),
-		unnest($11::TIMESTAMPTZ[]),
-		unnest($12::TIMESTAMPTZ[])
-	ON CONFLICT (id) 
-	DO UPDATE SET
-		set_number = EXCLUDED.set_number,
-		reps = EXCLUDED.reps,
-		updated_at = EXCLUDED.updated_at,
-		weight = EXCLUDED.weight,
-		deleted_at = EXCLUDED.deleted_at
-	WHERE EXCLUDED.updated_at > exercise_sets.updated_at;
-`
-	/*query := `
-	INSERT INTO exercise_logs (id, user_id, exercise_id, created_at, updated_at, deleted_at)
-	VALUES ($1, $2, $3, $4, $5, $6)
-	ON CONFLICT (id)
-	DO UPDATE SET
-	    exercise_id = EXCLUDED.exercise_id,
-	    updated_at = EXCLUDED.updated_at,
-	    deleted_at = EXCLUDED.deleted_at
-	WHERE EXCLUDED.updated_at > exercise_logs.updated_at;`*/
-	ids := make([]string, len(payload.ExerciseSets))
-	reps := make([]int, len(payload.ExerciseSets))
-	setNumbers := make([]int, len(payload.ExerciseSets))
-	weights := make([]float32, len(payload.ExerciseSets))
-	updateAts := make([]time.Time, len(payload.ExerciseSets))
-	deletedAts := make([]*time.Time, len(payload.ExerciseSets))
+INSERT INTO exercise_logs (id, user_id, exercise_id, created_at, updated_at, deleted_at)
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (id) 
+DO UPDATE SET
+    exercise_id = EXCLUDED.exercise_id,
+    updated_at = EXCLUDED.updated_at,
+    deleted_at = EXCLUDED.deleted_at
+WHERE EXCLUDED.updated_at > exercise_logs.updated_at AND exercise_logs.user_id = EXCLUDED.user_id
+RETURNING id;`
 
-	for i, s := range payload.ExerciseSets {
-		ids[i] = s.ID
-		reps[i] = s.Reps
-		setNumbers[i] = s.Set_number
-		weights[i] = s.Weight
-		updateAts[i] = s.UpdatedAt
-		deletedAts[i] = s.DeletedAt
-
-	}
-	res, err := tx.ExecContext(ctx, query,
+	var id string
+	err := tx.QueryRowContext(ctx, query,
 		payload.ExerciseLog.ID,         // $1
 		userId,                         // $2
 		payload.ExerciseLog.ExerciseId, // $3
 		payload.ExerciseLog.CreatedAt,  // $4
 		payload.ExerciseLog.UpdatedAt,  // $5
 		payload.ExerciseLog.DeletedAt,  // $6
-		pq.Array(ids),                  // $7
-		pq.Array(setNumbers),           // $8
-		pq.Array(weights),              // $9
-		pq.Array(reps),                 // $10
-		pq.Array(updateAts),            // $11
-		pq.Array(deletedAts),           // $12
+	).Scan(&id)
 
-	)
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok {
 			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
 				return fmt.Errorf("upsert exercise log %s for user %s: %w", payload.ExerciseLog.ID, userId, ErrUserForeignKeyConstraint)
 			}
 		}
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("upsert exercise log %s: %w", userId, ErrNoRowsAffected)
+
+		}
 		return fmt.Errorf("upsert exercise log %s: %w", userId, err)
 	}
-	rowsAff, _ := res.RowsAffected()
-	if rowsAff == 0 {
-		return fmt.Errorf("upsert exercise log %s: %w", userId, ErrNoRowsAffected)
-	}
-	/*err = us.upsertUserExerciseSets(ctx, tx, payload.ExerciseSets)
+	err = us.upsertUserExerciseSets(ctx, tx, id, payload.ExerciseSets)
 	if err != nil {
 		return err
-	}*/
+	}
 
 	return nil
 
@@ -516,8 +465,7 @@ func (us *postgressUserRepo) GetUserExerciseLogById(ctx context.Context, tx *sql
 
 }
 
-// TODO: Remove once the other exercise funtions are reworked
-func (us *postgressUserRepo) upsertUserExerciseSets(ctx context.Context, tx *sql.Tx, payload []*models.ExerciseSet) error {
+func (us *postgressUserRepo) upsertUserExerciseSets(ctx context.Context, tx *sql.Tx, parentId string, payload []*models.ExerciseSet) error {
 	if payload == nil {
 		return errors.New("upsert exercise sets: nil payload")
 	}
@@ -532,13 +480,13 @@ DO UPDATE SET
     updated_at = EXCLUDED.updated_at,
 	weight = EXCLUDED.weight,
     deleted_at = EXCLUDED.deleted_at
-WHERE EXCLUDED.updated_at > exercise_sets.updated_at;`
+WHERE $2 = exercise_sets.log_id;`
 
 	for _, set := range payload {
 
 		_, err := tx.ExecContext(ctx, query,
 			set.ID,         // $1
-			set.LogId,      // $2
+			parentId,       // $2
 			set.Set_number, // $3
 			set.Weight,     // $4
 			set.Reps,       //$5
@@ -602,9 +550,11 @@ DO UPDATE SET
     time = EXCLUDED.time,
     updated_at = EXCLUDED.updated_at,
     deleted_at = EXCLUDED.deleted_at
-WHERE EXCLUDED.updated_at > food_logs.updated_at;`
+WHERE EXCLUDED.updated_at > food_logs.updated_at AND food_logs.user_id = EXCLUDED.user_id
+RETURNING id;`
 
-	res, err := tx.ExecContext(ctx, query,
+	var id string
+	err := tx.QueryRowContext(ctx, query,
 		payload.FoodLog.ID,        // $1
 		userId,                    // $2
 		payload.FoodLog.Time,      // $3
@@ -612,20 +562,20 @@ WHERE EXCLUDED.updated_at > food_logs.updated_at;`
 		payload.FoodLog.CreatedAt, // $5
 		payload.FoodLog.UpdatedAt, // $6
 		payload.FoodLog.DeletedAt, // $7
-	)
+	).Scan(&id)
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok {
 			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
 				return fmt.Errorf("get food log %s for user %s: %w", payload.FoodLog.ID, userId, ErrUserForeignKeyConstraint)
 			}
 		}
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("upsert food log %s: %w", userId, ErrNoRowsAffected)
+
+		}
 		return fmt.Errorf("upsert food log %s for user %s: %w", payload.FoodLog.ID, userId, err)
 	}
-	rowsAff, _ := res.RowsAffected()
-	if rowsAff == 0 {
-		return fmt.Errorf("upsert food log %s: %w", userId, ErrNoRowsAffected)
-	}
-	err = us.upsertUserFoodLogEntry(ctx, tx, payload.FoodLogEntries)
+	err = us.upsertUserFoodLogEntry(ctx, tx, payload.FoodLogEntries, id)
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok {
 			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
@@ -779,8 +729,7 @@ func (us *postgressUserRepo) GetUserFoodLogById(ctx context.Context, tx *sql.Tx,
 
 }
 
-// TODO: Remove once the other exercise funtions are reworked
-func (us *postgressUserRepo) upsertUserFoodLogEntry(ctx context.Context, tx *sql.Tx, payload []*models.FoodLogEntry) error {
+func (us *postgressUserRepo) upsertUserFoodLogEntry(ctx context.Context, tx *sql.Tx, payload []*models.FoodLogEntry, logId string) error {
 	if payload == nil {
 		return errors.New("upsert food log entry: nil payload")
 	}
@@ -800,13 +749,13 @@ DO UPDATE SET
     protein = EXCLUDED.protein,
     updated_at = EXCLUDED.updated_at,
     deleted_at = EXCLUDED.deleted_at
-WHERE EXCLUDED.updated_at > food_log_items.updated_at;`
+WHERE EXCLUDED.log_id = food_log_items.log_id`
 
 	for _, entry := range payload {
 
 		_, err := tx.ExecContext(ctx, query,
 			entry.ID,        // $1
-			entry.LogId,     // $2
+			logId,           // $2
 			entry.FoodId,    // $3
 			entry.FoodName,  // $4
 			entry.ServingId, //$5
@@ -822,7 +771,7 @@ WHERE EXCLUDED.updated_at > food_log_items.updated_at;`
 		if err != nil {
 			if pqErr, ok := err.(*pq.Error); ok {
 				if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
-					return fmt.Errorf("get food logs for user %s: %w", entry.LogId, ErrLogIdForeignKeyConstraint)
+					return fmt.Errorf("upsert food logs for user %s: %w", entry.LogId, ErrLogIdForeignKeyConstraint)
 				}
 			}
 			return fmt.Errorf("upsert food log entry %s: %w", entry.ID, err)

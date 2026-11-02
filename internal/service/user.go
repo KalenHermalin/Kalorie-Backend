@@ -260,6 +260,9 @@ func (us *UserService) UpsertUserFoodLogsAndEntries(ctx context.Context, userId 
 		})
 
 		if err != nil {
+			if errors.Is(err, store.ErrUserForeignKeyConstraint) {
+				return nil, nil, apperrors.New(apperrors.SessionOver, err)
+			}
 			loggerx.Log(ctx).Warn("log upsert failed", "error", err, "log_id", log.FoodLog.ID)
 			failed = append(failed, log.FoodLog.ID)
 			continue

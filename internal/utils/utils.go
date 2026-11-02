@@ -54,7 +54,7 @@ const ANALYZELABELSYSTEMPROMPT = `You are an advanced AI Nutritionist and Comput
 
 func CheckValidString(str string) error {
 	if len(strings.TrimSpace(str)) <= 0 {
-		return errors.New("Code is Empty")
+		return errors.New("str is Empty")
 	}
 	return nil
 }
