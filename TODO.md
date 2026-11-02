@@ -2,11 +2,12 @@
 
 ## Current epic
 
-- [ ] Redesign exercise/food log sync as one timestamp per log (see `THOUGHTS.md`)
+- [x] Redesign exercise/food log sync as one timestamp per log (see `THOUGHTS.md`)
 - [ ] Add store integration tests for exercise/food log upserts
 - [ ] Add store error for foreign-key violations (deleted user syncing logs)
 - [ ] Add tests for `apperrors` (`Is`, `Write`)
 - [ ] Remove old `AppError` block and commented-out code from `apperrors`
+- [ ] Remove unreachable `ErrLogIdForeignKeyConstraint` checks from store upserts and reads
 - [ ] Check iOS client against renamed error codes
 - [ ] Run `go vet`, `go test`, test app end to end, merge to main
 - [x] Implement tests for MockUserRepo
