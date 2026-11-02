@@ -1,53 +1,155 @@
 # Kalorie API Documentation
+
 ## Overview
 This is an internal API for the Kalorie fitness tracking app. The server is built in Go and deployed on Heroku via a pipeline with separate staging and production apps, each with its own database.
 
 ## Connection Information
-**Base URL (dev:)** `http://192.168.118.216:8080/`
+**Base URL (dev):** `http://192.168.118.216:8080/`
 **Base URL (Staging):** `https://staging.kalorie.fit/`
 **Base URL (Production):** `https://kalorie.fit/`
 
+All request and response bodies are JSON unless stated otherwise. All timestamps are RFC 3339 strings
+(e.g. `2026-10-29T14:03:12.123456Z`). The server stores timestamps with **microsecond** precision, so
+anything finer is rounded.
+
+---
+
 ## Authentication
-Most endpoints require a **JWT Access Token** to be sent in the header
+Every endpoint under `/api/v1/` and the authenticated `/api/auth/` endpoints require a **JWT access token**:
 
 | Header | Value | Description |
 |--------|-------|-------------|
-|Authorization| Bearer <access_token>| Use the token received from the `/api/auth/login` or `/api/auth/refresh` endpoint.|
+| Authorization | Bearer &lt;access_token&gt; | The token received from `/api/auth/login` or `/api/auth/refresh`. |
 
-The following endpoints do not require authorization:  
-`/api/auth/login`  
-`/api/system/health`  
-`/api/auth/refresh` -> note it needs a valid refresh token in the request body  
-`/api/waitlist`
+Access tokens are valid for **15 minutes** (`expires_in: 900`). Refresh tokens are valid for **30 days**
+and are single use: every refresh returns a new refresh token and invalidates the old one.
 
-## Error Codes
-All endpoints will return a standardized `AppError` object when something goes wrong. The `AppError` object has the form of: 
-```JSON 
+The following endpoints do **not** require an access token:
+- `POST /api/auth/login`
+- `POST /api/auth/refresh` (needs a valid refresh token in the body instead)
+- `POST /api/waitlist`
+- `GET /api/system/health`
+
+### Auth errors (any authenticated endpoint)
+| Status | Code | When | What the client should do |
+|--------|------|------|---------------------------|
+| 401 | `ERR_UNAUTHORIZED` | No `Authorization` header | Send the access token |
+| 400 | `ERR_AUTH_HEADER_MALFORMED` | Header isn't `Bearer <token>` | Fix the header format |
+| 401 | `ERR_INVALID_TOKEN` | Access token expired or invalid | Call `/api/auth/refresh`, then retry |
+| 401 | `ERR_SESSION_OVER` | The session can't continue (e.g. the account was deleted on another device) | Clear local session and sign in again |
+
+---
+
+## Errors
+Every error response has the same shape:
+```JSON
 {
     "code": string,
-    "message": string
+    "message": string,
+    "fields": [
+        { "field": string, "problem": string }
+    ]
 }
 ```
+- `code` is machine-readable and stable. **Clients should branch on `code`, not on `message` or the HTTP status.**
+- `message` is human-readable and safe to show to the user.
+- `fields` is only present on some `400` responses, to say which part of the request was invalid. It is omitted otherwise.
+- Internal details (database errors, provider errors) are never sent to the client; they are only logged on the server.
+
+### Error codes
+| Code | Status | Meaning |
+|------|--------|---------|
+| `ERR_INVALID_REQUEST` | 400 | The request body or a required field is invalid. May include `fields`. |
+| `ERR_AUTH_HEADER_MALFORMED` | 400 | The `Authorization` header is not `Bearer <token>`. |
+| `ERR_LOGIN_REQUEST` | 400 | The sign-in code was rejected by the provider (expired, reused, or the user cancelled). Start sign-in again. |
+| `ERR_INVALID_PROVIDER` | 400 | The `provider` / `platform` combination is not supported. |
+| `ERR_MAX_BATCH_SIZE` | 400 | Too many items in one sync request. |
+| `ERR_NO_FOOD` | 400 | No food was found in the image. |
+| `ERR_NO_LABEL` | 400 | No nutrition label was found in the image. |
+| `ERR_UNAUTHORIZED` | 401 | No access token was sent. |
+| `ERR_INVALID_TOKEN` | 401 | The access token is expired or invalid. Refresh and retry. |
+| `ERR_SESSION_OVER` | 401 | The session has ended (refresh token expired/invalid/used, or the account no longer exists). Sign in again. |
+| `ERR_CONFLICT` | 409 | The email is already on the waitlist. |
+| `ERR_INTERNAL_SERVER` | 500 | Unexpected server error. Safe to retry later. |
+| `ERR_AUTH_UNAVAILABLE` | 503 | The sign-in provider is temporarily down. Retry in a few minutes. |
+| `ERR_LLM_PROVIDER` | 503 | The AI provider is temporarily down. Retry later. |
+
+---
+
+## Sync model
+Settings, weight logs, food logs and exercise logs are stored on the device and synced with two endpoints each:
+
+- **Egress** (`PUT .../sync`): the client **pushes** its local changes. The response only reports what happened
+  to the items that were sent (conflicts and failures). It never includes changes made on other devices.
+- **Ingress** (`GET .../sync?last_synced_at=...`): the client **pulls** everything that changed on the server
+  since its last successful sync.
+
+### Conflict resolution: newest `updated_at` wins
+- Every item carries an `updated_at` set by the client when it was last changed.
+- On egress, the server only saves an item if its `updated_at` is **newer** than the server's copy. If the server's
+  copy is the same age or newer, the client's version is discarded and the server's current copy is sent back in
+  `new_logs` (or `new` for settings) so the client can replace its local copy.
+- Deletes are **soft deletes**: set `deleted_at` (and bump `updated_at`) and sync the item like any other change.
+  Items are never removed from the server by sync, so ingress also returns soft-deleted items.
+
+### Food and exercise logs sync as one unit
+A food log with its entries, and an exercise log with its sets, are treated as **one item versioned by the parent
+log's `updated_at`**. The whole log wins or loses together:
+- If the log is newer than the server's copy, the log and every entry/set in the request are saved.
+- If it is not newer, **nothing** in that log is saved (including entries/sets), and the server's full copy of the
+  log is returned in `new_logs`.
+
+This puts the following rules on the client:
+1. **Any change to an entry or set must also bump the parent log's `updated_at`.** Entry/set `updated_at` values are
+   stored but are not used to decide conflicts, and ingress only checks the parent log's `updated_at`.
+2. **Always send the full entry/set list** for a log, including soft-deleted ones (with `deleted_at` set). An entry/set
+   that is left out is not deleted on the server; it is simply left unchanged.
+3. **Always send the list itself**, even if it is empty (`[]`). A log sent with a missing or `null` list fails and is
+   returned in `failed_logs`.
+4. **Entry/set ids belong to one log forever.** Generate a new id when copying or moving an entry/set to another log.
+   An entry/set whose id already exists under a different log is ignored.
+5. The `log_id` field on entries/sets is ignored on egress; the server always uses the id of the parent log.
+
+### Partial failures
+Each log in an egress request is saved in its own transaction, so one failing log never affects the others.
+- **200 OK**: every log was either saved or resolved as a conflict.
+- **207 Multi-Status**: one or more logs hit an actual error. Their **ids** are listed in `failed_logs`; the client
+  should keep them and resend them on the next sync. Conflicts are not failures and still go in `new_logs`.
+- An error status (`4xx`/`5xx`) means the request as a whole was rejected and nothing should be assumed saved.
+
+### `last_synced_at`
+- Send the time of the last **successful** ingress sync, in RFC 3339 format.
+- If it is omitted **or cannot be parsed**, the server treats it as missing and returns **everything** (use this
+  for the first sync on a new device).
+- `304 Not Modified` (with no body) means there is nothing newer than `last_synced_at`. The client keeps its data and
+  should not update `last_synced_at`.
+
+---
 
 ## Endpoints
 
 ### Authentication Endpoints
+
 #### Login / Sign up
 **Path:** `POST /api/auth/login`
+**Auth:** none
 
-This endpoint handles both registration and login. If the user doesn't exist, they are created with this request.  
-**Request Body:** 
+Handles both registration and login. If no account exists for the provider's user, one is created.
+
+**Request Body:**
 ```JSON
- {
+{
     "code": string,
-     "provider": string,
+    "provider": "github" | "google" | "apple",
     "verifier": string,
     "platform": "ios" | "android" (optional)
- }
- ```
-Note that provider can only be one of the setup providers. This includes `github`, `google`, and `apple`. Like `github`, `apple` is a single provider (not split per-platform) - omit `platform` when using it.
+}
+```
+- `code` and `verifier` are the OAuth authorization code and its PKCE code verifier. Both are required.
+- `platform` selects the platform-specific client for providers that have one (e.g. `google`). `github` and
+  `apple` are single providers: omit `platform` for them.
 
-**Success (200 OK):** Returns a new auth response object containing the JWT access token and refresh token to be stored on client securely. 
+**Success (200 OK):**
 ```JSON
 {
     "access_token": string,
@@ -56,580 +158,479 @@ Note that provider can only be one of the setup providers. This includes `github
     "user": {
         "id": string,
         "email": string,
-        "created_at": string (RFC3339 timestamp)
+        "created_at": string (RFC 3339 timestamp)
     }
 }
 ```
-`user.created_at` is always the account's real creation timestamp on this endpoint (it comes from the row that was just inserted/updated).
+`user.created_at` is always the account's real creation time.
 
 **Errors:**
-- **400 Bad Request:** If the body is invalid json, or if the code or provider is empty
-- **500 Internal Server Error:** Indicates an internal error with the auth service or auth providers
+| Status | Code | When |
+|--------|------|------|
+| 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON (`fields: body`), or `code`, `provider` or `verifier` is empty (`fields` names which one) |
+| 400 | `ERR_INVALID_PROVIDER` | Unknown `provider`, or a `provider`/`platform` combination that isn't configured |
+| 400 | `ERR_LOGIN_REQUEST` | The provider rejected the code (expired, already used, or access denied) |
+| 503 | `ERR_AUTH_UNAVAILABLE` | The provider is temporarily unavailable |
+| 500 | `ERR_INTERNAL_SERVER` | Provider misconfiguration, network failure, or a server error |
 
 #### Refresh
-**Path:** `POST /api/auth/refresh` 
+**Path:** `POST /api/auth/refresh`
+**Auth:** none (refresh token in body)
 
-This endpoints takes in a valid refresh token and generates a new set of access token and refresh token for the user. Making the old refresh token invalid.  
+Exchanges a valid refresh token for a new access token and a new refresh token. The old refresh token stops working
+immediately, so always store the new one.
+
 **Request Body:**
 ```JSON
 {
     "refresh": string
 }
 ```
-**Success (200 OK):** Returns a new auth response object containing the JWT access token and refresh token to be stored on client securely.  
-```JSON
-{
-    "access_token": string,
-    "refresh_token": string,
-    "expires_in": number,
-    "user": {
-        "id": string,
-        "email": string,
-        "created_at": string (RFC3339 timestamp)
-    }
-}
-```
-`user.created_at` is the account's real creation timestamp here too, same as `/api/auth/login`.
+**Success (200 OK):** Same response as `/api/auth/login`.
 
 **Errors:**
-- **400 Bad Request:** If the request body could not be decoded
-- **401 Unauthorized:** If the refresh token is expired, invalid or not found in database
+| Status | Code | When |
+|--------|------|------|
+| 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON (`fields: body`) or `refresh` is empty (`fields: refresh`) |
+| 401 | `ERR_SESSION_OVER` | Refresh token is expired, invalid, already used, or the account no longer exists. Sign in again. |
+| 500 | `ERR_INTERNAL_SERVER` | Server error |
 
 #### Logout
 **Path:** `POST /api/auth/logout`
+**Auth:** access token
 
-This endpoint invalidates the user's session by deleting the provided refresh token.  
+Ends the session by deleting the given refresh token. Logging out with a token that is already gone still succeeds,
+so this is safe to retry.
+
 **Request Body:**
 ```JSON
 {
     "refresh": string
 }
 ```
-**Success (200 OK):** Returns a simple success message.
+**Success (200 OK):** Plain text.
 ```text
 Success
 ```
 **Errors:**
-- **400 Bad Request:** If the request body is invalid.
-- **401 Unauthorized:** If the user's token is invalid.
-- **500 Internal Server Error:** If there is an error deleting the token.
+| Status | Code | When |
+|--------|------|------|
+| 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON (`fields: body`) or `refresh` is empty (`fields: refresh`) |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 500 | `ERR_INTERNAL_SERVER` | Server error |
 
 #### Delete Account
 **Path:** `DELETE /api/auth/account`
+**Auth:** access token
 
-Permanently deletes the authenticated user's account and all associated data (settings, weight logs, food logs, exercise logs, refresh tokens). This cannot be undone.
+Permanently deletes the user's account and all of its data (settings, weight logs, food logs, exercise logs, refresh
+tokens). This cannot be undone. Deleting an account that is already gone still succeeds, so this is safe to retry.
 
-**Request Body:** None.
+**Request Body:** none.
 
-**Success (200 OK):** Returns a simple success message.
+**Success (200 OK):** Plain text.
 ```text
 Success
 ```
 **Errors:**
-- **401 Unauthorized:** If the access token is missing or invalid.
-- **404 Not Found:** If the user no longer exists.
-- **500 Internal Server Error:** If there is an error deleting the account.
+| Status | Code | When |
+|--------|------|------|
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 500 | `ERR_INTERNAL_SERVER` | Server error |
+
+---
 
 ### Settings Endpoints
 
-#### Egress Sync Settings (esync)
-**Path:** `PUT /api/v1/settings/sync`
+**Settings object:**
+```JSON
+{
+    "units": string,
+    "calories_target": number,
+    "protein_target": number,
+    "carbs_target": number,
+    "fat_target": number,
+    "theme": string,
+    "updated_at": string (RFC 3339 timestamp),
+    "deleted_at": string | null
+}
+```
 
-Pushes updated settings to the server on application close or pause. If the server already has a newer version, a conflict is returned with the latest settings.  
+#### Egress Sync Settings
+**Path:** `PUT /api/v1/settings/sync`
+**Auth:** access token
+
+Pushes the device's settings. They are saved only if `updated_at` is newer than the server's copy.
 
 **Request Body:**
 ```JSON
 {
-    "settings": {
-        "units": string,
-        "calories_target": number,
-        "protein_target": number,
-        "carbs_target": number,
-        "fat_target": number,
-        "updated_at": string (ISO 8601 (RFC3339) timestamp),
-        "deleted_at": string | null,
-        "theme": string
-    }
+    "settings": <Settings object>
 }
 ```
-**Success (200 OK):** Returns a simple success status.
+**Success (200 OK):** Always `200`; check `is_conflict`.
 ```JSON
 {
-    "status": "success"
+    "new": <Settings object> | null,
+    "is_conflict": boolean
 }
 ```
-**Conflict (409):** Returns the latest settings when a newer version already exists.
-```JSON
-{
-    "units": string,
-    "calories_target": number,
-    "protein_target": number,
-    "carbs_target": number,
-    "fat_target": number,
-    "updated_at": string (RFC3339 timestamp),
-    "deleted_at": string | null,
-    "theme": string
-}
-```
+- `is_conflict: false`, `new: null`: the settings were saved.
+- `is_conflict: true`: the server already had newer settings, so the request was discarded. `new` holds the server's
+  current settings; replace the local copy with them.
+
 **Errors:**
-- **400 Bad Request:** If the request body could not be decoded.
-- **401 Unauthorized:** If the access token is missing or invalid.
-- **409 Conflict:** If a newer version of settings already exists.
-- **500 Internal Server Error:** If there is an error updating or fetching settings.
+| Status | Code | When |
+|--------|------|------|
+| 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON |
+| 401 | `ERR_SESSION_OVER` | The account no longer exists |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 500 | `ERR_INTERNAL_SERVER` | Server error |
 
-#### Ingress Sync Settings (isync)
-**Path:** `GET /api/v1/settings/sync?last_synced_at=<RFC3339 timestamp>`
+#### Ingress Sync Settings
+**Path:** `GET /api/v1/settings/sync?last_synced_at=<RFC 3339 timestamp>`
+**Auth:** access token
 
-Fetches the most up-to-date settings based on the last synced date. If the server has a newer version, it is returned. If not, a 304 is returned.  
+Returns the server's settings if they changed after `last_synced_at` (or always, if `last_synced_at` is omitted).
 
-**Success (200 OK):** Returns the latest settings payload.
+**Success (200 OK):** The settings object.
 ```JSON
-{
-    "units": string,
-    "calories_target": number,
-    "protein_target": number,
-    "carbs_target": number,
-    "fat_target": number,
-    "updated_at": string (RFC3339 timestamp),
-    "deleted_at": string | null,
-    "theme": string
-}
+<Settings object>
 ```
-**Not Modified (304):** Returned when the server does not have a newer version.
-```JSON
-{
-    "code": string,
-    "message": string
-}
-```
+**Not Modified (304):** The settings haven't changed since `last_synced_at`. No body.
+
 **Errors:**
-- **400 Bad Request:** If the last_synced_at query param is missing or invalid.
-- **401 Unauthorized:** If the access token is missing or invalid.
-- **500 Internal Server Error:** If there is an error fetching settings.
+| Status | Code | When |
+|--------|------|------|
+| 401 | `ERR_SESSION_OVER` | The account no longer exists |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 500 | `ERR_INTERNAL_SERVER` | Server error |
+
+---
 
 ### Weight Log Endpoints
 
+**Weight log object:**
+```JSON
+{
+    "id": string (UUID),
+    "weight_kg": number,
+    "log_date": string (RFC 3339 timestamp),
+    "updated_at": string (RFC 3339 timestamp),
+    "deleted_at": string | null
+}
+```
+There is **at most one weight log per user per `log_date`**. A log for a date that already has one updates that
+date's log (if newer) rather than creating a second one.
+
+> **Known issue:** if the client sends a log for an existing date with a *different* `id` than the server's log and
+> the server's copy is newer, that log is currently returned in `failed_logs` instead of `new_logs`.
+
 #### Egress Sync Weight Logs
 **Path:** `PUT /api/v1/weight-logs/sync`
+**Auth:** access token
 
-Pushes weight log updates to the server. Each log is upserted and judged independently (one log
-failing to sync has no effect on the others) - the response always reports exactly what happened
-to every log in the request, whether the overall result was a full or partial success.
-
-Limited to 200 logs per request - split larger batches into multiple requests.
+Pushes weight log changes. Each log is judged on its own (see [Sync model](#sync-model)).
+**Limited to 200 logs per request**; split larger batches into multiple requests.
 
 **Request Body:**
 ```JSON
 {
-    "weight_logs": [
-        {
-            "id": string,
-            "weight_kg": number,
-            "log_date": string (RFC3339 timestamp),
-            "updated_at": string (RFC3339 timestamp),
-            "deleted_at": string | null
-        }
-    ]
+    "weight_logs": [ <Weight log object>, ... ]
 }
 ```
-**Success (200 OK):** Every log synced. Returns any logs the server had a newer version of than
-what the client sent (same conflict-resolution rule as ingress: whichever `updated_at` is newer
-wins) - these are the server's current copies, sent back so the client can update its own local
-state to match.
+**Success (200 OK)** / **Partial Success (207 Multi-Status):**
 ```JSON
 {
-    "new_logs": [
-        {
-            "id": string,
-            "weight_kg": number,
-            "log_date": string (RFC3339 timestamp),
-            "updated_at": string (RFC3339 timestamp),
-            "deleted_at": string | null
-        }
-    ],
-    "failed_logs": []
+    "new_logs": [ <Weight log object>, ... ],
+    "failed_logs": [ string (log id), ... ]
 }
 ```
-**Partial Success (207 Multi-Status):** One or more logs could not be synced at all (a real
-error, not just a newer-version conflict - those still go in `new_logs` as above). `failed_logs`
-is a list of the **ids** of the logs that need to be retried (not full log objects) - the client
-already has the full data for whatever it sent, so only the id is needed to know what to resend.
-```JSON
-{
-    "new_logs": [ ... ],
-    "failed_logs": ["<id>", "<id>"]
-}
-```
+- `new_logs`: the server's current copy of every log that lost a conflict. Replace the local copies with them.
+- `failed_logs`: ids of logs that hit an error and should be resent. Non-empty only on `207`.
+- Both are always arrays (`[]` when empty), never `null`.
+
 **Errors:**
-- **400 Bad Request:** If the request body could not be decoded, or if more than 200 logs were
-  submitted in one request (`ERR_BATCH_TOO_LARGE`).
-- **401 Unauthorized:** If the access token is missing or invalid.
-- **500 Internal Server Error:** If there is an internal error unrelated to any specific log
-  (e.g. the request itself is invalid) - contrast with per-log failures, which are reported in
-  `failed_logs` on a `207` rather than failing the whole request.
+| Status | Code | When |
+|--------|------|------|
+| 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON, or `weight_logs` is missing/`null` |
+| 400 | `ERR_MAX_BATCH_SIZE` | More than 200 logs in one request |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 500 | `ERR_INTERNAL_SERVER` | Server error not tied to a specific log |
+
+If the account no longer exists, each log fails and comes back in `failed_logs`.
 
 #### Ingress Sync Weight Logs
-**Path:** `GET /api/v1/weight-logs/sync?last_synced_at=<RFC3339 timestamp>`
+**Path:** `GET /api/v1/weight-logs/sync?last_synced_at=<RFC 3339 timestamp>`
+**Auth:** access token
 
-Fetches weight logs updated since the last synced date.
+Returns every weight log (including soft-deleted ones) with `updated_at` after `last_synced_at`, or all of them if
+`last_synced_at` is omitted.
 
-**Success (200 OK):** Returns a list of weight logs updated after the provided timestamp.
+**Success (200 OK):**
 ```JSON
-[
-    {
-        "id": string,
-        "weight_kg": number,
-        "log_date": string (RFC3339 timestamp),
-        "updated_at": string (RFC3339 timestamp),
-        "deleted_at": string | null
-    }
-]
+[ <Weight log object>, ... ]
 ```
-**Not Modified (304):** Returned when the server does not have newer weight logs.
+**Not Modified (304):** Nothing changed since `last_synced_at` (or the user has no weight logs). No body.
+
 **Errors:**
-- **400 Bad Request:** If the last_synced_at query param is missing or invalid.
-- **401 Unauthorized:** If the access token is missing or invalid.
-- **500 Internal Server Error:** If there is an error fetching weight logs.
+| Status | Code | When |
+|--------|------|------|
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 500 | `ERR_INTERNAL_SERVER` | Server error |
+
+---
 
 ### Food Log Endpoints
 
-#### Egress Sync Food Logs
-**Path:** `PUT /api/v1/food-logs/sync`
-
-Pushes food log updates to the server. The server will upsert each log and entry and may return partial success when some logs fail.
-
-**Request Body:**
+**Full food log object** (a food log plus its entries):
 ```JSON
 {
-    "food_logs": [
+    "food_log": {
+        "id": string (UUID),
+        "name": string,
+        "Time": string (RFC 3339 timestamp),
+        "created_at": string (RFC 3339 timestamp),
+        "updated_at": string (RFC 3339 timestamp),
+        "deleted_at": string | null
+    },
+    "food-log_entries": [
         {
-            "food_log": {
-                "id": string,
-                "name": string,
-                "Time": string (RFC3339 timestamp),
-                "created_at": string (RFC3339 timestamp),
-                "updated_at": string (RFC3339 timestamp),
-                "deleted_at": string | null
-            },
-            "food-log_entries": [
-                {
-                    "id": string,
-                    "log_id": string,
-                    "food_id": string,
-                    "food_name": string,
-                    "serving_id": string,
-                    "unit": string,
-                    "cal": number,
-                    "fat": number,
-                    "carbs": number,
-                    "protein": number,
-                    "quantity": number,
-                    "updated_at": string (RFC3339 timestamp),
-                    "deleted_at": string | null
-                }
-            ]
+            "id": string (UUID),
+            "log_id": string (UUID),
+            "food_id": string,
+            "food_name": string,
+            "serving_id": string,
+            "unit": string,
+            "quantity": number,
+            "cal": number (integer),
+            "fat": number,
+            "carbs": number,
+            "protein": number,
+            "updated_at": string (RFC 3339 timestamp),
+            "deleted_at": string | null
         }
     ]
 }
 ```
-**Success (200 OK):** Returns new logs from the server, plus any failed client logs.
+Note the exact key spellings: `Time` (capital T) and `food-log_entries` (hyphen, then underscore).
+
+#### Egress Sync Food Logs
+**Path:** `PUT /api/v1/food-logs/sync`
+**Auth:** access token
+
+Pushes food log changes. Each food log and its entries are saved as one unit; read
+[Food and exercise logs sync as one unit](#food-and-exercise-logs-sync-as-one-unit) for the rules the client must follow.
+
+**Request Body:**
 ```JSON
 {
-    "new_logs": [
-        {
-            "food_log": {
-                "id": string,
-                "name": string,
-                "Time": string (RFC3339 timestamp),
-                "created_at": string (RFC3339 timestamp),
-                "updated_at": string (RFC3339 timestamp),
-                "deleted_at": string | null
-            },
-            "food-log_entries": [
-                {
-                    "id": string,
-                    "log_id": string,
-                    "food_id": string,
-                    "food_name": string,
-                    "serving_id": string,
-                    "unit": string,
-                    "cal": number,
-                    "fat": number,
-                    "carbs": number,
-                    "protein": number,
-                    "quantity": number,
-                    "updated_at": string (RFC3339 timestamp),
-                    "deleted_at": string | null
-                }
-            ]
-        }
-    ],
-    "failed_logs": [
-        {
-            "food_log": {
-                "id": string,
-                "name": string,
-                "Time": string (RFC3339 timestamp),
-                "created_at": string (RFC3339 timestamp),
-                "updated_at": string (RFC3339 timestamp),
-                "deleted_at": string | null
-            },
-            "food-log_entries": [
-                {
-                    "id": string,
-                    "log_id": string,
-                    "food_id": string,
-                    "food_name": string,
-                    "serving_id": string,
-                    "unit": string,
-                    "cal": number,
-                    "fat": number,
-                    "carbs": number,
-                    "protein": number,
-                    "quantity": number,
-                    "updated_at": string (RFC3339 timestamp),
-                    "deleted_at": string | null
-                }
-            ]
-        }
-    ],
-    "error": string | null
+    "food_logs": [ <Full food log object>, ... ]
 }
 ```
+**Success (200 OK)** / **Partial Success (207 Multi-Status):**
+```JSON
+{
+    "new_logs": [ <Full food log object>, ... ],
+    "failed_logs": [ string (food log id), ... ]
+}
+```
+- `new_logs`: the server's full copy (log and all entries) of every log that lost a conflict. Replace the local
+  copies with them.
+- `failed_logs`: ids of logs that hit an error and should be resent. Non-empty only on `207`.
+- Both are always arrays (`[]` when empty), never `null`.
+
 **Errors:**
-- **400 Bad Request:** If the request body could not be decoded.
-- **401 Unauthorized:** If the access token is missing or invalid.
-- **500 Internal Server Error:** If there is an error updating food logs.
+| Status | Code | When |
+|--------|------|------|
+| 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON, or `food_logs` is missing/`null` |
+| 401 | `ERR_SESSION_OVER` | The account no longer exists |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 500 | `ERR_INTERNAL_SERVER` | Server error not tied to a specific log |
 
 #### Ingress Sync Food Logs
-**Path:** `GET /api/v1/food-logs/sync?last_synced_at=<RFC3339 timestamp>`
+**Path:** `GET /api/v1/food-logs/sync?last_synced_at=<RFC 3339 timestamp>`
+**Auth:** access token
 
-Fetches food logs updated since the last synced date.
+Returns every food log (including soft-deleted ones), with all of its entries, whose `food_log.updated_at` is after
+`last_synced_at`, or all of them if `last_synced_at` is omitted.
 
-**Success (200 OK):** Returns a list of food logs updated after the provided timestamp.
+**Success (200 OK):**
 ```JSON
-[
-    {
-        "food_log": {
-            "id": string,
-            "name": string,
-            "Time": string (RFC3339 timestamp),
-            "created_at": string (RFC3339 timestamp),
-            "updated_at": string (RFC3339 timestamp),
-            "deleted_at": string | null
-        },
-        "food-log_entries": [
-            {
-                "id": string,
-                "log_id": string,
-                "food_id": string,
-                "food_name": string,
-                "serving_id": string,
-                "unit": string,
-                "cal": number,
-                "fat": number,
-                "carbs": number,
-                "protein": number,
-                "quantity": number,
-                "updated_at": string (RFC3339 timestamp),
-                "deleted_at": string | null
-            }
-        ]
-    }
-]
+[ <Full food log object>, ... ]
 ```
-**Not Modified (304):** Returned when the server does not have newer food logs.
+**Not Modified (304):** Nothing changed since `last_synced_at` (or the user has no food logs). No body.
+
 **Errors:**
-- **400 Bad Request:** If the last_synced_at query param is missing or invalid.
-- **401 Unauthorized:** If the access token is missing or invalid.
-- **500 Internal Server Error:** If there is an error fetching food logs.
+| Status | Code | When |
+|--------|------|------|
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 500 | `ERR_INTERNAL_SERVER` | Server error |
+
+---
 
 ### Exercise Log Endpoints
 
-#### Egress Sync Exercise Logs
-**Path:** `PUT /api/v1/exercise-logs/sync`
-
-Pushes exercise log updates to the server. The server will upsert each log and its sets and may return partial success when some logs fail.
-
-**Request Body:**
+**Full exercise log object** (an exercise log plus its sets):
 ```JSON
 {
-    "exercise_logs": [
+    "exercise_log": {
+        "id": string (UUID),
+        "exercise_id": string,
+        "created_at": string (RFC 3339 timestamp),
+        "updated_at": string (RFC 3339 timestamp),
+        "deleted_at": string | null
+    },
+    "exercise_sets": [
         {
-            "exercise_log": {
-                "id": string,
-                "exercise_id": string,
-                "created_at": string (RFC3339 timestamp),
-                "updated_at": string (RFC3339 timestamp),
-                "deleted_at": string | null
-            },
-            "exercise_sets": [
-                {
-                    "id": string,
-                    "log_id": string,
-                    "set_number": number,
-                    "weight": number,
-                    "reps": number,
-                    "updated_at": string (RFC3339 timestamp),
-                    "deleted_at": string | null
-                }
-            ]
+            "id": string (UUID),
+            "log_id": string (UUID),
+            "set_number": number (integer),
+            "weight": number,
+            "reps": number (integer),
+            "updated_at": string (RFC 3339 timestamp),
+            "deleted_at": string | null
         }
     ]
 }
 ```
-**Success (200 OK):** Returns new logs from the server, plus any failed client logs.
+
+#### Egress Sync Exercise Logs
+**Path:** `PUT /api/v1/exercise-logs/sync`
+**Auth:** access token
+
+Pushes exercise log changes. Each exercise log and its sets are saved as one unit; read
+[Food and exercise logs sync as one unit](#food-and-exercise-logs-sync-as-one-unit) for the rules the client must follow.
+
+**Request Body:**
 ```JSON
 {
-    "new_logs": [
-        {
-            "exercise_log": {
-                "id": string,
-                "exercise_id": string,
-                "created_at": string (RFC3339 timestamp),
-                "updated_at": string (RFC3339 timestamp),
-                "deleted_at": string | null
-            },
-            "exercise_sets": [
-                {
-                    "id": string,
-                    "log_id": string,
-                    "set_number": number,
-                    "weight": number,
-                    "reps": number,
-                    "updated_at": string (RFC3339 timestamp),
-                    "deleted_at": string | null
-                }
-            ]
-        }
-    ],
-    "failed_logs": [
-        {
-            "exercise_log": {
-                "id": string,
-                "exercise_id": string,
-                "created_at": string (RFC3339 timestamp),
-                "updated_at": string (RFC3339 timestamp),
-                "deleted_at": string | null
-            },
-            "exercise_sets": [
-                {
-                    "id": string,
-                    "log_id": string,
-                    "set_number": number,
-                    "weight": number,
-                    "reps": number,
-                    "updated_at": string (RFC3339 timestamp),
-                    "deleted_at": string | null
-                }
-            ]
-        }
-    ],
-    "error": string | null
+    "exercise_logs": [ <Full exercise log object>, ... ]
 }
 ```
+**Success (200 OK)** / **Partial Success (207 Multi-Status):**
+```JSON
+{
+    "new_logs": [ <Full exercise log object>, ... ],
+    "failed_logs": [ string (exercise log id), ... ]
+}
+```
+- `new_logs`: the server's full copy (log and all sets) of every log that lost a conflict. Replace the local copies
+  with them.
+- `failed_logs`: ids of logs that hit an error and should be resent. Non-empty only on `207`.
+- Both are always arrays (`[]` when empty), never `null`.
+
 **Errors:**
-- **400 Bad Request:** If the request body could not be decoded.
-- **401 Unauthorized:** If the access token is missing or invalid.
-- **500 Internal Server Error:** If there is an error updating exercise logs.
+| Status | Code | When |
+|--------|------|------|
+| 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON, or `exercise_logs` is missing/`null` |
+| 401 | `ERR_SESSION_OVER` | The account no longer exists |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 500 | `ERR_INTERNAL_SERVER` | Server error not tied to a specific log |
 
 #### Ingress Sync Exercise Logs
-**Path:** `GET /api/v1/exercise-logs/sync?last_synced_at=<RFC3339 timestamp>`
+**Path:** `GET /api/v1/exercise-logs/sync?last_synced_at=<RFC 3339 timestamp>`
+**Auth:** access token
 
-Fetches exercise logs updated since the last synced date.
+Returns every exercise log (including soft-deleted ones), with all of its sets, whose `exercise_log.updated_at` is
+after `last_synced_at`, or all of them if `last_synced_at` is omitted.
 
-**Success (200 OK):** Returns a list of exercise logs updated after the provided timestamp.
+**Success (200 OK):**
 ```JSON
-[
-    {
-        "exercise_log": {
-            "id": string,
-            "exercise_id": string,
-            "created_at": string (RFC3339 timestamp),
-            "updated_at": string (RFC3339 timestamp),
-            "deleted_at": string | null
-        },
-        "exercise_sets": [
-            {
-                "id": string,
-                "log_id": string,
-                "set_number": number,
-                "weight": number,
-                "reps": number,
-                "updated_at": string (RFC3339 timestamp),
-                "deleted_at": string | null
-            }
-        ]
-    }
-]
+[ <Full exercise log object>, ... ]
 ```
-**Not Modified (304):** Returned when the server does not have newer exercise logs.
+**Not Modified (304):** Nothing changed since `last_synced_at` (or the user has no exercise logs). No body.
+
 **Errors:**
-- **400 Bad Request:** If the last_synced_at query param is missing or invalid.
-- **401 Unauthorized:** If the access token is missing or invalid.
-- **500 Internal Server Error:** If there is an error fetching exercise logs.
+| Status | Code | When |
+|--------|------|------|
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 500 | `ERR_INTERNAL_SERVER` | Server error |
+
+---
 
 ### Analysis Endpoints
+Both endpoints send the image to an AI model and can take several seconds. The server gives up after **30 seconds**.
 
 #### Analyze Food
 **Path:** `POST /api/v1/analyze/food`
+**Auth:** access token
 
-Analyzes an image of food to estimate nutritional information.  
+Estimates the nutrition of the food in a photo.
+
 **Request Body:**
 ```JSON
 {
-    "picture": string (base64 encoded bytes),
+    "picture": string (base64-encoded image bytes),
     "description": string (optional)
 }
 ```
-`description` is optional free text passed alongside the image to the model as extra context (e.g. "grilled, no oil" or a portion estimate) - omit it or send an empty string if there's nothing to add.
-**Success (200 OK):** Returns the estimated nutritional content of the food in the image.
+`description` is optional free text passed to the model as extra context (e.g. "grilled, no oil" or a portion
+estimate). Omit it or send an empty string if there's nothing to add.
+
+**Success (200 OK):**
 ```JSON
 {
     "food_name": string,
-    "cal": number,
-    "fat": number,
-    "protein": number,
-    "carbs": number
+    "cal": number (integer),
+    "fat": number (integer),
+    "protein": number (integer),
+    "carbs": number (integer)
 }
 ```
 **Errors:**
-- **400 Bad Request:** If the request body is invalid or the image cannot be processed.
-- **500 Internal Server Error:** If there is an error with the analysis service.
+| Status | Code | When |
+|--------|------|------|
+| 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON, `picture` is not valid base64, or no picture was sent |
+| 400 | `ERR_NO_FOOD` | No food was found in the image |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 503 | `ERR_LLM_PROVIDER` | The AI provider failed, timed out, or is unavailable |
+| 500 | `ERR_INTERNAL_SERVER` | Server error |
 
 #### Analyze Label
 **Path:** `POST /api/v1/analyze/label`
+**Auth:** access token
 
-Analyzes an image of a nutrition label to extract nutritional information.  
+Reads the nutrition values from a photo of a nutrition label.
+
 **Request Body:**
 ```JSON
 {
-    "picture": string (base64 encoded bytes)
+    "picture": string (base64-encoded image bytes)
 }
 ```
-**Success (200 OK):** Returns the extracted nutritional content from the label.
+**Success (200 OK):**
 ```JSON
 {
     "units": string,
-    "base_quantity": number,
+    "base_quantity": number (integer),
     "macros": {
-        "cal": number,
-        "fat": number,
-        "protein": number,
-        "carbs": number
+        "cal": number (integer),
+        "fat": number (integer),
+        "protein": number (integer),
+        "carbs": number (integer)
     }
 }
 ```
 **Errors:**
-- **400 Bad Request:** If the request body is invalid or the image cannot be processed.
-- **500 Internal Server Error:** If there is an error with the analysis service.
+| Status | Code | When |
+|--------|------|------|
+| 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON, `picture` is not valid base64, or no picture was sent |
+| 400 | `ERR_NO_LABEL` | No nutrition label was found in the image |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 503 | `ERR_LLM_PROVIDER` | The AI provider failed, timed out, or is unavailable |
+| 500 | `ERR_INTERNAL_SERVER` | Server error |
+
+---
 
 ### Waitlist Endpoints
 
 #### Remind Me
 **Path:** `POST /api/waitlist`
+**Auth:** none
 
-Registers an email address to be notified when the app releases. Public endpoint — no access token required. There is no automated email sent yet; addresses are collected here to be exported and emailed manually later.
+Adds an email address to the release waitlist. No email is sent automatically yet; addresses are exported and
+emailed manually later.
 
 **Request Body:**
 ```JSON
@@ -637,26 +638,26 @@ Registers an email address to be notified when the app releases. Public endpoint
     "email": string
 }
 ```
-**Success (200 OK):** Returns an empty body.
+**Success (200 OK):** Empty body.
 
-**Conflict (409):** Returned if the email is already on the list.
-```JSON
-{
-    "code": "ERR_ALREADY_ON_LIST",
-    "message": "You're already on the list"
-}
-```
 **Errors:**
-- **400 Bad Request:** If the request body could not be decoded, or if storing the email fails for any reason other than it already being registered.
+| Status | Code | When |
+|--------|------|------|
+| 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON |
+| 409 | `ERR_CONFLICT` | The email is already on the waitlist |
+| 500 | `ERR_INTERNAL_SERVER` | Server error |
+
+---
 
 ### System Endpoints
 
 #### Health
 **Path:** `GET /api/system/health`
+**Auth:** none
 
 Simple health check.
 
-**Success (200 OK):** Returns a plain-text response.
+**Success (200 OK):** Plain text.
 ```text
 Ok!
 ```
