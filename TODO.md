@@ -26,7 +26,7 @@
 
 ## Settings sync
 
-- [ ] Fix `GetUserSettings` foreign-key check testing the wrong error variable
+- [x] Fix `GetUserSettings` foreign-key check testing the wrong error variable
 - [x] Rename settings egress `is_modified` (true currently means conflict)
 - [x] Fix `IngressSyncSettings` returning 200 `null` instead of 304
 

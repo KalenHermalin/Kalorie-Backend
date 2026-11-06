@@ -216,11 +216,6 @@ WHERE user_id = $1;`
 		&settings.Theme,          // string
 	)
 	if err != nil {
-		if pqErr, ok := err.(*pq.Error); ok {
-			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
-				return nil, fmt.Errorf("get user settings for user %s: %w", userId, ErrUserForeignKeyConstraint)
-			}
-		}
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("get settings %s: %w", userId, ErrNotFound)
 		}
