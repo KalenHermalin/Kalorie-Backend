@@ -315,16 +315,32 @@ Returns the server's settings if they changed after `last_synced_at` (or always,
 {
     "id": string (UUID),
     "weight_kg": number,
-    "log_date": string (RFC 3339 timestamp),
+    "log_date": string (YYYY-MM-DD),
     "updated_at": string (RFC 3339 timestamp),
     "deleted_at": string | null
 }
 ```
-There is **at most one weight log per user per `log_date`**. A log for a date that already has one updates that
-date's log (if newer) rather than creating a second one.
+- `log_date` is a plain calendar date in `YYYY-MM-DD` format (e.g. `"2026-11-03"`) with no time or time zone. It is
+  the day **in the user's local time zone** that the weight belongs to. The server stores and returns it as-is and
+  never converts it.
+- There is **at most one weight log per user per `log_date`**. A log for a date that already has one updates that
+  date's log (if newer) rather than creating a second one.
 
-> **Known issue:** if the client sends a log for an existing date with a *different* `id` than the server's log and
-> the server's copy is newer, that log is currently returned in `failed_logs` instead of `new_logs`.
+**Weight log ids are deterministic.** The client must not generate a random id for a weight log. The id is a
+**UUIDv5** (RFC 9562, SHA-1) built from:
+
+| Part | Value |
+|------|-------|
+| Namespace | `f2de908e-4ceb-4099-b4b5-a450e7e5544a` |
+| Name | `<log_date>-<user_id>`, with the user id **lowercase**, e.g. `2026-11-03-3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d` |
+
+- The name is the UTF-8 bytes of that string: the `YYYY-MM-DD` date, one `-`, then the user id in its standard
+  lowercase hyphenated form. Swift's `UUID.uuidString` is **uppercase**, so lowercase it first or the id won't match
+  the server's.
+- Every device therefore produces the same id for the same user and day, so logs for the same day from different
+  devices sync as one log.
+- Existing server logs were re-keyed to these ids by a one-way migration. Clients that stored logs under older
+  random ids need to re-key them locally the same way.
 
 #### Egress Sync Weight Logs
 **Path:** `PUT /api/v1/weight-logs/sync`
@@ -354,11 +370,33 @@ Pushes weight log changes. Each log is judged on its own (see [Sync model](#sync
 | Status | Code | When |
 |--------|------|------|
 | 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON, or `weight_logs` is missing/`null` |
+| 400 | `ERR_INVALID_REQUEST` | One or more logs have a `log_date` that isn't a valid `YYYY-MM-DD` date, or an entry in `weight_logs` is `null` (see below) |
 | 400 | `ERR_MAX_BATCH_SIZE` | More than 200 logs in one request |
+| 401 | `ERR_SESSION_OVER` | The account no longer exists |
 | 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
 | 500 | `ERR_INTERNAL_SERVER` | Server error not tied to a specific log |
 
-If the account no longer exists, each log fails and comes back in `failed_logs`.
+If the account no longer exists, the whole request fails with `ERR_SESSION_OVER` (no `200`/`207` body). Clear the
+local session and sign in again.
+
+**Invalid logs:** every log is checked before anything is saved. If **any** entry is invalid, the **whole batch is
+rejected** and nothing is synced. An entry is invalid if:
+- its `log_date` is badly formatted or impossible (e.g. `03/11/2026` or `2026-02-30`), or
+- the entry itself is `null` (e.g. `"weight_logs": [ {...}, null ]`).
+
+`fields` has one entry per invalid log. A bad date names the log's id. A `null` entry has no id, so it names its
+position (0-based) in `weight_logs`:
+```JSON
+{
+    "code": "ERR_INVALID_REQUEST",
+    "message": "The request is invalid",
+    "fields": [
+        { "field": "log_date", "problem": "Log <log id> has an invalid log date format" },
+        { "field": "weight_logs", "problem": "Log with index <n> is null" }
+    ]
+}
+```
+This is a client bug, not a sync conflict: fix the logs before retrying, or the same request will keep failing.
 
 #### Ingress Sync Weight Logs
 **Path:** `GET /api/v1/weight-logs/sync?last_synced_at=<RFC 3339 timestamp>`
