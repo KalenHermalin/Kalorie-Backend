@@ -30,14 +30,12 @@ func (us *UserService) UpdateUserSettings(ctx context.Context, userId string, se
 				// If no rows affected, more recent data exists so get it
 				newSettings, err = us.userStore.GetUserSettings(ctx, tx, userId)
 				if err != nil {
-					if errors.Is(err, store.ErrNotFound) || errors.Is(err, store.ErrUserForeignKeyConstraint) {
+					if errors.Is(err, store.ErrNotFound) {
 						return apperrors.New(apperrors.SessionOver, err)
 					}
 					return fmt.Errorf("failed to retrieve settings for user %s: %w", userId, err)
 				}
 				return nil
-			} else if errors.Is(err, store.ErrUserForeignKeyConstraint) {
-				return apperrors.New(apperrors.SessionOver, err)
 			}
 			// Unknown DB error
 			return fmt.Errorf("update user settings for user %s: %w", userId, err)
@@ -164,6 +162,9 @@ func (us *UserService) UpsertUserExerciseLogAndSets(ctx context.Context, userId 
 	if exerciseLogs == nil {
 		return nil, nil, apperrors.New(apperrors.BadRequest, fmt.Errorf("no exercise logs submitted to upsert"))
 	}
+	if len(exerciseLogs) > MAXBATCHSIZE {
+		return nil, nil, apperrors.New(apperrors.MaxBatchSizeExceeded, nil)
+	}
 	newerServerLogs = []*models.FullExerciseLog{}
 	failed = []string{}
 	for _, log := range exerciseLogs {
@@ -214,9 +215,6 @@ func (us *UserService) GetUserExerciseLogs(ctx context.Context, user_id string, 
 		return nil
 	})
 	if err != nil {
-		if errors.Is(err, store.ErrUserForeignKeyConstraint) {
-			return nil, apperrors.New(apperrors.SessionOver, err)
-		}
 		// Already wrapped from store.getuserexerciselogs
 		return nil, err
 	}
@@ -235,14 +233,18 @@ func (us *UserService) GetUserExerciseLogs(ctx context.Context, user_id string, 
 
 }
 
-func (us *UserService) UpsertUserFoodLogsAndEntries(ctx context.Context, userId string, FoodLogs []*models.FullFoodLog) (newerServerLogs []*models.FullFoodLog, failed []string, err error) {
-	if FoodLogs == nil {
+func (us *UserService) UpsertUserFoodLogsAndEntries(ctx context.Context, userId string, foodLogs []*models.FullFoodLog) (newerServerLogs []*models.FullFoodLog, failed []string, err error) {
+	if foodLogs == nil {
 		return nil, nil, apperrors.New(apperrors.BadRequest, fmt.Errorf("no food logs submitted to upsert"))
+	}
+
+	if len(foodLogs) > MAXBATCHSIZE {
+		return nil, nil, apperrors.New(apperrors.MaxBatchSizeExceeded, nil)
 	}
 	newerServerLogs = []*models.FullFoodLog{}
 	failed = []string{}
 
-	for _, log := range FoodLogs {
+	for _, log := range foodLogs {
 		var newerLog *models.FullFoodLog
 
 		err = us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
