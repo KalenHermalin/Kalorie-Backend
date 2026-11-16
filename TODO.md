@@ -32,8 +32,8 @@
 
 ## Weight log sync
 
-- [ ] Generate UUIDv5 weight log ids in the iOS app and re-key old local ids
-- [ ] Run weight log id migration on staging before production (one-way)
+- [x] Generate UUIDv5 weight log ids in the iOS app and re-key old local ids
+- [x] Run weight log id migration on staging before production (one-way)
 - [x] Fix weight log for an already-logged date never syncing
 - [x] Return `ERR_SESSION_OVER` from weight egress for deleted accounts (currently 207, all failed)
 
