@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"main/internal/auth"
 	"main/internal/models"
 	"main/internal/utils"
 	"testing"
@@ -14,29 +13,23 @@ import (
 )
 
 type MockAuthRepo struct {
-	mockUser    *models.User
-	mockRefresh string
-	mockErr     error
+	mockUser *models.User
+	mockErr  error
 }
 
-// DeleteRefreshToken implements [models.UserRepository].
-func (m *MockAuthRepo) DeleteRefreshToken(ctx context.Context, tx *sql.Tx, token string, userId string) error {
-	panic("unimplemented")
-}
-
-// DeleteUser implements [models.UserRepository].
+// DeleteUser implements [models.AuthRepository].
 func (m *MockAuthRepo) DeleteUser(ctx context.Context, tx *sql.Tx, userID string) error {
 	panic("unimplemented")
 }
 
-// FindRefreshToken implements [models.UserRepository].
-func (m *MockAuthRepo) FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string) (*models.User, error) {
+// LookupFirebaseIdToUserId implements [models.AuthRepository].
+func (m *MockAuthRepo) LookupFirebaseIdToUserId(ctx context.Context, firebaseID string) (string, error) {
 	panic("unimplemented")
 }
 
-// SaveRefreshToken implements [models.UserRepository].
-func (m *MockAuthRepo) SaveRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string, expiresAt time.Time) error {
-	return nil
+// LookupUserIdToFirebase implements [models.AuthRepository].
+func (m *MockAuthRepo) LookupUserIdToFirebase(ctx context.Context, userid string) (string, error) {
+	panic("unimplemented")
 }
 
 type MockAuthProvider struct {
@@ -60,7 +53,7 @@ func (m *MockAuthRepo) WithTx(ctx context.Context, fn func(*sql.Tx) error) error
 func TestSignIn_FullFlow(t *testing.T) {
 	// 1. Setup mocks
 	mockUser := &models.User{ID: "1", Email: "kalen@laurier.ca", CreatedAt: time.Now()}
-	repo := &MockAuthRepo{mockUser: mockUser, mockRefresh: "fake_refresh_token"}
+	repo := &MockAuthRepo{mockUser: mockUser}
 
 	provider := &MockAuthProvider{
 		name:    "github",
@@ -88,24 +81,24 @@ func TestSignIn_FullFlow(t *testing.T) {
 func TestSignIn_DatabaseFailure(t *testing.T) {
 	// 1. Setup mocks
 	repo := &MockAuthRepo{mockErr: errors.New("Database Connection Failed")}
-
+	email := "kalen@laurier.ca"
 	provider := &MockAuthProvider{
 		name:    "github",
-		payload: &models.AuthPayload{Email: "kalen@laurier.ca", ID: "12345", Provider: "github"},
+		payload: &models.AuthPayload{Email: &email, ID: "12345"},
 	}
 
 	// 2. Initialize Service with the mocks
-	as := NewAuthService(repo, "test_secret", "test_refresh", provider)
+	as := NewAuthService(repo, nil)
 
 	// 3. Execute the Sign In
 	resp, err := as.SignIn(context.Background(), "valid_code", "github", "", nil)
 
 	// 4. Assertions
 	if err == nil {
-		t.Error("Expected an error from the service when DB failes, but got nil")
+		t.Error("Expected an error from the service when DB fails, but got nil")
 	}
 	if resp != nil {
-		t.Error("Expected response to be nill when error occurs")
+		t.Error("Expected response to be nil when error occurs")
 	}
 }
 

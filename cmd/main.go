@@ -4,16 +4,16 @@ import (
 	"context"
 	"log"
 	"log/slog"
-	auth "main/internal/auth/providers"
 	"main/internal/database"
 	"main/internal/handlers"
 	"main/internal/llm"
-	"main/internal/models"
 	"main/internal/service"
 	"main/internal/store"
 	"os"
 
+	firebase "firebase.google.com/go/v4"
 	_ "github.com/lib/pq" // The underscore is required
+	"google.golang.org/api/option"
 )
 
 func main() {
@@ -47,73 +47,28 @@ func main() {
 	db := database.ConnectDatabase()
 	userStore := store.NewPostgressUserStore(db)
 	remindStore := store.NewRemindMeStore(db)
-	gitHubClientID, ok := os.LookupEnv("GIT_CLIENT_ID")
+
+	firebaseServiceAccount, ok := os.LookupEnv("FIREBASE_SERVICE_ACCOUNT_JSON")
 	if !ok {
-		slog.Error("Error: Missing env variable", "key", "GIT_CLIENT_ID")
+
+		slog.Error("Error: Missing env variable", "key", "FIREBASE_SERVICE_ACCOUNT_JSON")
 		os.Exit(1)
 	}
-	githubClientSecret, ok := os.LookupEnv("GIT_CLIENT_SECRET")
-	if !ok {
-		slog.Error("Error: Missing env variable", "key", "GIT_CLIENT_SECRET")
+	opt := option.WithAuthCredentialsJSON(option.ServiceAccount, []byte(firebaseServiceAccount))
+
+	firebaseClient, err := firebase.NewApp(context.Background(), nil, opt)
+	if err != nil {
+		slog.Error("Error Initializng the firebase client")
 		os.Exit(1)
 	}
-
-	githubAuth := auth.NewGitHubProvider(gitHubClientID, githubClientSecret, "kalorie://", nil)
-
-	googleClientIDIos, ok := os.LookupEnv("GOOGLE_CLIENT_ID_IOS")
-	if !ok {
-		slog.Error("Error: Missing env variable", "key", "GOOGLE_CLIENT_ID_IOS")
-		os.Exit(1)
-	}
-	googleClientIdAndroid, ok := os.LookupEnv("GOOGLE_CLIENT_ID_ANDROID")
-	if !ok {
-		slog.Error("Error: Missing env variable", "key", "GOOGLE_CLIENT_ID_ANDROID")
-		os.Exit(1)
-	}
-	googleIosAuth := auth.NewGoogleProvider(googleClientIDIos, "", "com.googleusercontent.apps.725051057596-1jsdj1vob2v5mnrhbhi1moj8bfj12cqs://", "ios", nil)
-	googleAndroidAuth := auth.NewGoogleProvider(googleClientIdAndroid, "", "com.googleusercontent.apps.725051057596-gj4kl9f3c4f10cef513qsgahjppuhoqg://", "android", nil)
-
-	// Unlike the other providers, Apple credentials are optional at boot:
-	// there may not be real ones configured yet, and there's no reason a
-	// missing/not-yet-configured Apple integration should keep the whole
-	// app from starting. If all four are set, Apple sign-in is wired in
-	// exactly like the others; otherwise "provider": "apple" on
-	// /auth/login just returns ERR_INVALID_PROVIDER until they are.
-	authProviders := []models.AuthProvider{githubAuth, googleIosAuth, googleAndroidAuth}
-	appleClientID, appleClientIDOk := os.LookupEnv("APPLE_CLIENT_ID")
-	appleTeamID, appleTeamIDOk := os.LookupEnv("APPLE_TEAM_ID")
-	appleKeyID, appleKeyIDOk := os.LookupEnv("APPLE_KEY_ID")
-	applePrivateKey, applePrivateKeyOk := os.LookupEnv("APPLE_PRIVATE_KEY")
-	if appleClientIDOk && appleTeamIDOk && appleKeyIDOk && applePrivateKeyOk {
-		// Like GitHub, this is a single provider (not split per-platform
-		// like Google) - Apple issues one client id/key pair per app
-		// regardless of platform.
-		appleAuth, err := auth.NewAppleProvider(appleClientID, appleTeamID, appleKeyID, applePrivateKey, "kalorie://", "", nil)
-		if err != nil {
-			slog.Error("Error: Couldnt Initialize Apple Provider", "error", err.Error())
-			os.Exit(1)
-		}
-		authProviders = append(authProviders, appleAuth)
-	} else {
-		slog.Warn("Apple auth not configured (missing one or more APPLE_* env vars) - skipping")
-	}
-
-	jwtAccessSecret, ok := os.LookupEnv("JWT_ACCESS_SECRET")
-	if !ok {
-
-		slog.Error("Error: Missing env variable", "key", "JWT_ACCESS_SECRET")
-		os.Exit(1)
-	}
-	jwtRefreshSecret, ok := os.LookupEnv("JWT_REFRESH_SECRET")
-	if !ok {
-
-		slog.Error("Error: Missing env variable", "key", "JWT_REFRESH_SECRET")
+	authClient, err := firebaseClient.Auth(context.Background())
+	if err != nil {
+		slog.Error("Error: creating auth client", "error", err)
 		os.Exit(1)
 	}
 	authStore := store.NewPostgressAuthStore(db)
-	authService := service.NewAuthService(authStore, jwtAccessSecret, jwtRefreshSecret, authProviders...)
+	authService := service.NewAuthService(authStore, authClient)
 	authHandler := handlers.NewAuthHandler(*authService)
-
 	// Setting Up User Handler
 	userService := service.NewUserService(userStore)
 	userHandler := handlers.NewUserHandler(*userService)
@@ -129,15 +84,15 @@ func main() {
 	// Initalizing Application
 	app := application{
 		config: config{
-			addr:             "0.0.0.0:" + addr,
-			jwtAccessSecret:  jwtAccessSecret,
-			jwtRefreshSecret: jwtRefreshSecret,
+			addr: "0.0.0.0:" + addr,
 		},
-		authHandler:   *authHandler,
-		llmHandler:    *llmHandler,
-		systemHandler: *systemHandler,
-		userHandler:   *userHandler,
-		docsHandler:   *docsHandler,
+		authHandler:        *authHandler,
+		llmHandler:         *llmHandler,
+		systemHandler:      *systemHandler,
+		userHandler:        *userHandler,
+		docsHandler:        *docsHandler,
+		firebaseAuthClient: authClient,
+		authLookup:         authService,
 	}
 	// Running Application
 	mux := app.mount()

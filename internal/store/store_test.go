@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"log"
-	"main/internal/auth"
 	"main/internal/models"
 	"testing"
 	"time"
@@ -31,117 +30,16 @@ func CheckDBConnection(db *sql.DB) {
 	}
 }
 
-func TestDeleteRefreshToken(t *testing.T) {
-	store := NewPostgressAuthStore(testDB) // Pass the transaction as the DB
-	clearTables(t)
-	defer clearTables(t)
-	payload := &models.AuthPayload{
-		Email:    "kalen@laurier.ca",
-		ID:       "12345",
-		Provider: "github",
-	}
-	store.WithTx(context.Background(), func(tx *sql.Tx) error {
-		// Test Case 1: First Login (Insert)
-		user, err := store.UpsertUserWithAuth(context.Background(), tx, payload)
-		if err != nil {
-			t.Fatalf("Failed to insert new user: %v", err)
-		}
-
-		if user.Email != payload.Email {
-			t.Errorf("Expected email %s, got %s", payload.Email, user.Email)
-		}
-		refresh, err := auth.GenerateRefreshToken(user.ID, time.Now().Add(time.Hour*24*30), "test")
-		if err != nil {
-			return err
-		}
-		err = store.SaveRefreshToken(context.Background(), tx, refresh, user.ID, time.Now().Add(time.Hour*24*30))
-		if err != nil {
-			return err
-		}
-
-		err = store.DeleteRefreshToken(context.Background(), tx, refresh, user.ID)
-		if err != nil {
-			t.Errorf("Error: %v", err)
-		}
-		err = store.DeleteRefreshToken(context.Background(), tx, refresh, user.ID)
-
-		// This SHOULD return an error now because the rows affected will be 0
-		if err == nil {
-			t.Error("Expected an error when deleting a non-existent token, but got nil")
-		}
-		return nil
-	})
-
-}
-
-func TestRefreshRefreshToken(t *testing.T) {
-	store := NewPostgressAuthStore(testDB) // Pass the transaction as the DB
-	clearTables(t)
-	defer clearTables(t)
-	payload := &models.AuthPayload{
-		Email:    "kalen@laurier.ca",
-		ID:       "12345",
-		Provider: "github",
-	}
-	store.WithTx(context.Background(), func(tx *sql.Tx) error {
-		// Test Case 1: First Login (Insert)
-		user, err := store.UpsertUserWithAuth(context.Background(), tx, payload)
-		if err != nil {
-			t.Fatalf("Failed to insert new user: %v", err)
-		}
-
-		if user.Email != payload.Email {
-			t.Errorf("Expected email %s, got %s", payload.Email, user.Email)
-		}
-		refresh, err := auth.GenerateRefreshToken(user.ID, time.Now().Add(time.Hour*24*30), "test")
-		if err != nil {
-			return err
-		}
-		err = store.SaveRefreshToken(context.Background(), tx, refresh, user.ID, time.Now().Add(time.Hour*24*30))
-		if err != nil {
-			return err
-		}
-
-		user, err = store.FindRefreshToken(context.Background(), tx, refresh)
-		if err != nil {
-			t.Errorf("Should have found token: %v", err)
-		}
-
-		err = store.DeleteRefreshToken(context.Background(), tx, refresh, user.ID)
-		if err != nil {
-			t.Errorf("Error: %v", err)
-		}
-		_, err = store.FindRefreshToken(context.Background(), tx, refresh)
-		if err == nil {
-			t.Error("Expected an error: token should not be findable after deleting")
-		}
-
-		refreshToken, err := auth.GenerateRefreshToken(user.ID, time.Now().Add(time.Hour*24*30), "test")
-		if err != nil {
-			return err
-		}
-		err = store.SaveRefreshToken(context.Background(), tx, refreshToken, user.ID, time.Now().Add(time.Hour*24*30))
-		if err != nil {
-			return err
-		}
-		_, err = store.FindRefreshToken(context.Background(), tx, refreshToken)
-		if err != nil {
-			t.Errorf("Error, refresh rotation failed to save")
-		}
-		return nil
-	})
-
-}
 func TestUpdateUserSettingsSuccess(t *testing.T) {
 
 	userStore := NewPostgressUserStore(testDB) // Pass the transaction as the DB
 	authStore := NewPostgressAuthStore(testDB) // Pass the transaction as the DB
 	clearTables(t)
 	defer clearTables(t)
+	email := "kalen@laurier.ca"
 	payload := &models.AuthPayload{
-		Email:    "kalen@laurier.ca",
-		ID:       "12345",
-		Provider: "github",
+		Email: &email,
+		ID:    "12345",
 	}
 
 	userStore.WithTx(context.Background(), func(tx *sql.Tx) error {
@@ -187,10 +85,10 @@ func TestUpdateUserSettingsFailure(t *testing.T) {
 	authStore := NewPostgressAuthStore(testDB) // Pass the transaction as the DB
 	clearTables(t)
 	defer clearTables(t)
+	email := "kalen@laurier.ca"
 	payload := &models.AuthPayload{
-		Email:    "kalen@laurier.ca",
-		ID:       "12345",
-		Provider: "github",
+		Email: &email,
+		ID:    "12345",
 	}
 
 	store.WithTx(context.Background(), func(tx *sql.Tx) error {
@@ -250,10 +148,10 @@ func TestUpsertUserWithAuth(t *testing.T) {
 	store := NewPostgressAuthStore(testDB) // Pass the transaction as the DB
 	clearTables(t)
 	defer clearTables(t)
+	email := "kalen@laurier.ca"
 	payload := &models.AuthPayload{
-		Email:    "kalen@laurier.ca",
-		ID:       "12345",
-		Provider: "github",
+		Email: &email,
+		ID:    "12345",
 	}
 
 	store.WithTx(context.Background(), func(tx *sql.Tx) error {
@@ -288,10 +186,10 @@ func TestUpsertUserWeightLog(t *testing.T) {
 	authStore := NewPostgressAuthStore(testDB) // Pass the transaction as the DB
 	clearTables(t)
 	defer clearTables(t)
+	email := "kalen@laurier.ca"
 	payload := &models.AuthPayload{
-		Email:    "kalen@laurier.ca",
-		ID:       "12345",
-		Provider: "github",
+		Email: &email,
+		ID:    "12345",
 	}
 
 	store.WithTx(context.Background(), func(tx *sql.Tx) error {
@@ -364,7 +262,7 @@ func AssertWeightLogEqual(t *testing.T, expected, actual *models.WeightLog) {
 func clearTables(t *testing.T) {
 	// RESTART IDENTITY resets your auto-incrementing IDs back to 1
 	// CASCADE handles the foreign key dependencies automatically
-	query := `TRUNCATE users, provider_identities, refresh_tokens RESTART IDENTITY CASCADE`
+	query := `TRUNCATE users RESTART IDENTITY CASCADE`
 	_, err := testDB.Exec(query)
 	if err != nil {
 		t.Fatalf("Failed to clear test database: %v", err)

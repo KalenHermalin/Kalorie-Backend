@@ -5,26 +5,28 @@ import (
 	"log/slog"
 	"main/internal/handlers"
 	"main/internal/middlewares"
+	"main/internal/models"
 	"net/http"
 	"time"
 
+	"firebase.google.com/go/v4/auth"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
 type application struct {
-	config        config
-	authHandler   handlers.AuthHandler
-	llmHandler    handlers.LLMHandler
-	systemHandler handlers.SystemHandler
-	userHandler   handlers.UserHandler
-	docsHandler   handlers.DocsHandler
+	config             config
+	authHandler        handlers.AuthHandler
+	llmHandler         handlers.LLMHandler
+	systemHandler      handlers.SystemHandler
+	userHandler        handlers.UserHandler
+	docsHandler        handlers.DocsHandler
+	firebaseAuthClient *auth.Client
+	authLookup         models.AuthLookUp
 }
 
 type config struct {
-	addr             string
-	jwtAccessSecret  string
-	jwtRefreshSecret string
+	addr string
 }
 
 func (app *application) mount() http.Handler {
@@ -52,16 +54,14 @@ func (app *application) mount() http.Handler {
 		r.Post("/waitlist", handlers.Handle(app.docsHandler.RemindMe))
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/login", handlers.Handle(app.authHandler.HandleLoginSignup))
-			r.Post("/refresh", handlers.Handle(app.authHandler.HandleRefresh))
 			r.Group(func(r chi.Router) {
-				r.Use(middlewares.Auth(app.config.jwtAccessSecret))
-				r.Post("/logout", handlers.Handle(app.authHandler.HandleLogOut))
+				r.Use(middlewares.Auth(app.firebaseAuthClient, app.authLookup))
 				r.Delete("/account", handlers.Handle(app.authHandler.HandleDeleteUser))
 
 			})
 		})
 		r.Route("/v1", func(r chi.Router) {
-			r.Use(middlewares.Auth(app.config.jwtAccessSecret))
+			r.Use(middlewares.Auth(app.firebaseAuthClient, app.authLookup))
 
 			r.Put("/settings/sync", handlers.Handle(app.userHandler.EgressSyncSettings))
 			r.Get("/settings/sync", handlers.Handle(app.userHandler.IngressSyncSettings))
