@@ -435,6 +435,7 @@ Note the exact key spellings: `Time` (capital T) and `food-log_entries` (hyphen,
 
 Pushes food log changes. Each food log and its entries are saved as one unit; read
 [Food and exercise logs sync as one unit](#food-and-exercise-logs-sync-as-one-unit) for the rules the client must follow.
+**Limited to 200 logs per request**; split larger batches into multiple requests.
 
 **Request Body:**
 ```JSON
@@ -458,6 +459,7 @@ Pushes food log changes. Each food log and its entries are saved as one unit; re
 | Status | Code | When |
 |--------|------|------|
 | 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON, or `food_logs` is missing/`null` |
+| 400 | `ERR_MAX_BATCH_SIZE` | More than 200 logs in one request |
 | 401 | `ERR_SESSION_OVER` | The account no longer exists |
 | 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token |
 | 500 | `ERR_INTERNAL_SERVER` | Server error not tied to a specific log |
@@ -473,6 +475,8 @@ Returns every food log (including soft-deleted ones), with all of its entries, w
 ```JSON
 [ <Full food log object>, ... ]
 ```
+- A log with no entries comes back with `"food-log_entries": []`, never `null`.
+- Logs, and the entries within a log, are in no particular order.
 **Not Modified (304):** Nothing changed since `last_synced_at` (or the user has no food logs). No body.
 
 **Errors:**
@@ -515,6 +519,7 @@ Returns every food log (including soft-deleted ones), with all of its entries, w
 
 Pushes exercise log changes. Each exercise log and its sets are saved as one unit; read
 [Food and exercise logs sync as one unit](#food-and-exercise-logs-sync-as-one-unit) for the rules the client must follow.
+**Limited to 200 logs per request**; split larger batches into multiple requests.
 
 **Request Body:**
 ```JSON
@@ -538,6 +543,7 @@ Pushes exercise log changes. Each exercise log and its sets are saved as one uni
 | Status | Code | When |
 |--------|------|------|
 | 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON, or `exercise_logs` is missing/`null` |
+| 400 | `ERR_MAX_BATCH_SIZE` | More than 200 logs in one request |
 | 401 | `ERR_SESSION_OVER` | The account no longer exists |
 | 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token |
 | 500 | `ERR_INTERNAL_SERVER` | Server error not tied to a specific log |
@@ -553,6 +559,8 @@ after `last_synced_at`, or all of them if `last_synced_at` is omitted.
 ```JSON
 [ <Full exercise log object>, ... ]
 ```
+- A log with no sets comes back with `"exercise_sets": []`, never `null`.
+- Logs, and the sets within a log, are in no particular order. Use `set_number` to order sets.
 **Not Modified (304):** Nothing changed since `last_synced_at` (or the user has no exercise logs). No body.
 
 **Errors:**

@@ -4,7 +4,7 @@
 
 - [ ] Check iOS client against renamed error codes and new sync responses (see `API.md`)
 - [ ] Test app end to end against staging
-- [ ] Decide what to do with the `port-python-fastapi` branch
+- [x] Decide what to do with the `port-python-fastapi` branch
 - [x] Merge error-handling branch to main
 
 ## Auth (Firebase migration)
@@ -52,9 +52,15 @@
 
 ## Exercise & food log sync
 
-- [ ] Add store integration tests for exercise/food log upserts
-- [ ] Add batch size limit to exercise/food egress
-- [ ] Remove unreachable `ErrLogIdForeignKeyConstraint` checks from store upserts and reads
+- [x] Fix `GetUserExerciseLogById` nil-pointer panic (every exercise sync conflict returns 500)
+- [x] Add store integration tests for exercise/food log upserts
+- [x] Load all logs with their sets/entries using a LEFT JOIN in `GetUserExerciseLogs` / `GetUserFoodLogs`
+- [x] Remove unreachable user foreign-key checks from store reads and `UpdateUserSettings`
+- [ ] Add migration making `food_log_items` `food_id`, `serving_id`, `quantity`, `unit` NOT NULL (check prod for NULLs first)
+- [x] Document 200-log batch limit for exercise/food egress in `API.md`
+- [x] Fix food/exercise store tests comparing entries/sets by position (join order not guaranteed)
+- [x] Add batch size limit to exercise/food egress
+- [x] Remove unreachable `ErrLogIdForeignKeyConstraint` checks from store upserts and reads
 - [x] Redesign exercise/food log sync as one timestamp per log (see `THOUGHTS.md`)
 - [x] Scope exercise/food upserts and their sets/entries to the owning user
 - [x] Fix exercise/food store upserts not detecting sync conflicts
