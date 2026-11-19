@@ -63,7 +63,7 @@ func (us *UserService) GetUserSettings(ctx context.Context, userId string, lastS
 		var inErr error
 		settings, inErr = us.userStore.GetUserSettings(ctx, tx, userId)
 		if inErr != nil {
-			if errors.Is(inErr, store.ErrNotFound) || errors.Is(err, store.ErrUserForeignKeyConstraint) {
+			if errors.Is(inErr, store.ErrNotFound) {
 				return apperrors.New(apperrors.SessionOver, inErr)
 			}
 			return fmt.Errorf("get user settings for user %s: %w", userId, inErr)

@@ -7,33 +7,46 @@
 - [ ] Decide what to do with the `port-python-fastapi` branch
 - [x] Merge error-handling branch to main
 
-## Auth
+## Auth (Firebase migration)
 
-- [ ] Fix accounts merging when a provider returns an empty or unverified email
-- [ ] Hash refresh tokens in the database
-- [ ] Restrict JWT parsing to the expected signing method
-- [ ] Return 503 for OAuth provider network and parse failures
-- [ ] Classify provider user-info non-200 responses
-- [ ] Return a clearer error for known-but-unconfigured providers (Apple)
-- [ ] Add tests for GitHub, Google and Apple providers
-- [ ] Remove `isPremium` from access token (check iOS app first)
-- [ ] Use or remove `middlewares.GetIsPremium`
-- [ ] Configure Apple Developer credentials
-- [ ] Add code exchange without PKCE verifier
-- [ ] Rename `psotgres_auth.go` typo
+- [ ] Reset local, test, staging and production databases after rewriting migrations
+- [ ] Treat Firebase "user not found" as success when deleting an account
+- [ ] Return 503 instead of `ERR_INVALID_TOKEN` when Firebase is unreachable during token verification
+- [ ] Revoke Apple token on account deletion (iOS, needs fresh Apple sign-in)
+- [ ] Decide where `isPremium` comes from (Firebase custom claim or database)
+- [ ] Switch iOS app sign-in to the Firebase SDK
+- [x] Update auth service tests and mocks for Firebase
+- [x] Remove unused auth error kinds (`BadLoginRequest`, `InvalidProvider`, `AuthUnavailable`) and `logOutRequestBody`
+- [x] Update `API.md` auth section for Firebase
+- [x] Delete Firebase user on account deletion
+- [x] Set up Firebase project with Google, Apple and GitHub sign-in (one account per email)
+- [x] Decide user id: keep internal UUID plus `firebase_uid`, or use Firebase uid as `users.id` (affects weight log UUIDv5 name)
+  - will keep UUID and add column
+- [x] Rewrite user table migration with unique `firebase_uid` and nullable email
+- [x] Remove `provider_identities` and `refresh_tokens` migrations
+- [x] Verify Firebase ID tokens in auth middleware (RS256 only, audience, issuer, expiry)
+- [x] Rewrite sign-in endpoint to take a Firebase ID token and upsert the user by `firebase_id`
+- [x] Remove refresh and logout endpoints with their handlers, services and stores
+- [x] Remove `internal/auth/providers` and OAuth config/env vars
+- [x] Use or remove `middlewares.GetIsPremium`
+- [x] Create Firebase auth client at startup and pass it and the user lookup to `middlewares.Auth`
+- [x] Remove refresh token store tests and tables from `clearTables`
+- [x] Fix accounts merging when a provider returns an empty or unverified email
+- [x] Return a clearer error for known-but-unconfigured providers (Apple)
+- [x] Configure Apple Developer credentials
+- [x] Rename `psotgres_auth.go` typo
 - [x] Fix login bad-request field names (all say `refresh`)
 - [x] Fix "bodu" typo in auth bad-request messages
 
 ## Settings sync
 
-- [ ] Fix `GetUserSettings` foreign-key check testing the wrong error variable
+- [x] Fix `GetUserSettings` foreign-key check testing the wrong error variable
 - [x] Rename settings egress `is_modified` (true currently means conflict)
 - [x] Fix `IngressSyncSettings` returning 200 `null` instead of 304
 
 ## Weight log sync
 
 - [x] Generate UUIDv5 weight log ids in the iOS app and re-key old local ids
-- [x] Run weight log id migration on staging before production (one-way)
 - [x] Fix weight log for an already-logged date never syncing
 - [x] Return `ERR_SESSION_OVER` from weight egress for deleted accounts (currently 207, all failed)
 
