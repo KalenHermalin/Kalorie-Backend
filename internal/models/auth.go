@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"firebase.google.com/go/v4/auth"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -18,6 +19,11 @@ type AuthProvider interface {
 	GetProviderName() string
 	HandleCodeExchangeWithVerifier(ctx context.Context, code, verifier string) (*AuthPayload, error)
 	GetPlatform() string
+}
+
+type AuthClient interface {
+	VerifyIDToken(ctx context.Context, idToken string) (*auth.Token, error)
+	DeleteUser(ctx context.Context, uid string) error
 }
 type AuthLookUp interface {
 	// Returns users UUID as string or an error

@@ -49,8 +49,8 @@ func TestUpdateUserSettingsSuccess(t *testing.T) {
 			t.Fatalf("Failed to insert new user: %v", err)
 		}
 
-		if user.Email != payload.Email {
-			t.Errorf("Expected email %s, got %s", payload.Email, user.Email)
+		if payload.Email != nil && user.Email != nil && *user.Email != *payload.Email {
+			t.Errorf("Expected email %s, got %s", *payload.Email, *user.Email)
 		}
 		now := time.Now().UTC().Truncate(time.Microsecond) // Strip nanoseconds and monotonic clock
 		settings := &models.UserSettings{
@@ -98,8 +98,8 @@ func TestUpdateUserSettingsFailure(t *testing.T) {
 			t.Fatalf("Failed to insert new user: %v", err)
 		}
 
-		if user.Email != payload.Email {
-			t.Errorf("Expected email %s, got %s", payload.Email, user.Email)
+		if payload.Email != nil && user.Email != nil && *user.Email != *payload.Email {
+			t.Errorf("Expected email %s, got %s", *payload.Email, *user.Email)
 		}
 		settings := &models.UserSettings{
 			CaloriesTarget: 3000,
@@ -161,8 +161,8 @@ func TestUpsertUserWithAuth(t *testing.T) {
 			t.Fatalf("Failed to insert new user: %v", err)
 		}
 
-		if user.Email != payload.Email {
-			t.Errorf("Expected email %s, got %s", payload.Email, user.Email)
+		if payload.Email != nil && user.Email != nil && *user.Email != *payload.Email {
+			t.Errorf("Expected email %s, got %s", *payload.Email, *user.Email)
 		}
 
 		// Test Case 2: Second Login (Update)
@@ -199,9 +199,8 @@ func TestUpsertUserWeightLog(t *testing.T) {
 			t.Fatalf("Failed to insert new user: %v", err)
 		}
 
-		if user.Email != payload.Email {
-
-			t.Errorf("Expected email %s, got %s", payload.Email, user.Email)
+		if payload.Email != nil && user.Email != nil && *user.Email != *payload.Email {
+			t.Errorf("Expected email %s, got %s", *payload.Email, *user.Email)
 		}
 		weightLog := &models.WeightLog{
 			ID:        "b38e5cee-8726-47cb-a4b6-755f8e521818",

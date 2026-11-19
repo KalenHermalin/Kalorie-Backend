@@ -13,8 +13,8 @@
 - [ ] Treat Firebase "user not found" as success when deleting an account
 - [ ] Revoke Apple token on account deletion (iOS, needs fresh Apple sign-in)
 - [ ] Decide where `isPremium` comes from (Firebase custom claim or database)
-- [ ] Update auth service tests and mocks for Firebase
 - [ ] Switch iOS app sign-in to the Firebase SDK
+- [x] Update auth service tests and mocks for Firebase
 - [x] Remove unused auth error kinds (`BadLoginRequest`, `InvalidProvider`, `AuthUnavailable`) and `logOutRequestBody`
 - [x] Update `API.md` auth section for Firebase
 - [x] Delete Firebase user on account deletion

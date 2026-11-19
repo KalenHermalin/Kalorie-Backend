@@ -9,16 +9,14 @@ import (
 	"main/internal/models"
 	"main/internal/store"
 	"time"
-
-	"firebase.google.com/go/v4/auth"
 )
 
 type AuthService struct {
 	us     models.AuthRepository
-	client *auth.Client
+	client models.AuthClient
 }
 
-func NewAuthService(ur models.AuthRepository, authClient *auth.Client) *AuthService {
+func NewAuthService(ur models.AuthRepository, authClient models.AuthClient) *AuthService {
 	return &AuthService{us: ur, client: authClient}
 }
 
