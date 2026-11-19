@@ -46,8 +46,9 @@
 
 ## Weight log sync
 
-- [ ] Fix weight log for an already-logged date never syncing
-- [ ] Return `ERR_SESSION_OVER` from weight egress for deleted accounts (currently 207, all failed)
+- [x] Generate UUIDv5 weight log ids in the iOS app and re-key old local ids
+- [x] Fix weight log for an already-logged date never syncing
+- [x] Return `ERR_SESSION_OVER` from weight egress for deleted accounts (currently 207, all failed)
 
 ## Exercise & food log sync
 

@@ -336,7 +336,7 @@ func TestUserIdlookup(t *testing.T) {
 
 }
 
-func TestUpsertUserWeightLog(t *testing.T) {
+func TestUpsertUserWeightLogSuccess(t *testing.T) {
 	// Start a transaction to keep the test "atomic"
 	store := NewPostgressUserStore(testDB)     // Pass the transaction as the DB
 	authStore := NewPostgressAuthStore(testDB) // Pass the transaction as the DB
@@ -361,7 +361,7 @@ func TestUpsertUserWeightLog(t *testing.T) {
 		weightLog := &models.WeightLog{
 			ID:        "b38e5cee-8726-47cb-a4b6-755f8e521818",
 			WeightKg:  55,
-			LogDate:   time.Now(),
+			LogDate:   "2026-11-03",
 			UpdatedAt: time.Now(),
 			DeletedAt: nil,
 		}
@@ -377,7 +377,7 @@ func TestUpsertUserWeightLog(t *testing.T) {
 		weightLog2 := &models.WeightLog{
 			ID:        "b38e5cee-8726-47cb-a4b6-755f8e521818",
 			WeightKg:  45,
-			LogDate:   time.Date(weightLog.LogDate.Year(), weightLog.LogDate.Month(), weightLog.LogDate.Day(), 0, 0, 0, 0, time.UTC),
+			LogDate:   "2026-11-03",
 			UpdatedAt: time.Now().Add(time.Minute * 10),
 			DeletedAt: nil,
 		}
@@ -396,16 +396,17 @@ func TestUpsertUserWeightLog(t *testing.T) {
 	})
 
 }
+
 func AssertWeightLogEqual(t *testing.T, expected, actual *models.WeightLog) {
 	t.Helper()
 
 	// ... (other fields)
 
 	// Using assert.Equal here will force the test to print the values on failure
-	expectedDate := expected.LogDate.Truncate(time.Microsecond).UTC()
-	actualDate := actual.LogDate.Truncate(time.Microsecond).UTC()
+	//expectedDate := expected.LogDate.Truncate(time.Microsecond).UTC()
+	//actualDate := actual.LogDate.Truncate(time.Microsecond).UTC()
 
-	assert.Equal(t, expectedDate, actualDate, "LogDate mismatch (truncated to microsecond)")
+	assert.Equal(t, expected.LogDate, actual.LogDate, "LogDate mismatch (truncated to microsecond)")
 
 	expectedUpdate := expected.UpdatedAt.Truncate(time.Microsecond).UTC()
 	actualUpdate := actual.UpdatedAt.Truncate(time.Microsecond).UTC()
