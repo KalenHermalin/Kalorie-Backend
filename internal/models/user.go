@@ -8,7 +8,7 @@ import (
 
 type User struct {
 	ID        string    `json:"id"`
-	Email     string    `json:"email"`
+	Email     *string   `json:"email"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -26,7 +26,7 @@ type UserSettings struct {
 type WeightLog struct {
 	ID        string     `json:"id"`
 	WeightKg  float64    `json:"weight_kg"`
-	LogDate   time.Time  `json:"log_date"`
+	LogDate   string     `json:"log_date"` // Format YYYY-MM-DD
 	UpdatedAt time.Time  `json:"updated_at"`
 	DeletedAt *time.Time `json:"deleted_at"`
 }

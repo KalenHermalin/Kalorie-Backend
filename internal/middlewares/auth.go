@@ -8,8 +8,9 @@ import (
 	"main/internal/models"
 	"net/http"
 	"strings"
+	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	"firebase.google.com/go/v4/auth"
 )
 
 type contextKey string
@@ -19,7 +20,7 @@ const (
 	IsPremiumKey contextKey = "isPremium"
 )
 
-func Auth(jwtSecret string) func(http.Handler) http.Handler {
+func Auth(client models.AuthClient, userLookup models.AuthLookUp) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// 1. Get the Authorization header
@@ -41,26 +42,43 @@ func Auth(jwtSecret string) func(http.Handler) http.Handler {
 				return
 			}
 
-			// 3. Validate the token
-			var claims models.CustomClaimsAccess
-			token, err := jwt.ParseWithClaims(parts[1], &claims, func(token *jwt.Token) (any, error) {
-				return []byte(jwtSecret), nil
-			})
-			if err != nil || !token.Valid {
-				kerr := apperrors.New(apperrors.InvalidToken, err)
-				if errors.Is(err, jwt.ErrTokenExpired) {
-					log.Info("token expired", "code", kerr.Kind.Code, "err", err)
+			// 3. Validate firebase token
+			ctx, cancel := context.WithTimeout(r.Context(), time.Second*2)
+
+			token, err := client.VerifyIDToken(ctx, parts[1])
+
+			if err != nil {
+				kerr := apperrors.New(apperrors.InvalidToken, nil)
+				apperrors.Write(w, kerr)
+				if auth.IsIDTokenExpired(err) {
+					log.Info("Token was expired", "error", err, "code", kerr.Kind.Code)
 				} else {
-					log.Warn("token rejected", "code", kerr.Kind.Code, "err", err)
+					log.Warn("Token was invalid", "error", err, "code", kerr.Kind.Code)
+				}
+				cancel()
+				return
+
+			}
+			cancel()
+			ctx, cancel = context.WithTimeout(r.Context(), time.Second*5)
+			defer cancel()
+			userId, err := userLookup.FirebaseToUUID(ctx, token.UID)
+			if err != nil {
+				var kerr *apperrors.KError
+				if !errors.As(err, &kerr) { // Search error chain and fills kerr with a KError found in the chain
+					kerr = apperrors.New(apperrors.Internal, err)
+				}
+				if kerr.Kind.Status >= 500 {
+					log.Error("error looking up firebase id", "code", kerr.Kind.Code, "err", err)
+				} else {
+					log.Warn("no firebaseId in database", "code", kerr.Kind.Code, "err", err)
 				}
 				apperrors.Write(w, kerr)
 				return
 			}
-
 			// 4. Inject UserID into Context for your handlers
-			ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
-			ctx = context.WithValue(ctx, IsPremiumKey, claims.IsPremium) // Chain the context
-			new_logger := log.With("user_id", claims.UserID)
+			ctx = context.WithValue(r.Context(), UserIDKey, userId)
+			new_logger := log.With("user_id", userId)
 			ctx = loggerx.With(ctx, new_logger)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -69,9 +87,4 @@ func Auth(jwtSecret string) func(http.Handler) http.Handler {
 func GetUserID(ctx context.Context) string {
 	id, _ := ctx.Value(UserIDKey).(string)
 	return id
-}
-
-func GetIsPremium(ctx context.Context) bool {
-	premium, _ := ctx.Value(IsPremiumKey).(bool)
-	return premium
 }

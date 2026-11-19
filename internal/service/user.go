@@ -103,8 +103,6 @@ func (us *UserService) UpsertUserWeightLogs(ctx context.Context, userId string, 
 					var fErr error
 					newerLog, fErr = us.userStore.GetUserWeightLogById(ctx, tx, userId, log.ID)
 					return fErr
-				} else if errors.Is(err, store.ErrUserForeignKeyConstraint) {
-					return apperrors.New(apperrors.SessionOver, err)
 				}
 				return err
 			}
@@ -112,6 +110,9 @@ func (us *UserService) UpsertUserWeightLogs(ctx context.Context, userId string, 
 		})
 
 		if err != nil {
+			if errors.Is(err, store.ErrUserForeignKeyConstraint) {
+				return nil, nil, apperrors.New(apperrors.SessionOver, err)
+			}
 			loggerx.Log(ctx).Warn("log upsert failed", "error", err, "log_id", log.ID)
 			notSyncedLogs = append(notSyncedLogs, log.ID)
 			continue

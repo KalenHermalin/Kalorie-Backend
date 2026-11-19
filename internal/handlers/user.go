@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"main/internal/apperrors"
 	"main/internal/middlewares"
 	"main/internal/models"
@@ -93,6 +95,29 @@ func (uh *UserHandler) EgressSyncWeightLogs(writer http.ResponseWriter, request 
 		return apperrors.New(apperrors.BadRequest, err)
 	}
 
+	var badLogFields []apperrors.FieldError
+	var requestError error
+	for i, log := range requestBody.WeightLogs {
+		if log != nil {
+			_, err = time.Parse("2006-01-02", log.LogDate)
+			if err != nil {
+				requestError = errors.Join(requestError, err)
+				badLogFields = append(badLogFields, apperrors.FieldError{
+					Field:   "log_date",
+					Problem: fmt.Sprintf("Log %s has an invalid log date format", log.ID),
+				})
+			}
+		} else {
+			badLogFields = append(badLogFields, apperrors.FieldError{
+				Field:   "weight_logs",
+				Problem: fmt.Sprintf("Log with index %d is null", i),
+			})
+		}
+	}
+
+	if len(badLogFields) != 0 {
+		return apperrors.NewBadRequestWithFields(requestError, badLogFields...)
+	}
 	successful, failed, err := uh.user.UpsertUserWeightLogs(request.Context(), id, requestBody.WeightLogs)
 	if err != nil {
 		return err

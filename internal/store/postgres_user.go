@@ -95,7 +95,7 @@ func (us *postgressUserRepo) UpsertUserWeightLog(ctx context.Context, tx *sql.Tx
 //   - Returns fmt.error for any other errors
 func (us *postgressUserRepo) GetUserWeightLogById(ctx context.Context, tx *sql.Tx, userId string, logId string) (*models.WeightLog, error) {
 	query := `
-	SELECT id, weight_kg, log_date, updated_at, deleted_at
+	SELECT id, weight_kg, to_char(log_date, 'YYYY-MM-DD'), updated_at, deleted_at
 	FROM weight_logs
 	WHERE user_id = $1 AND id = $2;`
 
@@ -137,7 +137,7 @@ func (us *postgressUserRepo) GetUserWeightLogById(ctx context.Context, tx *sql.T
 //   - Returns fmt.error for any other errors
 func (us *postgressUserRepo) GetUserWeightLogs(ctx context.Context, tx *sql.Tx, userId string) ([]*models.WeightLog, error) {
 	query := `
-    SELECT id, weight_kg, log_date, updated_at, deleted_at
+    SELECT id, weight_kg, to_char(log_date, 'YYYY-MM-DD'), updated_at, deleted_at
     FROM weight_logs
     WHERE user_id = $1
     ORDER BY log_date DESC;` // Good practice to sort by date
