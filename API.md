@@ -15,28 +15,34 @@ anything finer is rounded.
 ---
 
 ## Authentication
-Every endpoint under `/api/v1/` and the authenticated `/api/auth/` endpoints require a **JWT access token**:
+Sign-in is handled by **Firebase Authentication** (Google, Apple and GitHub) in the app. The server never sees
+provider codes or passwords and issues no tokens of its own.
+
+Every endpoint under `/api/v1/` and `DELETE /api/auth/account` require the user's **Firebase ID token**:
 
 | Header | Value | Description |
 |--------|-------|-------------|
-| Authorization | Bearer &lt;access_token&gt; | The token received from `/api/auth/login` or `/api/auth/refresh`. |
+| Authorization | Bearer &lt;firebase_id_token&gt; | The current ID token from the Firebase SDK (`getIDToken()`). |
 
-Access tokens are valid for **15 minutes** (`expires_in: 900`). Refresh tokens are valid for **30 days**
-and are single use: every refresh returns a new refresh token and invalidates the old one.
+- Firebase ID tokens are valid for **1 hour**. The Firebase SDK refreshes them on its own; always read the current
+  token from the SDK right before a request rather than storing it.
+- The account must already exist on the server: call [`POST /api/auth/login`](#login--sign-up) once after every
+  Firebase sign-in. A valid Firebase token for a user the server doesn't know returns `ERR_SESSION_OVER`.
+- **Logging out** is done only in the app (Firebase sign-out). There is no server endpoint for it.
 
-The following endpoints do **not** require an access token:
-- `POST /api/auth/login`
-- `POST /api/auth/refresh` (needs a valid refresh token in the body instead)
+The following endpoints do **not** require the `Authorization` header:
+- `POST /api/auth/login` (takes the Firebase ID token in the body instead)
 - `POST /api/waitlist`
 - `GET /api/system/health`
 
 ### Auth errors (any authenticated endpoint)
 | Status | Code | When | What the client should do |
 |--------|------|------|---------------------------|
-| 401 | `ERR_UNAUTHORIZED` | No `Authorization` header | Send the access token |
+| 401 | `ERR_UNAUTHORIZED` | No `Authorization` header | Send the Firebase ID token |
 | 400 | `ERR_AUTH_HEADER_MALFORMED` | Header isn't `Bearer <token>` | Fix the header format |
-| 401 | `ERR_INVALID_TOKEN` | Access token expired or invalid | Call `/api/auth/refresh`, then retry |
-| 401 | `ERR_SESSION_OVER` | The session can't continue (e.g. the account was deleted on another device) | Clear local session and sign in again |
+| 401 | `ERR_INVALID_TOKEN` | Firebase ID token expired or invalid | Force-refresh the token in the Firebase SDK, then retry once. If the retry also returns `ERR_INVALID_TOKEN`, sign out of Firebase |
+| 401 | `ERR_SESSION_OVER` | No account on the server for this Firebase user (e.g. the account was deleted, or `/api/auth/login` was never called) | Sign out of Firebase and sign in again |
+| 500 | `ERR_INTERNAL_SERVER` | The server couldn't look up the account (e.g. database unavailable) | Retry later. **Do not** sign the user out: this is not an auth failure |
 
 ---
 
@@ -61,17 +67,14 @@ Every error response has the same shape:
 |------|--------|---------|
 | `ERR_INVALID_REQUEST` | 400 | The request body or a required field is invalid. May include `fields`. |
 | `ERR_AUTH_HEADER_MALFORMED` | 400 | The `Authorization` header is not `Bearer <token>`. |
-| `ERR_LOGIN_REQUEST` | 400 | The sign-in code was rejected by the provider (expired, reused, or the user cancelled). Start sign-in again. |
-| `ERR_INVALID_PROVIDER` | 400 | The `provider` / `platform` combination is not supported. |
 | `ERR_MAX_BATCH_SIZE` | 400 | Too many items in one sync request. |
 | `ERR_NO_FOOD` | 400 | No food was found in the image. |
 | `ERR_NO_LABEL` | 400 | No nutrition label was found in the image. |
-| `ERR_UNAUTHORIZED` | 401 | No access token was sent. |
-| `ERR_INVALID_TOKEN` | 401 | The access token is expired or invalid. Refresh and retry. |
-| `ERR_SESSION_OVER` | 401 | The session has ended (refresh token expired/invalid/used, or the account no longer exists). Sign in again. |
+| `ERR_UNAUTHORIZED` | 401 | No Firebase ID token was sent. |
+| `ERR_INVALID_TOKEN` | 401 | The Firebase ID token is expired or invalid. Force-refresh it in the Firebase SDK and retry. |
+| `ERR_SESSION_OVER` | 401 | The server has no account for this Firebase user (deleted, or never signed in). Sign in again. |
 | `ERR_CONFLICT` | 409 | The email is already on the waitlist. |
 | `ERR_INTERNAL_SERVER` | 500 | Unexpected server error. Safe to retry later. |
-| `ERR_AUTH_UNAVAILABLE` | 503 | The sign-in provider is temporarily down. Retry in a few minutes. |
 | `ERR_LLM_PROVIDER` | 503 | The AI provider is temporarily down. Retry later. |
 
 ---
@@ -132,99 +135,66 @@ Each log in an egress request is saved in its own transaction, so one failing lo
 
 #### Login / Sign up
 **Path:** `POST /api/auth/login`
-**Auth:** none
+**Auth:** none (Firebase ID token in body)
 
-Handles both registration and login. If no account exists for the provider's user, one is created.
+Call this once after every Firebase sign-in. It registers the user on the first call; after that it only refreshes
+the stored email, so it is safe to call repeatedly. Until it has been called, every other authenticated endpoint
+returns `ERR_SESSION_OVER` for this user.
+
+Unlike the other endpoints, sign-in also asks Firebase whether the token has been **revoked** or the Firebase user
+was **disabled or deleted**. Such a token is rejected with `ERR_INVALID_TOKEN`, so a deleted account can't be
+recreated by signing in with an old token.
 
 **Request Body:**
 ```JSON
 {
-    "code": string,
-    "provider": "github" | "google" | "apple",
-    "verifier": string,
-    "platform": "ios" | "android" (optional)
+    "token_id": string
 }
 ```
-- `code` and `verifier` are the OAuth authorization code and its PKCE code verifier. Both are required.
-- `platform` selects the platform-specific client for providers that have one (e.g. `google`). `github` and
-  `apple` are single providers: omit `platform` for them.
+- `token_id` is the user's current Firebase ID token.
+- The user's email is stored only if Firebase reports it as **verified**. It is updated on every sign-in, so an
+  email that is missing or unverified at sign-in clears the stored one.
 
 **Success (200 OK):**
 ```JSON
 {
-    "access_token": string,
-    "refresh_token": string,
-    "expires_in": number,
-    "user": {
-        "id": string,
-        "email": string,
-        "created_at": string (RFC 3339 timestamp)
-    }
+    "user_id": string (UUID)
 }
 ```
-`user.created_at` is always the account's real creation time.
+- `user_id` is the server's id for this user. It is **not** the Firebase uid. It is the user id used to build weight
+  log ids (see [Weight Log Endpoints](#weight-log-endpoints)), so store it on the device.
+- The same `user_id` is returned on every sign-in for the same Firebase user.
 
 **Errors:**
 | Status | Code | When |
 |--------|------|------|
-| 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON (`fields: body`), or `code`, `provider` or `verifier` is empty (`fields` names which one) |
-| 400 | `ERR_INVALID_PROVIDER` | Unknown `provider`, or a `provider`/`platform` combination that isn't configured |
-| 400 | `ERR_LOGIN_REQUEST` | The provider rejected the code (expired, already used, or access denied) |
-| 503 | `ERR_AUTH_UNAVAILABLE` | The provider is temporarily unavailable |
-| 500 | `ERR_INTERNAL_SERVER` | Provider misconfiguration, network failure, or a server error |
-
-#### Refresh
-**Path:** `POST /api/auth/refresh`
-**Auth:** none (refresh token in body)
-
-Exchanges a valid refresh token for a new access token and a new refresh token. The old refresh token stops working
-immediately, so always store the new one.
-
-**Request Body:**
-```JSON
-{
-    "refresh": string
-}
-```
-**Success (200 OK):** Same response as `/api/auth/login`.
-
-**Errors:**
-| Status | Code | When |
-|--------|------|------|
-| 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON (`fields: body`) or `refresh` is empty (`fields: refresh`) |
-| 401 | `ERR_SESSION_OVER` | Refresh token is expired, invalid, already used, or the account no longer exists. Sign in again. |
+| 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON (`fields: body`), or `token_id` is empty (`fields: token_id`) |
+| 401 | `ERR_INVALID_TOKEN` | The Firebase ID token is expired, invalid or revoked, or the Firebase user was disabled or deleted. Force-refresh it and retry once; if it fails again, sign out of Firebase. |
 | 500 | `ERR_INTERNAL_SERVER` | Server error |
 
-#### Logout
-**Path:** `POST /api/auth/logout`
-**Auth:** access token
+#### Logout and token refresh (app only)
+There are **no** server endpoints for logging out or refreshing tokens. Both are handled entirely in the app by the
+Firebase SDK:
 
-Ends the session by deleting the given refresh token. Logging out with a token that is already gone still succeeds,
-so this is safe to retry.
-
-**Request Body:**
-```JSON
-{
-    "refresh": string
-}
-```
-**Success (200 OK):** Plain text.
-```text
-Success
-```
-**Errors:**
-| Status | Code | When |
-|--------|------|------|
-| 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON (`fields: body`) or `refresh` is empty (`fields: refresh`) |
-| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
-| 500 | `ERR_INTERNAL_SERVER` | Server error |
+- **Token refresh:** the Firebase SDK keeps its own refresh token on the device and fetches a new ID token before
+  the old one expires. Always ask the SDK for the current ID token right before a request (`getIDToken()`); never
+  store it yourself. If a request returns `ERR_INVALID_TOKEN`, ask the SDK for a **force-refreshed** token
+  (`getIDTokenForcingRefresh(true)` on iOS) and retry once. Retry **only once**: a second `ERR_INVALID_TOKEN`
+  means the Firebase session itself is no longer valid, so sign out instead of retrying again.
+- **Logout:** sign out with the Firebase SDK (`Auth.auth().signOut()` on iOS) and clear local data as needed. The
+  server keeps no session to end. The user's account and data stay on the server until they sign in again.
+- **Signing out of all devices** is not supported by the server. An ID token that was already issued stays valid
+  until it expires (up to 1 hour).
 
 #### Delete Account
 **Path:** `DELETE /api/auth/account`
-**Auth:** access token
+**Auth:** Firebase ID token
 
-Permanently deletes the user's account and all of its data (settings, weight logs, food logs, exercise logs, refresh
-tokens). This cannot be undone. Deleting an account that is already gone still succeeds, so this is safe to retry.
+Permanently deletes the user's account and all of its data (settings, weight logs, food logs, exercise logs) and
+their Firebase user. This cannot be undone.
+
+For users who signed in with Apple, the app must also revoke the Apple token (through the Firebase SDK, which needs a
+fresh Sign in with Apple) as part of the delete flow; the server does not do this.
 
 **Request Body:** none.
 
@@ -232,11 +202,18 @@ tokens). This cannot be undone. Deleting an account that is already gone still s
 ```text
 Success
 ```
+The server deletes its own data first and the Firebase user last, in one transaction: if deleting the Firebase user
+fails, the server's data is restored and the request returns `500`, so **nothing** has been deleted and it is safe to
+retry.
+
+After a successful delete, the same Firebase token gets `ERR_SESSION_OVER` on every endpoint, including this one. A
+client retrying a delete that already went through should treat `ERR_SESSION_OVER` as "already deleted".
+
 **Errors:**
 | Status | Code | When |
 |--------|------|------|
-| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
-| 500 | `ERR_INTERNAL_SERVER` | Server error |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token, or the account is already gone |
+| 500 | `ERR_INTERNAL_SERVER` | Server or Firebase error. Nothing was deleted; safe to retry. |
 
 ---
 
@@ -258,7 +235,7 @@ Success
 
 #### Egress Sync Settings
 **Path:** `PUT /api/v1/settings/sync`
-**Auth:** access token
+**Auth:** Firebase ID token
 
 Pushes the device's settings. They are saved only if `updated_at` is newer than the server's copy.
 
@@ -284,12 +261,12 @@ Pushes the device's settings. They are saved only if `updated_at` is newer than 
 |--------|------|------|
 | 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON |
 | 401 | `ERR_SESSION_OVER` | The account no longer exists |
-| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token |
 | 500 | `ERR_INTERNAL_SERVER` | Server error |
 
 #### Ingress Sync Settings
 **Path:** `GET /api/v1/settings/sync?last_synced_at=<RFC 3339 timestamp>`
-**Auth:** access token
+**Auth:** Firebase ID token
 
 Returns the server's settings if they changed after `last_synced_at` (or always, if `last_synced_at` is omitted).
 
@@ -303,7 +280,7 @@ Returns the server's settings if they changed after `last_synced_at` (or always,
 | Status | Code | When |
 |--------|------|------|
 | 401 | `ERR_SESSION_OVER` | The account no longer exists |
-| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token |
 | 500 | `ERR_INTERNAL_SERVER` | Server error |
 
 ---
@@ -328,7 +305,7 @@ date's log (if newer) rather than creating a second one.
 
 #### Egress Sync Weight Logs
 **Path:** `PUT /api/v1/weight-logs/sync`
-**Auth:** access token
+**Auth:** Firebase ID token
 
 Pushes weight log changes. Each log is judged on its own (see [Sync model](#sync-model)).
 **Limited to 200 logs per request**; split larger batches into multiple requests.
@@ -355,14 +332,14 @@ Pushes weight log changes. Each log is judged on its own (see [Sync model](#sync
 |--------|------|------|
 | 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON, or `weight_logs` is missing/`null` |
 | 400 | `ERR_MAX_BATCH_SIZE` | More than 200 logs in one request |
-| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token |
 | 500 | `ERR_INTERNAL_SERVER` | Server error not tied to a specific log |
 
 If the account no longer exists, each log fails and comes back in `failed_logs`.
 
 #### Ingress Sync Weight Logs
 **Path:** `GET /api/v1/weight-logs/sync?last_synced_at=<RFC 3339 timestamp>`
-**Auth:** access token
+**Auth:** Firebase ID token
 
 Returns every weight log (including soft-deleted ones) with `updated_at` after `last_synced_at`, or all of them if
 `last_synced_at` is omitted.
@@ -376,7 +353,7 @@ Returns every weight log (including soft-deleted ones) with `updated_at` after `
 **Errors:**
 | Status | Code | When |
 |--------|------|------|
-| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token |
 | 500 | `ERR_INTERNAL_SERVER` | Server error |
 
 ---
@@ -417,7 +394,7 @@ Note the exact key spellings: `Time` (capital T) and `food-log_entries` (hyphen,
 
 #### Egress Sync Food Logs
 **Path:** `PUT /api/v1/food-logs/sync`
-**Auth:** access token
+**Auth:** Firebase ID token
 
 Pushes food log changes. Each food log and its entries are saved as one unit; read
 [Food and exercise logs sync as one unit](#food-and-exercise-logs-sync-as-one-unit) for the rules the client must follow.
@@ -445,12 +422,12 @@ Pushes food log changes. Each food log and its entries are saved as one unit; re
 |--------|------|------|
 | 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON, or `food_logs` is missing/`null` |
 | 401 | `ERR_SESSION_OVER` | The account no longer exists |
-| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token |
 | 500 | `ERR_INTERNAL_SERVER` | Server error not tied to a specific log |
 
 #### Ingress Sync Food Logs
 **Path:** `GET /api/v1/food-logs/sync?last_synced_at=<RFC 3339 timestamp>`
-**Auth:** access token
+**Auth:** Firebase ID token
 
 Returns every food log (including soft-deleted ones), with all of its entries, whose `food_log.updated_at` is after
 `last_synced_at`, or all of them if `last_synced_at` is omitted.
@@ -464,7 +441,7 @@ Returns every food log (including soft-deleted ones), with all of its entries, w
 **Errors:**
 | Status | Code | When |
 |--------|------|------|
-| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token |
 | 500 | `ERR_INTERNAL_SERVER` | Server error |
 
 ---
@@ -497,7 +474,7 @@ Returns every food log (including soft-deleted ones), with all of its entries, w
 
 #### Egress Sync Exercise Logs
 **Path:** `PUT /api/v1/exercise-logs/sync`
-**Auth:** access token
+**Auth:** Firebase ID token
 
 Pushes exercise log changes. Each exercise log and its sets are saved as one unit; read
 [Food and exercise logs sync as one unit](#food-and-exercise-logs-sync-as-one-unit) for the rules the client must follow.
@@ -525,12 +502,12 @@ Pushes exercise log changes. Each exercise log and its sets are saved as one uni
 |--------|------|------|
 | 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON, or `exercise_logs` is missing/`null` |
 | 401 | `ERR_SESSION_OVER` | The account no longer exists |
-| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token |
 | 500 | `ERR_INTERNAL_SERVER` | Server error not tied to a specific log |
 
 #### Ingress Sync Exercise Logs
 **Path:** `GET /api/v1/exercise-logs/sync?last_synced_at=<RFC 3339 timestamp>`
-**Auth:** access token
+**Auth:** Firebase ID token
 
 Returns every exercise log (including soft-deleted ones), with all of its sets, whose `exercise_log.updated_at` is
 after `last_synced_at`, or all of them if `last_synced_at` is omitted.
@@ -544,7 +521,7 @@ after `last_synced_at`, or all of them if `last_synced_at` is omitted.
 **Errors:**
 | Status | Code | When |
 |--------|------|------|
-| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token |
 | 500 | `ERR_INTERNAL_SERVER` | Server error |
 
 ---
@@ -554,7 +531,7 @@ Both endpoints send the image to an AI model and can take several seconds. The s
 
 #### Analyze Food
 **Path:** `POST /api/v1/analyze/food`
-**Auth:** access token
+**Auth:** Firebase ID token
 
 Estimates the nutrition of the food in a photo.
 
@@ -583,13 +560,13 @@ estimate). Omit it or send an empty string if there's nothing to add.
 |--------|------|------|
 | 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON, `picture` is not valid base64, or no picture was sent |
 | 400 | `ERR_NO_FOOD` | No food was found in the image |
-| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token |
 | 503 | `ERR_LLM_PROVIDER` | The AI provider failed, timed out, or is unavailable |
 | 500 | `ERR_INTERNAL_SERVER` | Server error |
 
 #### Analyze Label
 **Path:** `POST /api/v1/analyze/label`
-**Auth:** access token
+**Auth:** Firebase ID token
 
 Reads the nutrition values from a photo of a nutrition label.
 
@@ -617,7 +594,7 @@ Reads the nutrition values from a photo of a nutrition label.
 |--------|------|------|
 | 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON, `picture` is not valid base64, or no picture was sent |
 | 400 | `ERR_NO_LABEL` | No nutrition label was found in the image |
-| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid access token |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token |
 | 503 | `ERR_LLM_PROVIDER` | The AI provider failed, timed out, or is unavailable |
 | 500 | `ERR_INTERNAL_SERVER` | Server error |
 

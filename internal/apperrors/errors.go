@@ -19,10 +19,7 @@ var (
 	Unauthorized         = ErrorKind{Code: "ERR_UNAUTHORIZED", Status: http.StatusUnauthorized, Message: "Please sign in"}
 	InvalidToken         = ErrorKind{Code: "ERR_INVALID_TOKEN", Status: http.StatusUnauthorized, Message: "Your login token is not valid"}
 	MalformedAuthHeader  = ErrorKind{Code: "ERR_AUTH_HEADER_MALFORMED", Status: http.StatusBadRequest, Message: "Malformed auth header. Should be Authorization: Bearer <token>"}
-	BadLoginRequest      = ErrorKind{Code: "ERR_LOGIN_REQUEST", Status: http.StatusBadRequest, Message: "Sign in didn't work. Please try again!"}
-	AuthUnavailable      = ErrorKind{Code: "ERR_AUTH_UNAVAILABLE", Status: http.StatusServiceUnavailable, Message: "Service currently unavailable. Please wait a few minutes!"}
 	SessionOver          = ErrorKind{Code: "ERR_SESSION_OVER", Status: http.StatusUnauthorized, Message: "Your current session already ended. Please sign in again!"}
-	InvalidProvider      = ErrorKind{Code: "ERR_INVALID_PROVIDER", Status: http.StatusBadRequest, Message: "The login provider selected is not valid"}
 	MaxBatchSizeExceeded = ErrorKind{Code: "ERR_MAX_BATCH_SIZE", Status: http.StatusBadRequest, Message: "Exceeded match batch size. Refer to documentation."}
 	NoFoodFound          = ErrorKind{Code: "ERR_NO_FOOD", Status: http.StatusBadRequest, Message: "There was no food found in the image."}
 	NoLabelFound         = ErrorKind{Code: "ERR_NO_LABEL", Status: http.StatusBadRequest, Message: "There was no label found in the image."}

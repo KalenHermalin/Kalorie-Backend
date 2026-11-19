@@ -3,50 +3,31 @@ package models
 import (
 	"context"
 	"database/sql"
-	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	"firebase.google.com/go/v4/auth"
 )
 
 type AuthPayload struct {
-	ID       string `json:"id"`
-	Email    string `json:"email"`
-	Provider string `json:"provider"`
+	ID    string  `json:"id"`
+	Email *string `json:"email"`
 }
 type AuthResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	ExpiresIn    int    `json:"expires_in"` // Standard naming convention
-	// Explicit lowercase tag: without one, an untagged exported field
-	// serializes using its literal Go name ("User", capitalized),
-	// breaking the snake_case convention every other field here follows -
-	// and silently, since it's still valid JSON, just not what a client
-	// decoding a `user` field would ever see.
-	User *User `json:"user"`
-}
-type AuthProvider interface {
-	GetProviderName() string
-	HandleCodeExchangeWithVerifier(ctx context.Context, code, verifier string) (*AuthPayload, error)
-	GetPlatform() string
+	UserId string `json:"user_id"`
 }
 
+type AuthClient interface {
+	VerifyIDToken(ctx context.Context, idToken string) (*auth.Token, error)
+	DeleteUser(ctx context.Context, uid string) error
+	VerifyIDTokenAndCheckRevoked(ctx context.Context, idToken string) (*auth.Token, error)
+}
+type AuthLookUp interface {
+	// Returns users UUID as string or an error
+	FirebaseToUUID(ctx context.Context, firebaseID string) (string, error)
+}
 type AuthRepository interface {
 	UpsertUserWithAuth(ctx context.Context, tx *sql.Tx, payload *AuthPayload) (*User, error)
-	DeleteRefreshToken(ctx context.Context, tx *sql.Tx, token string, userId string) error
-	SaveRefreshToken(ctx context.Context, tx *sql.Tx, refresh string, userId string, expiresAt time.Time) error
-	FindRefreshToken(ctx context.Context, tx *sql.Tx, refresh string) (*User, error)
 	DeleteUser(ctx context.Context, tx *sql.Tx, userID string) error
+	LookupFirebaseIdToUserId(ctx context.Context, firebaseID string) (string, error)
+	LookupUserIdToFirebase(ctx context.Context, userid string) (string, error)
 	WithTx(ctx context.Context, fn func(*sql.Tx) error) error
-}
-type CustomClaimsAccess struct {
-	UserID string `json:"sub"`
-	Email  string `json:"email"`
-	// Future-proofing: add a field for subscription status
-	IsPremium bool `json:"is_premium"`
-	jwt.RegisteredClaims
-}
-
-type CustomClaimsRefresh struct {
-	UserID string `json:"sub"`
-	jwt.RegisteredClaims
 }
