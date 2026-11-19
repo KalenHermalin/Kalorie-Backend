@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log"
 	"main/internal/models"
 	"testing"
@@ -176,6 +177,161 @@ func TestUpsertUserWithAuth(t *testing.T) {
 			t.Error("Expected same user ID for duplicate login, but got a new one")
 		}
 		return nil
+	})
+
+}
+
+func TestFirebaseIdLookup(t *testing.T) {
+	// Start a transaction to keep the test "atomic"
+	store := NewPostgressAuthStore(testDB) // Pass the transaction as the DB
+	clearTables(t)
+	defer clearTables(t)
+	email := "kalen@laurier.ca"
+	payload := &models.AuthPayload{
+		Email: &email,
+		ID:    "12345",
+	}
+	email2 := "hermalin@laurier.ca"
+
+	payload2 := &models.AuthPayload{
+		Email: &email2,
+		ID:    "56789",
+	}
+	var user *models.User
+	t.Run("FirebaselookupSuccess", func(t *testing.T) {
+		store.WithTx(context.Background(), func(tx *sql.Tx) error {
+			var err error
+			user, err = store.UpsertUserWithAuth(context.Background(), tx, payload)
+			if err != nil {
+				t.Fatalf("Failed to insert new user: %v", err)
+			}
+
+			if payload.Email != nil && user.Email != nil && *user.Email != *payload.Email {
+				t.Errorf("Expected email %s, got %s", *payload.Email, *user.Email)
+			}
+			_, err = store.UpsertUserWithAuth(context.Background(), tx, payload2)
+			if err != nil {
+				t.Fatalf("Failed to insert new user2: %v", err)
+			}
+
+			return nil
+
+		})
+
+		user2, err := store.LookupFirebaseIdToUserId(context.Background(), payload.ID)
+		if err != nil {
+			t.Fatalf("Error looking up firebase id: %v", err)
+		}
+
+		if user.ID != user2 {
+			t.Error("Expected same user ID for firebase id lookup, but got a new one")
+		}
+	})
+
+	t.Run("FirebaselookupFailure", func(t *testing.T) {
+		store.WithTx(context.Background(), func(tx *sql.Tx) error {
+			var err error
+			user, err = store.UpsertUserWithAuth(context.Background(), tx, payload)
+			if err != nil {
+				t.Fatalf("Failed to insert new user: %v", err)
+			}
+
+			if payload.Email != nil && user.Email != nil && *user.Email != *payload.Email {
+				t.Errorf("Expected email %s, got %s", *payload.Email, *user.Email)
+			}
+			_, err = store.UpsertUserWithAuth(context.Background(), tx, payload2)
+			if err != nil {
+				t.Fatalf("Failed to insert new user2: %v", err)
+			}
+
+			return nil
+
+		})
+
+		_, err := store.LookupFirebaseIdToUserId(context.Background(), "asds")
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				t.Logf("failed successfully, got error: %v", err)
+				return
+			}
+			t.Errorf("Failed badly, wrong error: %v", err)
+		}
+		t.Errorf("Failed, no error return even when there should be")
+
+	})
+
+}
+
+func TestUserIdlookup(t *testing.T) {
+	// Start a transaction to keep the test "atomic"
+	store := NewPostgressAuthStore(testDB) // Pass the transaction as the DB
+	clearTables(t)
+	defer clearTables(t)
+	email := "kalen@laurier.ca"
+	payload := &models.AuthPayload{
+		Email: &email,
+		ID:    "12345",
+	}
+	email2 := "hermalin@laurier.ca"
+
+	payload2 := &models.AuthPayload{
+		Email: &email2,
+		ID:    "56789",
+	}
+	var user *models.User
+	t.Run("UseridlookupSuccess", func(t *testing.T) {
+		store.WithTx(context.Background(), func(tx *sql.Tx) error {
+			var err error
+			user, err = store.UpsertUserWithAuth(context.Background(), tx, payload)
+			if err != nil {
+				t.Fatalf("Failed to insert new user: %v", err)
+			}
+
+			if payload.Email != nil && user.Email != nil && *user.Email != *payload.Email {
+				t.Errorf("Expected email %s, got %s", *payload.Email, *user.Email)
+			}
+			_, err = store.UpsertUserWithAuth(context.Background(), tx, payload2)
+			if err != nil {
+				t.Fatalf("Failed to insert new user2: %v", err)
+			}
+			return nil
+
+		})
+
+		user2, err := store.LookupUserIdToFirebase(context.Background(), user.ID)
+		if err != nil {
+			t.Fatalf("Error looking up user id: %v", err)
+		}
+
+		if payload.ID != user2 {
+			t.Error("Expected same firebase ID for userid id lookup, but got a new one")
+		}
+	})
+
+	t.Run("UseridlookupFailure", func(t *testing.T) {
+		store.WithTx(context.Background(), func(tx *sql.Tx) error {
+			var err error
+			user, err = store.UpsertUserWithAuth(context.Background(), tx, payload)
+			if err != nil {
+				t.Fatalf("Failed to insert new user: %v", err)
+			}
+
+			if payload.Email != nil && user.Email != nil && *user.Email != *payload.Email {
+				t.Errorf("Expected email %s, got %s", *payload.Email, *user.Email)
+			}
+			return nil
+
+		})
+
+		_, err := store.LookupUserIdToFirebase(context.Background(), "4be5c100-c14c-42d3-9a27-9dcff3adbaa7")
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				t.Logf("failed successfully, got error: %v", err)
+				return
+			}
+			t.Errorf("Failed badly, wrong error: %v", err)
+		}
+		t.Errorf("Failed, no error return even when there should be")
 	})
 
 }

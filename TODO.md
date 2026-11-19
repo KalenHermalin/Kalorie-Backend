@@ -11,6 +11,7 @@
 
 - [ ] Reset local, test, staging and production databases after rewriting migrations
 - [ ] Treat Firebase "user not found" as success when deleting an account
+- [ ] Return 503 instead of `ERR_INVALID_TOKEN` when Firebase is unreachable during token verification
 - [ ] Revoke Apple token on account deletion (iOS, needs fresh Apple sign-in)
 - [ ] Decide where `isPremium` comes from (Firebase custom claim or database)
 - [ ] Switch iOS app sign-in to the Firebase SDK

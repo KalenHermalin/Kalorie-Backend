@@ -71,7 +71,7 @@ func (as *AuthService) UUIDToFirebase(ctx context.Context, UUID string) (string,
 }
 func (as *AuthService) SignIn(ctx context.Context, firebaseToken string) (*models.AuthResponse, error) {
 	ctx2, cancel := context.WithTimeout(ctx, time.Second*2)
-	token, err := as.client.VerifyIDToken(ctx2, firebaseToken)
+	token, err := as.client.VerifyIDTokenAndCheckRevoked(ctx2, firebaseToken)
 	if err != nil {
 		cancel()
 		return nil, apperrors.New(apperrors.InvalidToken, err)

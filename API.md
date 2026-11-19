@@ -40,8 +40,9 @@ The following endpoints do **not** require the `Authorization` header:
 |--------|------|------|---------------------------|
 | 401 | `ERR_UNAUTHORIZED` | No `Authorization` header | Send the Firebase ID token |
 | 400 | `ERR_AUTH_HEADER_MALFORMED` | Header isn't `Bearer <token>` | Fix the header format |
-| 401 | `ERR_INVALID_TOKEN` | Firebase ID token expired or invalid | Force-refresh the token in the Firebase SDK, then retry once |
+| 401 | `ERR_INVALID_TOKEN` | Firebase ID token expired or invalid | Force-refresh the token in the Firebase SDK, then retry once. If the retry also returns `ERR_INVALID_TOKEN`, sign out of Firebase |
 | 401 | `ERR_SESSION_OVER` | No account on the server for this Firebase user (e.g. the account was deleted, or `/api/auth/login` was never called) | Sign out of Firebase and sign in again |
+| 500 | `ERR_INTERNAL_SERVER` | The server couldn't look up the account (e.g. database unavailable) | Retry later. **Do not** sign the user out: this is not an auth failure |
 
 ---
 
@@ -136,9 +137,13 @@ Each log in an egress request is saved in its own transaction, so one failing lo
 **Path:** `POST /api/auth/login`
 **Auth:** none (Firebase ID token in body)
 
-Call this once after every Firebase sign-in. It registers the user on the first call and is a no-op login after
-that, so it is safe to call repeatedly. Until it has been called, every other authenticated endpoint returns
-`ERR_SESSION_OVER` for this user.
+Call this once after every Firebase sign-in. It registers the user on the first call; after that it only refreshes
+the stored email, so it is safe to call repeatedly. Until it has been called, every other authenticated endpoint
+returns `ERR_SESSION_OVER` for this user.
+
+Unlike the other endpoints, sign-in also asks Firebase whether the token has been **revoked** or the Firebase user
+was **disabled or deleted**. Such a token is rejected with `ERR_INVALID_TOKEN`, so a deleted account can't be
+recreated by signing in with an old token.
 
 **Request Body:**
 ```JSON
@@ -164,7 +169,7 @@ that, so it is safe to call repeatedly. Until it has been called, every other au
 | Status | Code | When |
 |--------|------|------|
 | 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON (`fields: body`), or `token_id` is empty (`fields: token_id`) |
-| 401 | `ERR_INVALID_TOKEN` | The Firebase ID token is expired or invalid. Force-refresh it and retry. |
+| 401 | `ERR_INVALID_TOKEN` | The Firebase ID token is expired, invalid or revoked, or the Firebase user was disabled or deleted. Force-refresh it and retry once; if it fails again, sign out of Firebase. |
 | 500 | `ERR_INTERNAL_SERVER` | Server error |
 
 #### Logout and token refresh (app only)
@@ -174,7 +179,8 @@ Firebase SDK:
 - **Token refresh:** the Firebase SDK keeps its own refresh token on the device and fetches a new ID token before
   the old one expires. Always ask the SDK for the current ID token right before a request (`getIDToken()`); never
   store it yourself. If a request returns `ERR_INVALID_TOKEN`, ask the SDK for a **force-refreshed** token
-  (`getIDTokenForcingRefresh(true)` on iOS) and retry once.
+  (`getIDTokenForcingRefresh(true)` on iOS) and retry once. Retry **only once**: a second `ERR_INVALID_TOKEN`
+  means the Firebase session itself is no longer valid, so sign out instead of retrying again.
 - **Logout:** sign out with the Firebase SDK (`Auth.auth().signOut()` on iOS) and clear local data as needed. The
   server keeps no session to end. The user's account and data stay on the server until they sign in again.
 - **Signing out of all devices** is not supported by the server. An ID token that was already issued stays valid
@@ -196,6 +202,10 @@ fresh Sign in with Apple) as part of the delete flow; the server does not do thi
 ```text
 Success
 ```
+The server deletes its own data first and the Firebase user last, in one transaction: if deleting the Firebase user
+fails, the server's data is restored and the request returns `500`, so **nothing** has been deleted and it is safe to
+retry.
+
 After a successful delete, the same Firebase token gets `ERR_SESSION_OVER` on every endpoint, including this one. A
 client retrying a delete that already went through should treat `ERR_SESSION_OVER` as "already deleted".
 
@@ -203,7 +213,7 @@ client retrying a delete that already went through should treat `ERR_SESSION_OVE
 | Status | Code | When |
 |--------|------|------|
 | 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token, or the account is already gone |
-| 500 | `ERR_INTERNAL_SERVER` | Server error |
+| 500 | `ERR_INTERNAL_SERVER` | Server or Firebase error. Nothing was deleted; safe to retry. |
 
 ---
 

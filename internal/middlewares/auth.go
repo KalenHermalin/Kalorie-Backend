@@ -20,7 +20,7 @@ const (
 	IsPremiumKey contextKey = "isPremium"
 )
 
-func Auth(client *auth.Client, userLookup models.AuthLookUp) func(http.Handler) http.Handler {
+func Auth(client models.AuthClient, userLookup models.AuthLookUp) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// 1. Get the Authorization header

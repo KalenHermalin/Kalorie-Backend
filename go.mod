@@ -5,7 +5,6 @@ go 1.26.0
 require (
 	firebase.google.com/go/v4 v4.23.0
 	github.com/go-chi/chi/v5 v5.2.4
-	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/lib/pq v1.11.1
 	github.com/pressly/goose/v3 v3.27.0
 	github.com/stretchr/testify v1.12.1

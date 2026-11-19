@@ -18,6 +18,7 @@ type AuthResponse struct {
 type AuthClient interface {
 	VerifyIDToken(ctx context.Context, idToken string) (*auth.Token, error)
 	DeleteUser(ctx context.Context, uid string) error
+	VerifyIDTokenAndCheckRevoked(ctx context.Context, idToken string) (*auth.Token, error)
 }
 type AuthLookUp interface {
 	// Returns users UUID as string or an error

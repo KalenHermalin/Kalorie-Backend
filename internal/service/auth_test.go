@@ -61,6 +61,21 @@ type MockAuthClient struct {
 
 	deletedUid string // uid DeleteUser was called with, "" if never called
 }
+
+// VerifyIDTokenAndCheckRevoked implements [models.AuthClient].
+func (m *MockAuthClient) VerifyIDTokenAndCheckRevoked(ctx context.Context, idToken string) (*auth.Token, error) {
+	if m.verifyErr != nil {
+		return nil, m.verifyErr
+	}
+	claims := map[string]interface{}{
+		"email_verified": m.payload.verified,
+	}
+	if m.payload.email != nil {
+		claims["email"] = *m.payload.email
+	}
+	return &auth.Token{UID: "234", Claims: claims}, nil
+}
+
 type mockFirebaseUser struct {
 	email    *string // nil means the token has no email claim
 	verified bool

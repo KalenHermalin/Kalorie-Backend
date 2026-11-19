@@ -58,7 +58,7 @@ func main() {
 
 	firebaseClient, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {
-		slog.Error("Error Initializng the firebase client")
+		slog.Error("Error Initializng the firebase client", "error", err)
 		os.Exit(1)
 	}
 	authClient, err := firebaseClient.Auth(context.Background())
