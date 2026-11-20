@@ -1,6 +1,6 @@
 # Stage 1: Build
 # UPDATED: Using Go 1.26 for the build environment
-FROM golang:1.25-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 # Install certificates so Go can verify Google/GitHub SSL connections
 RUN apk add --no-cache git ca-certificates
