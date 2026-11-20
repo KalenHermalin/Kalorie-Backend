@@ -3,11 +3,28 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Kalorie Privacy Policy</title>
+<title>Privacy Policy | Kalorie</title>
 <meta name="description" content="How Kalorie collects, uses, and protects your data, including food photos, health data, and purchase information." />
 <link rel="canonical" href="https://kalorie.fit/privacy.html" />
 <meta name="robots" content="index, follow" />
 <link rel="icon" href="./assets/kalorie-mark.png" />
+<link rel="apple-touch-icon" href="./assets/kalorie-mark.png" />
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0a0a0b" media="(prefers-color-scheme: dark)" />
+
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Kalorie" />
+<meta property="og:url" content="https://kalorie.fit/privacy.html" />
+<meta property="og:title" content="Privacy Policy | Kalorie" />
+<meta property="og:description" content="How Kalorie collects, uses, and protects your data, including food photos, health data, and purchase information." />
+<meta property="og:image" content="https://kalorie.fit/assets/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:locale" content="en_US" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="./assets/site.css">
 </head>
@@ -15,8 +32,8 @@
 
   <div class="nav-bar">
     <div class="nav-inner">
-      <a class="brand" href="./index.html">
-        <img src="./assets/kalorie-mark.png" alt="Kalorie">
+      <a class="brand" href="/">
+        <img src="./assets/kalorie-mark.png" alt="Kalorie" width="32" height="32">
         <span>Kalorie</span>
       </a>
       <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" type="button">
@@ -28,7 +45,7 @@
 
   <div class="page-wrap">
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: September 14, 2026</p>
+    <p class="updated">Last updated: November 19, 2026</p>
 
     <p>This Privacy Policy explains what information the Kalorie app ("Kalorie", "we", "us") collects, how it's used, and who it's shared with. Kalorie is a nutrition, workout, and weight tracking app.</p>
 
@@ -38,7 +55,7 @@
         <tr><th>Category</th><th>What &amp; why</th></tr>
         <tr>
           <td>Account info</td>
-          <td>When you sign in with Apple, Google, or GitHub, we receive your name and email address from that provider to create and identify your account.</td>
+          <td>When you sign in with Apple or Google, we receive your name and email address from that provider to create and identify your account. Sign-in is handled by Google Firebase Authentication.</td>
         </tr>
         <tr>
           <td>Health &amp; fitness data</td>
@@ -46,7 +63,15 @@
         </tr>
         <tr>
           <td>Photos</td>
-          <td>Photos you take of food or nutrition labels using the in-app camera are sent to our servers to estimate nutrition information via AI. These photos are not stored &mdash; they are deleted immediately once the analysis is complete.</td>
+          <td>Photos you take of food or nutrition labels using the in-app camera, plus any note you add, are sent to our servers and on to Google&rsquo;s Gemini API to estimate nutrition information. We do not store these photos; they are discarded once the analysis is complete.</td>
+        </tr>
+        <tr>
+          <td>Food and exercise lookups</td>
+          <td>When you scan a barcode, the barcode number is sent to Open Food Facts to look up the product. When you browse exercises, your search terms are sent to ExerciseDB. Food search uses a database built into the app and sends nothing.</td>
+        </tr>
+        <tr>
+          <td>Bug reports</td>
+          <td>If you send a bug report from Settings, your description, an optional screenshot you choose, your device platform and version, and your account ID are delivered to a private Discord channel that only the developer reads.</td>
         </tr>
         <tr>
           <td>Purchase data</td>
@@ -56,12 +81,20 @@
           <td>Advertising data</td>
           <td>Free-tier users may be shown ads via Google AdMob to unlock bonus scans. Google may process device and usage information to serve and measure these ads. We request non-personalized ads where supported.</td>
         </tr>
+        <tr>
+          <td>Website waitlist</td>
+          <td>If you enter your email on kalorie.fit to be notified at launch, we store it only to send that notice.</td>
+        </tr>
       </table>
     </div>
 
     <h2>Who we share data with</h2>
     <ul>
-      <li><strong style="color:var(--text);">Apple, Google, GitHub</strong> &mdash; for sign-in authentication.</li>
+      <li><strong style="color:var(--text);">Apple and Google (Firebase Authentication)</strong> &mdash; for sign-in.</li>
+      <li><strong style="color:var(--text);">Google (Gemini API)</strong> &mdash; to estimate nutrition from food and label photos.</li>
+      <li><strong style="color:var(--text);">Open Food Facts</strong> &mdash; to look up scanned barcodes.</li>
+      <li><strong style="color:var(--text);">ExerciseDB</strong> &mdash; for the exercise catalog.</li>
+      <li><strong style="color:var(--text);">Discord</strong> &mdash; to deliver bug reports you choose to send.</li>
       <li><strong style="color:var(--text);">RevenueCat</strong> &mdash; to manage subscriptions and entitlements.</li>
       <li><strong style="color:var(--text);">Google AdMob</strong> &mdash; to serve rewarded ads to free-tier users.</li>
       <li>We do not sell your personal information.</li>
@@ -70,6 +103,7 @@
     <h2>Your choices</h2>
     <ul>
       <li>Most of your data lives locally on your device unless you're a Premium subscriber using cloud sync.</li>
+      <li>Kalorie gives nutrition estimates for general wellness tracking. It is not medical advice.</li>
       <li>You can permanently delete your account and all associated data at any time from Settings &rarr; Account &rarr; Delete Account in the app.</li>
       <li>You can manage or cancel your subscription anytime from your Apple ID settings.</li>
     </ul>

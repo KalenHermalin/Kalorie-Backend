@@ -3,11 +3,28 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Kalorie Support</title>
-<meta name="description" content="Get help with Kalorie — subscriptions, restoring purchases, AI scan limits, and account deletion." />
+<title>Kalorie Support: Help &amp; FAQ</title>
+<meta name="description" content="Get help with Kalorie: signing in, logging food and workouts, AI scan limits, subscriptions, restoring purchases, and deleting your account." />
 <link rel="canonical" href="https://kalorie.fit/support.html" />
 <meta name="robots" content="index, follow" />
 <link rel="icon" href="./assets/kalorie-mark.png" />
+<link rel="apple-touch-icon" href="./assets/kalorie-mark.png" />
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0a0a0b" media="(prefers-color-scheme: dark)" />
+
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Kalorie" />
+<meta property="og:url" content="https://kalorie.fit/support.html" />
+<meta property="og:title" content="Kalorie Support: Help &amp; FAQ" />
+<meta property="og:description" content="Get help with Kalorie: signing in, logging food and workouts, AI scan limits, subscriptions, restoring purchases, and deleting your account." />
+<meta property="og:image" content="https://kalorie.fit/assets/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:locale" content="en_US" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="./assets/site.css">
 </head>
@@ -15,8 +32,8 @@
 
   <div class="nav-bar">
     <div class="nav-inner">
-      <a class="brand" href="./index.html">
-        <img src="./assets/kalorie-mark.png" alt="Kalorie">
+      <a class="brand" href="/">
+        <img src="./assets/kalorie-mark.png" alt="Kalorie" width="32" height="32">
         <span>Kalorie</span>
       </a>
       <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" type="button">
@@ -32,8 +49,23 @@
 
     <div class="card">
       <h2>Contact us</h2>
-      <p>Email <a href="mailto:support@kalorie.fit">support@kalorie.fit</a> for bug reports, account issues, billing/subscription questions, or feature requests. We typically reply within a few days.</p>
+      <p>Email <a href="mailto:support@kalorie.fit">support@kalorie.fit</a> for account issues, billing/subscription questions, or feature requests. To report a bug, you can also use Settings &rarr; Support &rarr; Report a Bug in the app and attach a screenshot. We typically reply within a few days.</p>
     </div>
+
+    <details class="faq">
+      <summary>How do I sign in?</summary>
+      <p>Kalorie uses Sign in with Apple or Google, so there's no separate password. The first time you sign in, your account is created automatically.</p>
+    </details>
+
+    <details class="faq">
+      <summary>How do I log food?</summary>
+      <p>Tap the <strong>+</strong> button. <strong>Search</strong> finds foods in the built-in USDA database, and the barcode button there scans packaged products. <strong>Analyze</strong> opens the camera: photograph a meal, or switch to <strong>Label</strong> to read a nutrition label. AI estimates the calories and macros, and you can edit them before adding to your log.</p>
+    </details>
+
+    <details class="faq">
+      <summary>How do I track workouts and body weight?</summary>
+      <p>Open the <strong>Progress</strong> tab. Use <strong>Add Weight Log</strong> to record your weight, and <strong>Search Workouts</strong> to find an exercise, log your sets (weight &times; reps) and see your strength over time. Tap the heart on an exercise to keep it on your Progress tab.</p>
+    </details>
 
     <details class="faq">
       <summary>How do I cancel my Kalorie Premium subscription?</summary>
@@ -42,12 +74,12 @@
 
     <details class="faq">
       <summary>How do I restore a purchase on a new device?</summary>
-      <p>Open Kalorie, go to the Premium screen, and tap "Restore purchases." Make sure you're signed in with the same account you originally subscribed with.</p>
+      <p>Open Kalorie, tap your avatar to open Settings, and under Subscription tap "Restore purchases." Make sure you're signed in to the same Apple ID you subscribed with.</p>
     </details>
 
     <details class="faq">
       <summary>Why do I have a daily limit on AI food scans?</summary>
-      <p>Free accounts get 5 AI scans per day (10/day with Premium). You can also watch a short rewarded ad to unlock extra scans on the free plan.</p>
+      <p>Each scan runs an AI model, which costs us money. Free accounts get 5 AI scans per day, and you can watch a short ad for 1 extra scan, up to 3 times a day. Kalorie Premium gives you 10 scans per day with no ads. Food search and barcode scanning are unlimited.</p>
     </details>
 
     <details class="faq">

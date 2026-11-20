@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Kalorie: AI Calorie Tracker &amp; Workout Log for iPhone</title>
-<meta name="description" content="Kalorie is an AI-powered calorie tracker and workout log for iPhone. Snap a photo of your meal and Kalorie estimates calories and macros instantly — plus barcode scanning, weight tracking, and set-by-set workout logging." />
+<meta name="description" content="Kalorie is an AI calorie tracker and workout log for iPhone. Snap a meal photo to estimate calories and macros, scan barcodes, and track weight and lifts." />
 <link rel="canonical" href="https://kalorie.fit/" />
 <meta name="robots" content="index, follow" />
 
@@ -13,12 +13,17 @@
 <meta property="og:url" content="https://kalorie.fit/" />
 <meta property="og:title" content="Kalorie: AI Calorie Tracker &amp; Workout Log for iPhone" />
 <meta property="og:description" content="Snap a photo of your meal and let AI estimate the calories and macros — no manual logging. Track workouts, weight, and nutrition together in one app." />
-<meta property="og:image" content="https://kalorie.fit/assets/kalorie-mark.png" />
+<meta property="og:image" content="https://kalorie.fit/assets/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Kalorie, an AI calorie tracker and workout log, showing today's calorie and macro rings" />
+<meta property="og:locale" content="en_US" />
 
-<meta name="twitter:card" content="summary" />
+<meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="Kalorie: AI Calorie Tracker &amp; Workout Log for iPhone" />
 <meta name="twitter:description" content="Snap a photo of your meal and let AI estimate the calories and macros — no manual logging. Track workouts, weight, and nutrition together in one app." />
-<meta name="twitter:image" content="https://kalorie.fit/assets/kalorie-mark.png" />
+<meta name="twitter:image" content="https://kalorie.fit/assets/og-image.png" />
+<meta name="twitter:image:alt" content="Kalorie, an AI calorie tracker and workout log, showing today's calorie and macro rings" />
 
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content="#0a0a0b" media="(prefers-color-scheme: dark)" />
@@ -32,18 +37,41 @@
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "Kalorie",
-  "url": "https://kalorie.fit/",
-  "applicationCategory": "HealthApplication",
-  "operatingSystem": "iOS",
-  "description": "AI-powered calorie tracker and workout log for iPhone. Snap a photo of your meal and Kalorie estimates calories and macros instantly.",
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "USD",
-    "description": "Free to download, with an optional Kalorie Premium subscription."
-  }
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://kalorie.fit/#website",
+      "name": "Kalorie",
+      "url": "https://kalorie.fit/",
+      "inLanguage": "en-US"
+    },
+    {
+      "@type": "MobileApplication",
+      "@id": "https://kalorie.fit/#app",
+      "name": "Kalorie",
+      "url": "https://kalorie.fit/",
+      "image": "https://kalorie.fit/assets/og-image.png",
+      "applicationCategory": "HealthApplication",
+      "applicationSubCategory": "Nutrition & Fitness",
+      "operatingSystem": "iOS",
+      "description": "AI calorie tracker and workout log for iPhone. Snap a photo of your meal and Kalorie estimates calories and macros, then track your weight and strength progress in the same app.",
+      "featureList": [
+        "AI meal photo and nutrition label scanning",
+        "Barcode scanning for packaged foods",
+        "Daily calorie and macro targets",
+        "Set-by-set workout logging",
+        "Body weight and strength progress charts",
+        "Offline logging with cloud sync on Premium"
+      ],
+      "author": { "@type": "Person", "name": "Kalen Hermalin" },
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "description": "Free to download, with an optional Kalorie Premium subscription."
+      }
+    }
+  ]
 }
 </script>
 <script type="application/ld+json">
@@ -192,7 +220,7 @@
   .cal-row .row span { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
   .log-card { background: var(--bg-element); border-radius: 18px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
   .cal-track { height: 6px; border-radius: 999px; background: var(--ring-track); overflow: hidden; }
-  .cal-fill { width: 98%; height: 100%; border-radius: 999px; background: #22c55e; }
+  .cal-fill { width: 83%; height: 100%; border-radius: 999px; background: #22c55e; }
   .log-card .top { display: flex; align-items: flex-start; justify-content: space-between; }
   .log-card .title { font-size: 13px; font-weight: 600; color: var(--text); }
   .log-card .time { font-size: 11px; color: var(--text-secondary); margin-top: 1px; }
@@ -274,7 +302,7 @@
   <div class="nav-bar">
     <div class="nav-inner">
       <div class="brand">
-        <img src="./assets/kalorie-mark.png" alt="Kalorie">
+        <img src="./assets/kalorie-mark.png" alt="Kalorie" width="32" height="32">
         <span>Kalorie</span>
       </div>
       <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" type="button">
@@ -291,7 +319,7 @@
           <span class="pill">NEW</span>
           <span class="label">Launching soon on the App Store</span>
         </div>
-        <h1>Your kitchen and your workouts, in one dashboard.</h1>
+        <h1>The AI calorie tracker for your meals and workouts.</h1>
         <p class="lead">Kalorie is the AI calorie tracker that logs your meals, workouts, and weight together &mdash; snap a photo of your food and let AI estimate the calories and macros, no manual logging required.</p>
         <div class="cta-row">
           <form id="remind-form" class="remind-form" novalidate>
@@ -334,36 +362,36 @@
               <div class="ring-wrap">
                 <svg width="152" height="152" viewBox="0 0 168 168">
                   <circle cx="84" cy="84" r="76" fill="none" stroke="var(--ring-track)" stroke-width="12"></circle>
-                  <circle cx="84" cy="84" r="76" fill="none" stroke="var(--ring-protein)" stroke-width="12" stroke-linecap="round" transform="rotate(-90 84 84)" style="stroke-dasharray:477.52; stroke-dashoffset:22.47;"></circle>
+                  <circle cx="84" cy="84" r="76" fill="none" stroke="var(--ring-protein)" stroke-width="12" stroke-linecap="round" transform="rotate(-90 84 84)" style="stroke-dasharray:477.52; stroke-dashoffset:31.83;"></circle>
                   <circle cx="84" cy="84" r="60" fill="none" stroke="var(--ring-track)" stroke-width="12"></circle>
-                  <circle cx="84" cy="84" r="60" fill="none" stroke="var(--ring-carbs)" stroke-width="12" stroke-linecap="round" transform="rotate(-90 84 84)" style="stroke-dasharray:376.99; stroke-dashoffset:21.54;"></circle>
+                  <circle cx="84" cy="84" r="60" fill="none" stroke="var(--ring-carbs)" stroke-width="12" stroke-linecap="round" transform="rotate(-90 84 84)" style="stroke-dasharray:376.99; stroke-dashoffset:47.98;"></circle>
                   <circle cx="84" cy="84" r="44" fill="none" stroke="var(--ring-track)" stroke-width="12"></circle>
-                  <circle cx="84" cy="84" r="44" fill="none" stroke="var(--ring-fat)" stroke-width="12" stroke-linecap="round" transform="rotate(-90 84 84)" style="stroke-dasharray:276.46; stroke-dashoffset:23.7;"></circle>
+                  <circle cx="84" cy="84" r="44" fill="none" stroke="var(--ring-fat)" stroke-width="12" stroke-linecap="round" transform="rotate(-90 84 84)" style="stroke-dasharray:276.46; stroke-dashoffset:89.00;"></circle>
                 </svg>
               </div>
 
               <div class="macro-grid">
                 <div class="macro-chip">
                   <div class="chip-label" style="color:var(--ring-protein);">PROTEIN</div>
-                  <div class="chip-value">162g</div>
-                  <div class="chip-context">of 170g</div>
+                  <div class="chip-value">154g</div>
+                  <div class="chip-context">of 165g</div>
                 </div>
                 <div class="macro-chip">
                   <div class="chip-label" style="color:var(--ring-carbs);">CARBS</div>
-                  <div class="chip-value">198g</div>
-                  <div class="chip-context">of 210g</div>
+                  <div class="chip-value">192g</div>
+                  <div class="chip-context">of 220g</div>
                 </div>
                 <div class="macro-chip">
                   <div class="chip-label" style="color:var(--ring-fat);">FAT</div>
-                  <div class="chip-value">64g</div>
-                  <div class="chip-context">of 70g</div>
+                  <div class="chip-value">50g</div>
+                  <div class="chip-context">of 73g</div>
                 </div>
               </div>
 
               <div class="home-divider"></div>
 
               <div class="cal-row">
-                <div class="row"><span>Calories</span><span>2,060 / 2,100</span></div>
+                <div class="row"><span>Calories</span><span>1,827 / 2,200</span></div>
                 <div class="cal-track"><div class="cal-fill"></div></div>
               </div>
             </div>
@@ -371,14 +399,14 @@
             <div class="log-card">
               <div class="top">
                 <div>
-                  <div class="title">Grilled Chicken</div>
-                  <div class="time">12:40 PM</div>
+                  <div class="title">Salmon &amp; Asparagus</div>
+                  <div class="time">7:15 PM</div>
                 </div>
                 <div class="delete">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--ring-protein)" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>
                 </div>
               </div>
-              <div class="stats">720 Cals &nbsp;&middot;&nbsp; 62g P &nbsp;&middot;&nbsp; 18g C &nbsp;&middot;&nbsp; 26g F</div>
+              <div class="stats">570 Cals &nbsp;&middot;&nbsp; 42g P &nbsp;&middot;&nbsp; 51g C &nbsp;&middot;&nbsp; 22g F</div>
             </div>
           </div>
         </div>
@@ -398,7 +426,7 @@
           <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
         </div>
         <h3>AI-powered photo scanning</h3>
-        <p>Snap a picture of your meal and let AI estimate ingredients, portions, and macros.</p>
+        <p>Snap a picture of your meal or a nutrition label and let AI estimate ingredients, portions, calories, and macros. Adjust anything before you log it.</p>
       </div>
 
       <div class="feature-card k-feature">
@@ -406,15 +434,15 @@
           <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5v14M7 5v14M11 5v10M15 5v14M18 5v14M21 5v10"></path></svg>
         </div>
         <h3>Smart barcode scanner</h3>
-        <p>Scan grocery items to instantly log accurate nutrition facts.</p>
+        <p>Scan packaged foods to pull up their nutrition facts, or search a built-in database of thousands of foods.</p>
       </div>
 
       <div class="feature-card k-feature">
         <div class="feature-icon">
           <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="5"></circle><path d="M12 3v4M12 17v4M3 12h4M17 12h4"></path></svg>
         </div>
-        <h3>Macro &amp; micronutrient tracking</h3>
-        <p>Track daily protein, carbs, fats, and essential vitamins at a glance.</p>
+        <h3>Calorie &amp; macro tracking</h3>
+        <p>Set daily targets and see calories, protein, carbs, and fat fill up at a glance.</p>
       </div>
 
       <div class="feature-card k-feature">
@@ -430,7 +458,7 @@
           <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17 9 11l4 4 8-8"></path><path d="M15 6h6v6"></path></svg>
         </div>
         <h3>Weight &amp; progress charts</h3>
-        <p>Dynamic charts show your weight trends, calorie intake, and strength progression over time.</p>
+        <p>Charts show your body-weight trend and your strength progress on every exercise over time.</p>
       </div>
 
       <div class="feature-card accent">
