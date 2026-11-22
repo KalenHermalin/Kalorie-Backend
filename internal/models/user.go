@@ -3,6 +3,9 @@ package models
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -80,6 +83,56 @@ type FullFoodLog struct {
 	FoodLogEntries []*FoodLogEntry `json:"food-log_entries"`
 }
 
+type WorkoutTemplate struct {
+	ID        string                      `json:"id"`
+	Name      string                      `json:"name"`
+	Exercises WorkoutTemplateExerciseList `json:"exercises"`
+	CreatedAt time.Time                   `json:"created_at"`
+	UpdatedAt time.Time                   `json:"updated_at"`
+	DeletedAt *time.Time                  `json:"deleted_at"`
+}
+type WorkoutTemplateExercises struct {
+	ExerciseID string `json:"exercise_id"`
+	Sets       uint8  `json:"sets"`
+}
+
+type WorkoutTemplateExerciseList []*WorkoutTemplateExercises
+
+// Value runs when the list is passed as a query argument (Go → Postgres).
+func (l WorkoutTemplateExerciseList) Value() (driver.Value, error) {
+	if l == nil {
+		l = WorkoutTemplateExerciseList{} // store [] instead of JSON null
+	}
+	b, err := json.Marshal(l)
+	if err != nil {
+		return nil, fmt.Errorf("marshal workout template exercises: %w", err)
+	}
+	return string(b), nil // string, not []byte: lib/pq would send []byte as bytea
+}
+
+// Scan runs when you Scan a column into the list (Postgres → Go).
+func (l *WorkoutTemplateExerciseList) Scan(src any) error {
+	var b []byte
+	switch v := src.(type) {
+	case []byte:
+		b = v
+	case string:
+		b = []byte(v)
+	case nil:
+		*l = WorkoutTemplateExerciseList{}
+		return nil
+	default:
+		return fmt.Errorf("scan workout template exercises: unsupported type %T", src)
+	}
+	if err := json.Unmarshal(b, l); err != nil {
+		return fmt.Errorf("unmarshal workout template exercises: %w", err)
+	}
+	if *l == nil { // the column held JSON null
+		*l = WorkoutTemplateExerciseList{}
+	}
+	return nil
+}
+
 type UserRepository interface {
 	UpdateUserSettings(ctx context.Context, tx *sql.Tx, userId string, settings *UserSettings) error
 	GetUserSettings(ctx context.Context, tx *sql.Tx, userId string) (*UserSettings, error)
@@ -98,5 +151,9 @@ type UserRepository interface {
 	UpsertUserFoodLog(ctx context.Context, tx *sql.Tx, userId string, payload *FullFoodLog) error
 	GetUserFoodLogs(ctx context.Context, tx *sql.Tx, userId string) ([]*FullFoodLog, error)
 	GetUserFoodLogById(ctx context.Context, tx *sql.Tx, userId, logId string) (*FullFoodLog, error)
+
+	UpsertUserWorkoutTemplate(ctx context.Context, tx *sql.Tx, userId string, payload *WorkoutTemplate) error
+	GetUserWorkoutTemplateById(ctx context.Context, tx *sql.Tx, userId, templateId string) (*WorkoutTemplate, error)
+	GetUserWorkoutTemplates(ctx context.Context, tx *sql.Tx, userId string) ([]*WorkoutTemplate, error)
 	WithTx(ctx context.Context, fn func(*sql.Tx) error) error
 }

@@ -308,3 +308,77 @@ func (us *UserService) GetUserFoodLogs(ctx context.Context, user_id string, last
 	return newLogs, nil
 
 }
+
+func (us *UserService) UpsertUserWorkoutTemplates(ctx context.Context, userId string, templates []*models.WorkoutTemplate) (newServerLogs []*models.WorkoutTemplate, notSyncedLogs []string, err error) {
+	if templates == nil {
+
+		return nil, nil, apperrors.New(apperrors.BadRequest, fmt.Errorf("no workout templates to sync"))
+	}
+	if len(templates) > MAXBATCHSIZE {
+		return nil, nil, apperrors.New(apperrors.MaxBatchSizeExceeded, nil)
+	}
+	newServerLogs = []*models.WorkoutTemplate{}
+	notSyncedLogs = []string{}
+
+	for _, routine := range templates {
+		var newerLog *models.WorkoutTemplate
+
+		err = us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
+			err := us.userStore.UpsertUserWorkoutTemplate(ctx, tx, userId, routine)
+			if err != nil {
+				if errors.Is(err, store.ErrNoRowsAffected) {
+					var fErr error
+					newerLog, fErr = us.userStore.GetUserWorkoutTemplateById(ctx, tx, userId, routine.ID)
+					return fErr
+				}
+				return err
+			}
+			return nil
+		})
+
+		if err != nil {
+			if errors.Is(err, store.ErrUserForeignKeyConstraint) {
+				return nil, nil, apperrors.New(apperrors.SessionOver, err)
+			}
+			loggerx.Log(ctx).Warn("workout template upsert failed", "error", err, "log_id", routine.ID)
+			notSyncedLogs = append(notSyncedLogs, routine.ID)
+			continue
+		}
+		if newerLog != nil {
+			newServerLogs = append(newServerLogs, newerLog)
+		}
+
+	}
+	return newServerLogs, notSyncedLogs, nil
+
+}
+
+func (us *UserService) GetUserWorkoutTemplates(ctx context.Context, user_id string, last_sync *time.Time) ([]*models.WorkoutTemplate, error) {
+	var templates []*models.WorkoutTemplate
+
+	err := us.userStore.WithTx(ctx, func(tx *sql.Tx) error {
+		var err error
+		templates, err = us.userStore.GetUserWorkoutTemplates(ctx, tx, user_id)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		// Already a wrapped error
+		return nil, err
+	}
+	var newLogs []*models.WorkoutTemplate
+
+	for _, routine := range templates {
+		if last_sync != nil {
+			if routine.UpdatedAt.After(*last_sync) {
+				newLogs = append(newLogs, routine)
+			}
+		} else {
+			newLogs = append(newLogs, routine)
+		}
+	}
+	return newLogs, nil
+
+}
