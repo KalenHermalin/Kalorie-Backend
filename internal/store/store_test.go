@@ -932,6 +932,204 @@ func TestMultipleUpsertExerciseLog(t *testing.T) {
 	})
 }
 
+func TestWorkoutTemplateUpsert(t *testing.T) {
+	store := NewPostgressUserStore(testDB)     // Pass the transaction as the DB
+	authStore := NewPostgressAuthStore(testDB) // Pass the transaction as the DB
+	clearTables(t)
+	defer clearTables(t)
+	email := "kalen@laurier.ca"
+	payload := &models.AuthPayload{
+		Email: &email,
+		ID:    "12345",
+	}
+	t.Run("UpsertWorkoutTemplateSuccess", func(t *testing.T) {
+
+		store.WithTx(context.Background(), func(tx *sql.Tx) error {
+			clearTables(t)
+			user, err := authStore.UpsertUserWithAuth(context.Background(), tx, payload)
+			if err != nil {
+				t.Fatalf("Failed to insert new user: %v", err)
+			}
+
+			templates := []*models.WorkoutTemplate{
+				{
+					ID:   "e9b84f21-3c7a-4d5e-8f12-6a0b9c4d7e55",
+					Name: "Back Day",
+					Exercises: models.WorkoutTemplateExerciseList{
+						&models.WorkoutTemplateExercises{
+							ExerciseID: "1234",
+							Sets:       4,
+						},
+						&models.WorkoutTemplateExercises{
+							ExerciseID: "345",
+							Sets:       1,
+						},
+					},
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+					DeletedAt: nil,
+				},
+				{
+					ID:        "2c8d5a7e-4b1f-4e3a-9c6d-7f0e2b8a5c19",
+					Name:      "Chest Day",
+					Exercises: nil,
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+					DeletedAt: nil,
+				},
+			}
+
+			for _, routine := range templates {
+				err = store.UpsertUserWorkoutTemplate(context.Background(), tx, user.ID, routine)
+				if err != nil {
+					t.Fatalf("Error with upserting workout template: %v", err)
+				}
+			}
+			routines, err := store.GetUserWorkoutTemplates(context.Background(), tx, user.ID)
+			if err != nil {
+				t.Fatalf("Error retrieving the previously upserted workout templates: %v", err)
+			}
+			if len(routines) != len(templates) {
+				t.Fatalf("Not all templates came back. Expected: %d\t Got: %d", len(templates), len(routines))
+			}
+
+			for _, actual := range routines {
+				for _, expected := range templates {
+					if expected.ID == actual.ID {
+						AssertWorkoutTemplateEqual(t, expected, actual)
+					}
+				}
+			}
+			return nil
+		})
+	})
+
+	t.Run("UpsertWorkoutTemplateOldUpsert", func(t *testing.T) {
+		clearTables(t)
+		templates := []*models.WorkoutTemplate{
+			{
+				ID:   "e9b84f21-3c7a-4d5e-8f12-6a0b9c4d7e55",
+				Name: "Back Day",
+				Exercises: models.WorkoutTemplateExerciseList{
+					&models.WorkoutTemplateExercises{
+						ExerciseID: "1234",
+						Sets:       4,
+					},
+					&models.WorkoutTemplateExercises{
+						ExerciseID: "345",
+						Sets:       1,
+					},
+				},
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				DeletedAt: nil,
+			},
+			{
+				ID:        "2c8d5a7e-4b1f-4e3a-9c6d-7f0e2b8a5c19",
+				Name:      "Chest Day",
+				Exercises: nil,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				DeletedAt: nil,
+			},
+		}
+		var user *models.User
+		store.WithTx(context.Background(), func(tx *sql.Tx) error {
+			var err error
+			user, err = authStore.UpsertUserWithAuth(context.Background(), tx, payload)
+			if err != nil {
+				t.Fatalf("Failed to insert new user: %v", err)
+			}
+
+			for _, routine := range templates {
+				err = store.UpsertUserWorkoutTemplate(context.Background(), tx, user.ID, routine)
+				if err != nil {
+					t.Fatalf("Error with upserting workout template: %v", err)
+				}
+			}
+			routines, err := store.GetUserWorkoutTemplates(context.Background(), tx, user.ID)
+			if err != nil {
+				t.Fatalf("Error retrieving the previously upserted workout templates: %v", err)
+			}
+			if len(routines) != len(templates) {
+				t.Fatalf("Not all templates came back. Expected: %d\t Got: %d", len(templates), len(routines))
+			}
+
+			for _, actual := range routines {
+				for _, expected := range templates {
+					if expected.ID == actual.ID {
+						AssertWorkoutTemplateEqual(t, expected, actual)
+					}
+				}
+			}
+			return nil
+		})
+		newerUpdatedAt := templates[0].UpdatedAt
+		templates[0].UpdatedAt = templates[0].UpdatedAt.Add(-20 * time.Minute)
+		store.WithTx(context.Background(), func(tx *sql.Tx) error {
+			err := store.UpsertUserWorkoutTemplate(context.Background(), tx, user.ID, templates[0])
+			if err != nil {
+				if errors.Is(err, ErrNoRowsAffected) {
+					t.Log("Successfully got no rows affected")
+				} else {
+					t.Fatalf("Error with upserting workout template: %v", err)
+				}
+			} else {
+				t.Fatal("Expected error norowseffect, got nil instead")
+			}
+
+			return nil
+		})
+
+		store.WithTx(context.Background(), func(tx *sql.Tx) error {
+			template, err := store.GetUserWorkoutTemplateById(context.Background(), tx, user.ID, templates[0].ID)
+			if err != nil {
+				t.Fatalf("Error with getting workout template after update: %v", err)
+			}
+			expectedUpdate := newerUpdatedAt.Truncate(time.Microsecond).UTC()
+			actualUpdate := template.UpdatedAt.Truncate(time.Microsecond).UTC()
+			assert.Equal(t, expectedUpdate, actualUpdate, "template updatedAt changed even when it shouldnt")
+			return nil
+		})
+	})
+
+}
+
+func AssertWorkoutTemplateEqual(t *testing.T, expected, actual *models.WorkoutTemplate) {
+	t.Helper()
+
+	if expected.ID != actual.ID {
+		t.Fatalf("Template ID mistmatch. Expected: %s\t Got: %s", expected.ID, actual.ID)
+	}
+	if expected.Name != actual.Name {
+		t.Fatalf("Template name mistmatch. Expected: %s\t Got: %s", expected.Name, actual.Name)
+	}
+	// Using assert.Equal here will force the test to print the values on failure
+	expectedDate := expected.CreatedAt.Truncate(time.Microsecond).UTC()
+	actualDate := actual.CreatedAt.Truncate(time.Microsecond).UTC()
+	assert.Equal(t, expectedDate, actualDate, "template created_at mismatch (truncated to microsecond)")
+	expectedUpdate := expected.UpdatedAt.Truncate(time.Microsecond).UTC()
+	actualUpdate := actual.UpdatedAt.Truncate(time.Microsecond).UTC()
+	assert.Equal(t, expectedUpdate, actualUpdate, "template updatedAt mismatch")
+	assert.Equal(t, expected.DeletedAt != nil, actual.DeletedAt != nil, "template DeletedAt 'Valid' state mismatch")
+
+	if len(expected.Exercises) != len(actual.Exercises) {
+		t.Fatalf("Exercise count mistmatch. Expected: %d\t Got: %d", len(expected.Exercises), len(actual.Exercises))
+	}
+
+	if len(expected.Exercises) == 0 {
+		if actual.Exercises == nil {
+			t.Fatal("Template exercises returned as nil instead of []")
+		}
+	}
+
+	if len(expected.Exercises) > 0 {
+
+		assert.Equal(t, expected.Exercises, actual.Exercises, "Template Exercises did not return the same")
+	}
+
+}
+
 func clearTables(t *testing.T) {
 	// RESTART IDENTITY resets your auto-incrementing IDs back to 1
 	// CASCADE handles the foreign key dependencies automatically

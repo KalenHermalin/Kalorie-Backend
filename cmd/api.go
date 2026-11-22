@@ -75,6 +75,9 @@ func (app *application) mount() http.Handler {
 			r.Put("/exercise-logs/sync", handlers.Handle(app.userHandler.EgressSyncExerciseLogs))
 			r.Get("/exercise-logs/sync", handlers.Handle(app.userHandler.IngressSyncExerciseLogs))
 
+			r.Put("/workout-templates/sync", handlers.Handle(app.userHandler.EgressSyncWorkoutTemplates))
+			r.Get("/workout-templates/sync", handlers.Handle(app.userHandler.IngressSyncWorkoutTemplates))
+
 			r.Post("/analyze/food", handlers.Handle(app.llmHandler.AnalyzeFoodHandler))
 			r.Post("/analyze/label", handlers.Handle(app.llmHandler.AnalyzeLabelHandler))
 		})

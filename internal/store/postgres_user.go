@@ -755,6 +755,122 @@ func (us *postgressUserRepo) getUserFoodLogEntriesByLogId(ctx context.Context, t
 
 }
 
+// UpsertUserWorkoutTemplate updates or inserts a users workouts templates
+// It returns a [error] if something goes wrong
+// Standard is to check if err == nil, then continue
+//
+// # Parameters
+//   - ctx is a [context.Context] retrieved from the http request
+//   - tx is a non-nil *[sql.Tx]
+//   - userId is a non empty string that is a in the users table (valid user)
+//   - payload is a non-nil *[models.WorkoutTemplate]
+//
+// # Errors
+//   - Returns [ErrUserForeignKeyConstraint] if the userId provided is no longer in the database, happens when a user deletes account but a session, with a valid access token, is still available on another device. (rare because of 15 min validity)
+//   - Returns [ErrNoRowsAffected] when the upsert for the template fails, meaing there is a newer log version
+//   - Returns fmt.error for any other errors
+func (us *postgressUserRepo) UpsertUserWorkoutTemplate(ctx context.Context, tx *sql.Tx, userId string, payload *models.WorkoutTemplate) error {
+	query := `
+INSERT INTO workout_templates (id, user_id, template_name, exercises, created_at, updated_at, deleted_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (id) 
+DO UPDATE SET
+    template_name = EXCLUDED.template_name,
+    exercises = EXCLUDED.exercises,
+    updated_at = EXCLUDED.updated_at,
+    deleted_at = EXCLUDED.deleted_at
+WHERE EXCLUDED.updated_at > workout_templates.updated_at AND workout_templates.user_id = EXCLUDED.user_id
+RETURNING id;`
+
+	var id string
+	err := tx.QueryRowContext(ctx, query,
+		payload.ID, // $1
+		userId,     // $2
+		payload.Name,
+		payload.Exercises,
+		payload.CreatedAt,
+		payload.UpdatedAt,
+		payload.DeletedAt,
+	).Scan(&id)
+
+	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == pq.ErrorCode(foreignKeyConstraintErrorCode) {
+				return fmt.Errorf("upsert workout template %s for user %s: %w", payload.ID, userId, ErrUserForeignKeyConstraint)
+			}
+		}
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("upsert workout template %s: %w", userId, ErrNoRowsAffected)
+
+		}
+		return fmt.Errorf("upsert workout template %s: %w", userId, err)
+	}
+
+	return nil
+
+}
+func (us *postgressUserRepo) GetUserWorkoutTemplateById(ctx context.Context, tx *sql.Tx, userId, templateId string) (*models.WorkoutTemplate, error) {
+	query := `
+    SELECT id, template_name, exercises, created_at, updated_at, deleted_at
+    FROM workout_templates
+    WHERE user_id = $1 AND id = $2;`
+
+	template := &models.WorkoutTemplate{}
+	err := tx.QueryRowContext(ctx, query, userId, templateId).Scan(
+		&template.ID,
+		&template.Name,
+		&template.Exercises,
+		&template.CreatedAt,
+		&template.UpdatedAt,
+		&template.DeletedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("get workout template %s for user %s: %w", templateId, userId, ErrNotFound)
+		}
+		return nil, fmt.Errorf("get workout template %s for user %s: %w", templateId, userId, err)
+	}
+
+	return template, nil
+
+}
+
+func (us *postgressUserRepo) GetUserWorkoutTemplates(ctx context.Context, tx *sql.Tx, userId string) ([]*models.WorkoutTemplate, error) {
+	selectQuery := `
+		SELECT id, template_name, exercises, created_at, updated_at, deleted_at
+    FROM workout_templates
+    WHERE user_id = $1
+	ORDER BY created_at DESC;`
+
+	rows, err := tx.QueryContext(ctx, selectQuery, userId)
+	if err != nil {
+		return nil, fmt.Errorf("get workout templates for user %s: %w", userId, err)
+	}
+
+	templates := []*models.WorkoutTemplate{}
+
+	defer rows.Close()
+	for rows.Next() {
+		template := &models.WorkoutTemplate{}
+
+		err := rows.Scan(
+			&template.ID,
+			&template.Name,
+			&template.Exercises,
+			&template.CreatedAt,
+			&template.UpdatedAt,
+			&template.DeletedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("get user template scan user %s: %w", userId, err)
+		}
+		templates = append(templates, template)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("get user template row user %s: %w", userId, err)
+	}
+	return templates, nil
+}
 func (us *postgressUserRepo) WithTx(ctx context.Context, fn func(*sql.Tx) error) error {
 	tx, err := us.db.BeginTx(ctx, nil)
 	if err != nil {

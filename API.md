@@ -80,7 +80,8 @@ Every error response has the same shape:
 ---
 
 ## Sync model
-Settings, weight logs, food logs and exercise logs are stored on the device and synced with two endpoints each:
+Settings, weight logs, food logs, exercise logs and workout templates are stored on the device and synced with two
+endpoints each:
 
 - **Egress** (`PUT .../sync`): the client **pushes** its local changes. The response only reports what happened
   to the items that were sent (conflicts and failures). It never includes changes made on other devices.
@@ -562,6 +563,94 @@ after `last_synced_at`, or all of them if `last_synced_at` is omitted.
 - A log with no sets comes back with `"exercise_sets": []`, never `null`.
 - Logs, and the sets within a log, are in no particular order. Use `set_number` to order sets.
 **Not Modified (304):** Nothing changed since `last_synced_at` (or the user has no exercise logs). No body.
+
+**Errors:**
+| Status | Code | When |
+|--------|------|------|
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token |
+| 500 | `ERR_INTERNAL_SERVER` | Server error |
+
+---
+
+### Workout Template Endpoints
+A workout template is a saved routine the user can start from, such as "Back Day": a name plus an ordered list of
+exercises, each with a number of sets. Templates don't store weights or reps; the client fills those in when a
+workout starts.
+
+**Workout template object:**
+```JSON
+{
+    "id": string (UUID),
+    "name": string,
+    "exercises": [
+        {
+            "exercise_id": string,
+            "sets": number (integer, 0-255)
+        }
+    ],
+    "created_at": string (RFC 3339 timestamp),
+    "updated_at": string (RFC 3339 timestamp),
+    "deleted_at": string | null
+}
+```
+- The client generates the `id`.
+- `exercises` is stored and returned **in the order sent**. That order is the order the user arranged the
+  exercises in, so the client doesn't need a separate position field.
+- A template is **one item versioned by its `updated_at`**: the name and the whole `exercises` list win or lose
+  together. Any change, including reordering exercises or changing a set count, must bump `updated_at`.
+- Always send the **full** `exercises` list. A missing or `null` list is saved as an empty list (`[]`), which removes
+  every exercise from the template.
+- `created_at` is set by the first sync of a template; later syncs don't change it.
+
+#### Egress Sync Workout Templates
+**Path:** `PUT /api/v1/workout-templates/sync`
+**Auth:** Firebase ID token
+
+Pushes workout template changes. Each template is judged on its own (see [Sync model](#sync-model)).
+**Limited to 200 templates per request**; split larger batches into multiple requests.
+
+**Request Body:**
+```JSON
+{
+    "workout_templates": [ <Workout template object>, ... ]
+}
+```
+**Success (200 OK)** / **Partial Success (207 Multi-Status):**
+```JSON
+{
+    "new_logs": [ <Workout template object>, ... ],
+    "failed_logs": [ string (template id), ... ]
+}
+```
+The keys are `new_logs` and `failed_logs`, the same as the log endpoints, so one response handler can serve every
+sync endpoint.
+- `new_logs`: the server's current copy of every template that lost a conflict. Replace the local copies with them.
+- `failed_logs`: ids of templates that hit an error and should be resent. Non-empty only on `207`.
+- Both are always arrays (`[]` when empty), never `null`.
+
+**Errors:**
+| Status | Code | When |
+|--------|------|------|
+| 400 | `ERR_INVALID_REQUEST` | Body is not valid JSON (including a `sets` value that is negative, above 255 or not a whole number), or `workout_templates` is missing/`null` |
+| 400 | `ERR_MAX_BATCH_SIZE` | More than 200 templates in one request |
+| 401 | `ERR_SESSION_OVER` | The account no longer exists |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token |
+| 500 | `ERR_INTERNAL_SERVER` | Server error not tied to a specific template |
+
+#### Ingress Sync Workout Templates
+**Path:** `GET /api/v1/workout-templates/sync?last_synced_at=<RFC 3339 timestamp>`
+**Auth:** Firebase ID token
+
+Returns every workout template (including soft-deleted ones) with `updated_at` after `last_synced_at`, or all of them
+if `last_synced_at` is omitted.
+
+**Success (200 OK):**
+```JSON
+[ <Workout template object>, ... ]
+```
+- A template with no exercises comes back with `"exercises": []`, never `null`.
+- Templates are in no particular order. The exercises **within** a template keep their saved order.
+**Not Modified (304):** Nothing changed since `last_synced_at` (or the user has no workout templates). No body.
 
 **Errors:**
 | Status | Code | When |

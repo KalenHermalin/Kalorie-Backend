@@ -290,3 +290,66 @@ func (uh *UserHandler) IngressSyncFoodLogs(writer http.ResponseWriter, request *
 	json.NewEncoder(writer).Encode(newLogs)
 	return nil
 }
+
+type SyncWorkoutTemplatesRequestBody struct {
+	Templates []*models.WorkoutTemplate `json:"workout_templates"`
+}
+type SyncWorkoutTemplatesResponse struct {
+	NewTemplates    []*models.WorkoutTemplate `json:"new_logs"`
+	FailedTemplates []string                  `json:"failed_logs"`
+}
+
+func (uh *UserHandler) EgressSyncWorkoutTemplates(writer http.ResponseWriter, request *http.Request) error {
+	id := middlewares.GetUserID(request.Context())
+
+	var requestBody SyncWorkoutTemplatesRequestBody
+	err := utils.DecodePayload(request.Body, &requestBody)
+	if err != nil {
+		return apperrors.New(apperrors.BadRequest, err)
+
+	}
+
+	successful, failed, err := uh.user.UpsertUserWorkoutTemplates(request.Context(), id, requestBody.Templates)
+	if err != nil {
+		return err
+	}
+	writer.Header().Set("Content-Type", "application/json")
+
+	if len(failed) > 0 {
+		writer.WriteHeader(http.StatusMultiStatus)
+	}
+	response := &SyncWorkoutTemplatesResponse{
+		NewTemplates:    successful,
+		FailedTemplates: failed,
+	}
+
+	json.NewEncoder(writer).Encode(response)
+	return nil
+}
+
+func (uh *UserHandler) IngressSyncWorkoutTemplates(writer http.ResponseWriter, request *http.Request) error {
+	id := middlewares.GetUserID(request.Context())
+
+	last_synced := request.URL.Query().Get("last_synced_at")
+	var sinceTime *time.Time
+	if last_synced != "" {
+		t, err := time.Parse(time.RFC3339Nano, last_synced) // Matches your Postgres precision
+		if err == nil {
+			sinceTime = &t
+		}
+
+	}
+
+	NewTemplates, err := uh.user.GetUserWorkoutTemplates(request.Context(), id, sinceTime)
+	if err != nil {
+		return err
+	}
+	writer.Header().Set("Content-Type", "application/json")
+	if len(NewTemplates) == 0 {
+		writer.WriteHeader(http.StatusNotModified)
+		return nil
+
+	}
+	json.NewEncoder(writer).Encode(NewTemplates)
+	return nil
+}
