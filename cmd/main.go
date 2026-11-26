@@ -72,6 +72,11 @@ func main() {
 	// Setting Up User Handler
 	userService := service.NewUserService(userStore)
 	userHandler := handlers.NewUserHandler(*userService)
+
+	// Setting Up ExerciseDB
+	exerciseStore := store.NewPostgressExerciseStore(db)
+	exerciseService := service.NewExerciseService(exerciseStore)
+	exerciseHandler := handlers.NewExerciseHandler(*exerciseService)
 	// Setting up System Handler
 	systemHandler := handlers.NewSystemHander()
 	// Setting up Docs Handler (static marketing/support/privacy pages)
@@ -90,6 +95,7 @@ func main() {
 		llmHandler:         *llmHandler,
 		systemHandler:      *systemHandler,
 		userHandler:        *userHandler,
+		exerciseHandler:    *exerciseHandler,
 		docsHandler:        *docsHandler,
 		firebaseAuthClient: authClient,
 		authLookup:         authService,

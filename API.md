@@ -660,6 +660,69 @@ if `last_synced_at` is omitted.
 
 ---
 
+### Exercise Catalog Endpoints
+The exercise catalog is a fixed, server-side list of exercises. The client **does not sync or store the catalog**; it
+searches it through this API and keeps only the exercises the user picks (by `id`, e.g. in exercise logs and workout
+templates).
+
+**Exercise object:**
+```JSON
+{
+    "id": string (slug, e.g. "romanian-deadlift"),
+    "name": string,
+    "equipment": string,
+    "primary_muscle": string,
+    "secondary_muscles": [ string, ... ],
+    "steps": [ string, ... ],
+    "created_at": string (RFC 3339 timestamp),
+    "updated_at": string (RFC 3339 timestamp)
+}
+```
+- `id` is stable: once an exercise is in the catalog its `id` never changes, so it is safe to store.
+- `equipment` is one of: `bodyweight`, `barbell`, `dumbbell`, `kettlebell`, `ez_bar`, `trap_bar`, `medicine_ball`,
+  `cable`, `machine`, `smith_machine`, `pull_up_bar`, `resistance_band`, `other`.
+- `primary_muscle` and every entry of `secondary_muscles` is one of: `chest`, `front_delts`, `side_delts`,
+  `rear_delts`, `biceps`, `triceps`, `forearms`, `traps`, `lats`, `upper_back`, `lower_back`, `abs`, `obliques`,
+  `hip_flexors`, `glutes`, `quads`, `hamstrings`, `adductors`, `abductors`, `calves`.
+- `secondary_muscles` and `steps` are always arrays (`[]` when empty), never `null`. `steps` are in order.
+
+#### Search Exercises
+**Path:** `GET /api/v1/exercises/search?q=<query>&limit=<number>`
+**Auth:** Firebase ID token
+
+Searches the catalog by exercise name and by common aliases (e.g. `rdl` finds Romanian Deadlift, `skullcrusher`
+finds Skull Crusher). Matching ignores case and surrounding whitespace, and tolerates small typos
+(`dedlift`, `legpress`, `romanain deadlift`, `skul crusher`). Typo matching is loose, so a search can also return
+weaker matches (e.g. Lateral Raise for `calf raise`); these always come after the closer matches.
+
+**Query parameters:**
+| Name | Required | Description |
+|------|----------|-------------|
+| `q` | yes | The search text, **2 to 50 characters** after trimming whitespace. `%` and `_` are matched literally. |
+| `limit` | no | Maximum number of results. Default `20`. Values above `50` are treated as `50`. Must be at least `1`. |
+
+**Success (200 OK):**
+```JSON
+[ <Exercise object>, ... ]
+```
+Results are ordered best match first:
+1. The name or an alias is exactly the query (`bench press` → Barbell Bench Press).
+2. The name or an alias starts with the query.
+3. The query is close to a word in the name or an alias (typos).
+4. The name or an alias only contains the query somewhere.
+
+Ties are broken by how similar the text is, then by name. Each exercise appears at most once. No matches is
+`200` with `[]`, not an error.
+
+**Errors:**
+| Status | Code | When |
+|--------|------|------|
+| 400 | `ERR_INVALID_REQUEST` | `q` is shorter than 2 or longer than 50 characters (`fields[0].field` = `"q"`), or `limit` is not an integer or is less than 1 (`fields[0].field` = `"limit"`) |
+| 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token |
+| 500 | `ERR_INTERNAL_SERVER` | Server error |
+
+---
+
 ### Analysis Endpoints
 Both endpoints send the image to an AI model and can take several seconds. The server gives up after **30 seconds**.
 
