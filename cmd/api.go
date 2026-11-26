@@ -20,6 +20,7 @@ type application struct {
 	llmHandler         handlers.LLMHandler
 	systemHandler      handlers.SystemHandler
 	userHandler        handlers.UserHandler
+	exerciseHandler    handlers.ExerciseHandler
 	docsHandler        handlers.DocsHandler
 	firebaseAuthClient *auth.Client
 	authLookup         models.AuthLookUp
@@ -74,6 +75,8 @@ func (app *application) mount() http.Handler {
 
 			r.Put("/exercise-logs/sync", handlers.Handle(app.userHandler.EgressSyncExerciseLogs))
 			r.Get("/exercise-logs/sync", handlers.Handle(app.userHandler.IngressSyncExerciseLogs))
+
+			r.Get("/exercises/search", handlers.Handle(app.exerciseHandler.SearchExercisesWithFuzzy))
 
 			r.Put("/workout-templates/sync", handlers.Handle(app.userHandler.EgressSyncWorkoutTemplates))
 			r.Get("/workout-templates/sync", handlers.Handle(app.userHandler.IngressSyncWorkoutTemplates))

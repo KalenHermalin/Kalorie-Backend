@@ -1,0 +1,4047 @@
+-- +goose Up
+-- +goose StatementBegin
+-- Seeds the exercise catalog. Generated from seeds/exercises.json (198 exercises).
+-- Once this has run on prod, change the catalog with new migrations, not by editing this file.
+CREATE TEMP TABLE exercise_seed ON COMMIT DROP AS
+SELECT $json$[
+ {
+  "id": "barbell-bench-press",
+  "name": "Barbell Bench Press",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "front_delts",
+   "triceps"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Lie on the bench under the bar and feet flat on the floor.",
+   "Grip the bar slightly wider than shoulder-width, unrack it and hold it over your shoulders.",
+   "Lower the bar under control to your mid-chest, elbows at roughly 45 degrees.",
+   "Press the bar back up until your arms are straight."
+  ],
+  "aliases": [
+   "bench press",
+   "flat bench",
+   "flat bench press",
+   "bb bench press"
+  ]
+ },
+ {
+  "id": "incline-barbell-bench-press",
+  "name": "Incline Barbell Bench Press",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "front_delts",
+   "triceps"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Set the bench to a 30-45 degree incline and lie back with your feet flat.",
+   "Unrack the bar with a slightly wider than shoulder-width grip.",
+   "Lower the bar to your upper chest under control.",
+   "Press it back up until your arms are straight."
+  ],
+  "aliases": [
+   "incline bench press",
+   "incline bench",
+   "incline bb bench"
+  ]
+ },
+ {
+  "id": "decline-barbell-bench-press",
+  "name": "Decline Barbell Bench Press",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "triceps",
+   "front_delts"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Secure your legs in the decline bench and lie back.",
+   "Unrack the bar with a slightly wider than shoulder-width grip.",
+   "Lower the bar to your lower chest under control.",
+   "Press it back up until your arms are straight."
+  ],
+  "aliases": [
+   "decline bench press",
+   "decline bench"
+  ]
+ },
+ {
+  "id": "dumbbell-bench-press",
+  "name": "Dumbbell Bench Press",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "front_delts",
+   "triceps"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Sit on a flat bench with a dumbbell on each thigh, then lie back and bring them to chest level.",
+   "Press the dumbbells up over your chest with palms facing forward.",
+   "Lower them slowly until your elbows are just below the bench.",
+   "Press back up, bringing the dumbbells close together at the top."
+  ],
+  "aliases": [
+   "db bench press",
+   "db bench",
+   "dumbbell press",
+   "flat dumbbell press"
+  ]
+ },
+ {
+  "id": "incline-dumbbell-bench-press",
+  "name": "Incline Dumbbell Bench Press",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "front_delts",
+   "triceps"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Set the bench to a 30-45 degree incline and lie back holding a dumbbell in each hand at chest level.",
+   "Press the dumbbells up over your upper chest.",
+   "Lower them slowly until you feel a stretch in your chest.",
+   "Press back up to the start."
+  ],
+  "aliases": [
+   "incline dumbbell press",
+   "incline db press",
+   "incline db bench"
+  ]
+ },
+ {
+  "id": "decline-dumbbell-bench-press",
+  "name": "Decline Dumbbell Bench Press",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "triceps",
+   "front_delts"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Secure your legs in a decline bench and lie back holding a dumbbell in each hand at chest level.",
+   "Press the dumbbells up over your lower chest.",
+   "Lower them slowly to the sides of your chest.",
+   "Press back up to the start."
+  ],
+  "aliases": [
+   "decline dumbbell press",
+   "decline db press"
+  ]
+ },
+ {
+  "id": "dumbbell-fly",
+  "name": "Dumbbell Fly",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "front_delts"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Lie on a flat bench holding dumbbells above your chest, palms facing each other.",
+   "With a slight bend in your elbows, open your arms out to the sides in a wide arc.",
+   "Stop when you feel a stretch across your chest.",
+   "Squeeze your chest to bring the dumbbells back together over you."
+  ],
+  "aliases": [
+   "dumbbell flyes",
+   "db fly",
+   "flat dumbbell fly"
+  ]
+ },
+ {
+  "id": "incline-dumbbell-fly",
+  "name": "Incline Dumbbell Fly",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "front_delts"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Lie on a 30-45 degree incline bench holding dumbbells above your chest, palms facing each other.",
+   "With a slight bend in your elbows, lower the dumbbells out to the sides in a wide arc.",
+   "Stop at a comfortable stretch, then bring them back together over your upper chest."
+  ],
+  "aliases": [
+   "incline db fly",
+   "incline flyes"
+  ]
+ },
+ {
+  "id": "cable-crossover",
+  "name": "Cable Crossover",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "front_delts"
+  ],
+  "equipment": "cable",
+  "steps": [
+   "Set both pulleys high, take a handle in each hand and step forward into a staggered stance.",
+   "With a slight bend in your elbows, bring your hands down and together in front of your hips.",
+   "Squeeze your chest, then let your arms return slowly to the start."
+  ],
+  "aliases": [
+   "cable fly",
+   "cable chest fly",
+   "cable flyes",
+   "crossovers"
+  ]
+ },
+ {
+  "id": "low-to-high-cable-fly",
+  "name": "Low-to-High Cable Fly",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "front_delts"
+  ],
+  "equipment": "cable",
+  "steps": [
+   "Set both pulleys low, take a handle in each hand and step forward.",
+   "With a slight bend in your elbows, sweep your hands up and together to shoulder height.",
+   "Squeeze your upper chest, then lower slowly to the start."
+  ],
+  "aliases": [
+   "low cable crossover",
+   "upward cable fly"
+  ]
+ },
+ {
+  "id": "pec-deck",
+  "name": "Pec Deck",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "front_delts"
+  ],
+  "equipment": "machine",
+  "steps": [
+   "Sit with your back flat against the pad and adjust the seat so the handles are at chest height.",
+   "Grip the handles or place your forearms on the pads.",
+   "Bring the handles together in front of your chest.",
+   "Return slowly until you feel a stretch, keeping tension on your chest."
+  ],
+  "aliases": [
+   "butterfly",
+   "pec fly",
+   "machine fly",
+   "pec deck fly"
+  ]
+ },
+ {
+  "id": "machine-chest-press",
+  "name": "Machine Chest Press",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "front_delts",
+   "triceps"
+  ],
+  "equipment": "machine",
+  "steps": [
+   "Adjust the seat so the handles line up with your mid-chest.",
+   "Sit with your back against the pad and grip the handles.",
+   "Press the handles forward until your arms are straight.",
+   "Return slowly without letting the weight stack touch down."
+  ],
+  "aliases": [
+   "chest press",
+   "seated chest press",
+   "chest press machine"
+  ]
+ },
+ {
+  "id": "smith-machine-bench-press",
+  "name": "Smith Machine Bench Press",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "front_delts",
+   "triceps"
+  ],
+  "equipment": "smith_machine",
+  "steps": [
+   "Set a flat bench under the Smith machine so the bar lines up with your mid-chest.",
+   "Grip the bar slightly wider than shoulder-width and unhook it.",
+   "Lower the bar to your chest under control.",
+   "Press it back up and re-hook it when you finish."
+  ],
+  "aliases": [
+   "smith bench press",
+   "smith bench"
+  ]
+ },
+ {
+  "id": "smith-machine-incline-bench-press",
+  "name": "Smith Machine Incline Bench Press",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "front_delts",
+   "triceps"
+  ],
+  "equipment": "smith_machine",
+  "steps": [
+   "Set an incline bench under the Smith machine so the bar lines up with your upper chest.",
+   "Grip the bar slightly wider than shoulder-width and unhook it.",
+   "Lower the bar to your upper chest, then press it back up."
+  ],
+  "aliases": [
+   "smith incline press",
+   "smith incline bench"
+  ]
+ },
+ {
+  "id": "push-up",
+  "name": "Push-Up",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "triceps",
+   "front_delts",
+   "abs"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Start in a high plank with your hands slightly wider than your shoulders.",
+   "Keep your body in a straight line from head to heels.",
+   "Lower your chest toward the floor, elbows at roughly 45 degrees.",
+   "Push back up until your arms are straight."
+  ],
+  "aliases": [
+   "push up",
+   "pushup",
+   "pushups",
+   "press-up",
+   "press up"
+  ]
+ },
+ {
+  "id": "incline-push-up",
+  "name": "Incline Push-Up",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "triceps",
+   "front_delts"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Place your hands on a bench or box slightly wider than your shoulders.",
+   "Walk your feet back until your body is in a straight line.",
+   "Lower your chest to the edge, then push back up."
+  ],
+  "aliases": [
+   "incline pushup",
+   "hands-elevated push-up"
+  ]
+ },
+ {
+  "id": "decline-push-up",
+  "name": "Decline Push-Up",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "front_delts",
+   "triceps"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Place your feet on a bench or box and your hands on the floor slightly wider than your shoulders.",
+   "Keep your body in a straight line from head to heels.",
+   "Lower your chest toward the floor, then push back up."
+  ],
+  "aliases": [
+   "decline pushup",
+   "feet-elevated push-up"
+  ]
+ },
+ {
+  "id": "chest-dip",
+  "name": "Chest Dip",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "triceps",
+   "front_delts"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Grip the dip bars and lift yourself up with straight arms.",
+   "Lean your torso forward slightly.",
+   "Lower yourself by bending your elbows until you feel a stretch in your chest.",
+   "Press back up to straight arms."
+  ],
+  "aliases": [
+   "chest dips",
+   "leaning dip"
+  ]
+ },
+ {
+  "id": "dumbbell-pullover",
+  "name": "Dumbbell Pullover",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "lats",
+   "triceps"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Lie across or along a bench holding one dumbbell with both hands over your chest.",
+   "With a slight bend in your elbows, lower the dumbbell back over your head.",
+   "Stop when you feel a stretch, then pull it back over your chest."
+  ],
+  "aliases": [
+   "db pullover",
+   "pullover"
+  ]
+ },
+ {
+  "id": "dumbbell-floor-press",
+  "name": "Dumbbell Floor Press",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "triceps",
+   "front_delts"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Lie on the floor with knees bent, holding a dumbbell in each hand at chest level.",
+   "Press the dumbbells up over your chest.",
+   "Lower them until your upper arms touch the floor, pause, then press back up."
+  ],
+  "aliases": [
+   "db floor press"
+  ]
+ },
+ {
+  "id": "barbell-floor-press",
+  "name": "Barbell Floor Press",
+  "primary_muscle": "chest",
+  "secondary_muscles": [
+   "triceps",
+   "front_delts"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Lie on the floor under a barbell set in a rack or on safety pins, knees bent.",
+   "Grip the bar slightly wider than shoulder-width and unrack it.",
+   "Lower it until your upper arms touch the floor, pause, then press back up."
+  ],
+  "aliases": [
+   "floor press"
+  ]
+ },
+ {
+  "id": "pull-up",
+  "name": "Pull-Up",
+  "primary_muscle": "lats",
+  "secondary_muscles": [
+   "biceps",
+   "upper_back",
+   "forearms"
+  ],
+  "equipment": "pull_up_bar",
+  "steps": [
+   "Hang from the bar with an overhand grip slightly wider than your shoulders.",
+   "Pull your shoulder blades down and pull yourself up until your chin is over the bar.",
+   "Lower yourself under control to a full hang."
+  ],
+  "aliases": [
+   "pull up",
+   "pullup",
+   "pullups"
+  ]
+ },
+ {
+  "id": "chin-up",
+  "name": "Chin-Up",
+  "primary_muscle": "lats",
+  "secondary_muscles": [
+   "biceps",
+   "upper_back"
+  ],
+  "equipment": "pull_up_bar",
+  "steps": [
+   "Hang from the bar with an underhand grip about shoulder-width apart.",
+   "Pull yourself up until your chin is over the bar.",
+   "Lower yourself under control to a full hang."
+  ],
+  "aliases": [
+   "chin up",
+   "chinup",
+   "chinups",
+   "underhand pull-up"
+  ]
+ },
+ {
+  "id": "neutral-grip-pull-up",
+  "name": "Neutral-Grip Pull-Up",
+  "primary_muscle": "lats",
+  "secondary_muscles": [
+   "biceps",
+   "upper_back"
+  ],
+  "equipment": "pull_up_bar",
+  "steps": [
+   "Hang from parallel handles with your palms facing each other.",
+   "Pull yourself up until your chin is over the handles.",
+   "Lower yourself under control to a full hang."
+  ],
+  "aliases": [
+   "hammer grip pull-up",
+   "neutral grip pullup",
+   "parallel grip pull-up"
+  ]
+ },
+ {
+  "id": "weighted-pull-up",
+  "name": "Weighted Pull-Up",
+  "primary_muscle": "lats",
+  "secondary_muscles": [
+   "biceps",
+   "upper_back"
+  ],
+  "equipment": "pull_up_bar",
+  "steps": [
+   "Attach weight with a dip belt or hold a dumbbell between your feet.",
+   "Hang from the bar with an overhand grip slightly wider than your shoulders.",
+   "Pull yourself up until your chin is over the bar.",
+   "Lower yourself under control to a full hang."
+  ],
+  "aliases": [
+   "weighted pullup",
+   "weighted pull up"
+  ]
+ },
+ {
+  "id": "assisted-pull-up",
+  "name": "Assisted Pull-Up",
+  "primary_muscle": "lats",
+  "secondary_muscles": [
+   "biceps",
+   "upper_back"
+  ],
+  "equipment": "machine",
+  "steps": [
+   "Set the assistance weight and kneel or stand on the platform.",
+   "Grip the handles overhead.",
+   "Pull yourself up until your chin is over the handles.",
+   "Lower yourself under control."
+  ],
+  "aliases": [
+   "machine assisted pull-up",
+   "assisted pullup",
+   "gravitron"
+  ]
+ },
+ {
+  "id": "band-assisted-pull-up",
+  "name": "Band-Assisted Pull-Up",
+  "primary_muscle": "lats",
+  "secondary_muscles": [
+   "biceps",
+   "upper_back"
+  ],
+  "equipment": "resistance_band",
+  "steps": [
+   "Loop a resistance band over the bar and place a foot or knee in it.",
+   "Grip the bar with an overhand grip slightly wider than your shoulders.",
+   "Pull yourself up until your chin is over the bar.",
+   "Lower yourself under control."
+  ],
+  "aliases": [
+   "band assisted pullup",
+   "banded pull-up"
+  ]
+ },
+ {
+  "id": "muscle-up",
+  "name": "Muscle-Up",
+  "primary_muscle": "lats",
+  "secondary_muscles": [
+   "chest",
+   "triceps",
+   "biceps",
+   "abs"
+  ],
+  "equipment": "pull_up_bar",
+  "steps": [
+   "Hang from the bar with a slightly narrower than shoulder-width overhand grip.",
+   "Pull explosively, driving the bar toward your lower chest.",
+   "As you reach the bar, lean forward and push your elbows over it.",
+   "Press up to straight arms on top, then lower yourself back down under control."
+  ],
+  "aliases": [
+   "muscle up",
+   "bar muscle-up"
+  ]
+ },
+ {
+  "id": "lat-pulldown",
+  "name": "Lat Pulldown",
+  "primary_muscle": "lats",
+  "secondary_muscles": [
+   "biceps",
+   "upper_back"
+  ],
+  "equipment": "cable",
+  "steps": [
+   "Sit with your thighs under the pads and grip the bar wider than your shoulders.",
+   "Lean back slightly and pull the bar down to your upper chest.",
+   "Squeeze your shoulder blades down, then let the bar rise slowly."
+  ],
+  "aliases": [
+   "lat pull-down",
+   "lat pull down",
+   "pulldown",
+   "wide grip pulldown"
+  ]
+ },
+ {
+  "id": "close-grip-lat-pulldown",
+  "name": "Close-Grip Lat Pulldown",
+  "primary_muscle": "lats",
+  "secondary_muscles": [
+   "biceps",
+   "upper_back"
+  ],
+  "equipment": "cable",
+  "steps": [
+   "Attach a V-bar or close-grip handle and sit with your thighs under the pads.",
+   "Pull the handle down to your upper chest, keeping your elbows close.",
+   "Let the handle rise slowly until your arms are straight."
+  ],
+  "aliases": [
+   "close grip pulldown",
+   "v-bar pulldown",
+   "narrow grip pulldown"
+  ]
+ },
+ {
+  "id": "reverse-grip-lat-pulldown",
+  "name": "Reverse-Grip Lat Pulldown",
+  "primary_muscle": "lats",
+  "secondary_muscles": [
+   "biceps",
+   "upper_back"
+  ],
+  "equipment": "cable",
+  "steps": [
+   "Sit with your thighs under the pads and grip the bar with an underhand grip about shoulder-width apart.",
+   "Pull the bar down to your upper chest.",
+   "Let the bar rise slowly until your arms are straight."
+  ],
+  "aliases": [
+   "underhand pulldown",
+   "supinated pulldown"
+  ]
+ },
+ {
+  "id": "straight-arm-pulldown",
+  "name": "Straight-Arm Pulldown",
+  "primary_muscle": "lats",
+  "secondary_muscles": [
+   "triceps"
+  ],
+  "equipment": "cable",
+  "steps": [
+   "Stand facing a high pulley holding a bar or rope with straight arms.",
+   "Hinge forward slightly and keep your arms straight.",
+   "Pull the bar down in an arc to your thighs.",
+   "Let it return slowly to eye level."
+  ],
+  "aliases": [
+   "straight arm pull-down",
+   "straight arm lat pulldown",
+   "cable pullover"
+  ]
+ },
+ {
+  "id": "seated-cable-row",
+  "name": "Seated Cable Row",
+  "primary_muscle": "upper_back",
+  "secondary_muscles": [
+   "lats",
+   "biceps",
+   "rear_delts"
+  ],
+  "equipment": "cable",
+  "steps": [
+   "Sit at the row station with your feet on the platform and knees slightly bent.",
+   "Grip the handle and sit tall with your arms straight.",
+   "Pull the handle to your stomach, squeezing your shoulder blades together.",
+   "Let your arms extend slowly without rounding your back."
+  ],
+  "aliases": [
+   "cable row",
+   "low cable row",
+   "seated cable rows"
+  ]
+ },
+ {
+  "id": "single-arm-cable-row",
+  "name": "Single-Arm Cable Row",
+  "primary_muscle": "upper_back",
+  "secondary_muscles": [
+   "lats",
+   "biceps"
+  ],
+  "equipment": "cable",
+  "steps": [
+   "Set a pulley at chest or waist height and hold the handle in one hand.",
+   "Pull the handle to your side, keeping your elbow close.",
+   "Extend your arm slowly, then switch sides after your set."
+  ],
+  "aliases": [
+   "one arm cable row"
+  ]
+ },
+ {
+  "id": "machine-seated-row",
+  "name": "Machine Seated Row",
+  "primary_muscle": "upper_back",
+  "secondary_muscles": [
+   "lats",
+   "biceps",
+   "rear_delts"
+  ],
+  "equipment": "machine",
+  "steps": [
+   "Adjust the seat so the handles are at chest height and rest your chest on the pad.",
+   "Grip the handles and pull them toward you, squeezing your shoulder blades.",
+   "Return slowly until your arms are straight."
+  ],
+  "aliases": [
+   "machine row",
+   "seated machine row"
+  ]
+ },
+ {
+  "id": "barbell-row",
+  "name": "Barbell Row",
+  "primary_muscle": "upper_back",
+  "secondary_muscles": [
+   "lats",
+   "biceps",
+   "rear_delts",
+   "lower_back"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Hold a barbell with an overhand grip slightly wider than shoulder-width.",
+   "Hinge at the hips until your torso is close to parallel with the floor, back flat.",
+   "Pull the bar to your lower chest or upper stomach.",
+   "Lower it under control until your arms are straight."
+  ],
+  "aliases": [
+   "bent over row",
+   "bent-over barbell row",
+   "bb row",
+   "barbell bent over row"
+  ]
+ },
+ {
+  "id": "pendlay-row",
+  "name": "Pendlay Row",
+  "primary_muscle": "upper_back",
+  "secondary_muscles": [
+   "lats",
+   "biceps",
+   "lower_back"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Set up over a barbell on the floor with your torso parallel to the floor.",
+   "Grip the bar slightly wider than shoulder-width.",
+   "Pull the bar explosively to your lower chest.",
+   "Lower it back to the floor and reset before each rep."
+  ],
+  "aliases": [
+   "pendlay rows"
+  ]
+ },
+ {
+  "id": "yates-row",
+  "name": "Yates Row",
+  "primary_muscle": "upper_back",
+  "secondary_muscles": [
+   "lats",
+   "biceps"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Hold a barbell with an underhand grip about shoulder-width apart.",
+   "Hinge forward to about 45 degrees, back flat.",
+   "Pull the bar to your lower stomach, then lower it under control."
+  ],
+  "aliases": [
+   "reverse grip barbell row",
+   "underhand barbell row"
+  ]
+ },
+ {
+  "id": "t-bar-row",
+  "name": "T-Bar Row",
+  "primary_muscle": "upper_back",
+  "secondary_muscles": [
+   "lats",
+   "biceps",
+   "rear_delts"
+  ],
+  "equipment": "other",
+  "steps": [
+   "Straddle the bar and grip the handle with both hands.",
+   "Hinge at the hips with your back flat and chest up.",
+   "Pull the handle to your chest, squeezing your shoulder blades.",
+   "Lower it under control until your arms are straight."
+  ],
+  "aliases": [
+   "t bar row",
+   "landmine row"
+  ]
+ },
+ {
+  "id": "one-arm-dumbbell-row",
+  "name": "One-Arm Dumbbell Row",
+  "primary_muscle": "lats",
+  "secondary_muscles": [
+   "upper_back",
+   "biceps",
+   "rear_delts"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Place one knee and hand on a bench, holding a dumbbell in the other hand.",
+   "Keep your back flat and let the dumbbell hang.",
+   "Pull the dumbbell to your hip, keeping your elbow close.",
+   "Lower it under control, then switch sides after your set."
+  ],
+  "aliases": [
+   "dumbbell row",
+   "db row",
+   "single arm dumbbell row",
+   "one arm row"
+  ]
+ },
+ {
+  "id": "chest-supported-dumbbell-row",
+  "name": "Chest-Supported Dumbbell Row",
+  "primary_muscle": "upper_back",
+  "secondary_muscles": [
+   "lats",
+   "rear_delts",
+   "biceps"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Lie face down on an incline bench holding a dumbbell in each hand.",
+   "Let the dumbbells hang with your arms straight.",
+   "Pull them up toward your ribs, squeezing your shoulder blades.",
+   "Lower them under control."
+  ],
+  "aliases": [
+   "incline dumbbell row",
+   "chest supported row"
+  ]
+ },
+ {
+  "id": "inverted-row",
+  "name": "Inverted Row",
+  "primary_muscle": "upper_back",
+  "secondary_muscles": [
+   "lats",
+   "biceps",
+   "rear_delts"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Set a bar at about waist height and lie underneath it.",
+   "Grip the bar slightly wider than your shoulders with your body straight and heels on the floor.",
+   "Pull your chest to the bar.",
+   "Lower yourself under control until your arms are straight."
+  ],
+  "aliases": [
+   "bodyweight row",
+   "australian pull-up",
+   "australian row",
+   "body row"
+  ]
+ },
+ {
+  "id": "renegade-row",
+  "name": "Renegade Row",
+  "primary_muscle": "upper_back",
+  "secondary_muscles": [
+   "lats",
+   "abs",
+   "biceps"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Start in a high plank with your hands on two dumbbells, feet wide.",
+   "Row one dumbbell to your hip while keeping your hips square.",
+   "Lower it, then row with the other arm."
+  ],
+  "aliases": [
+   "plank row"
+  ]
+ },
+ {
+  "id": "face-pull",
+  "name": "Face Pull",
+  "primary_muscle": "rear_delts",
+  "secondary_muscles": [
+   "upper_back",
+   "traps"
+  ],
+  "equipment": "cable",
+  "steps": [
+   "Set a rope on a high pulley and grip it with your palms facing in.",
+   "Step back so your arms are straight in front of you.",
+   "Pull the rope toward your face, separating your hands and driving your elbows high and back.",
+   "Return slowly to the start."
+  ],
+  "aliases": [
+   "cable face pull",
+   "rope face pull",
+   "face pulls"
+  ]
+ },
+ {
+  "id": "back-extension",
+  "name": "Back Extension",
+  "primary_muscle": "lower_back",
+  "secondary_muscles": [
+   "glutes",
+   "hamstrings"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Set the pad just below your hips and hook your feet under the foot pads.",
+   "Cross your arms over your chest or hold a plate.",
+   "Lower your torso by bending at the hips, keeping your back flat.",
+   "Raise yourself until your body is in a straight line."
+  ],
+  "aliases": [
+   "hyperextension",
+   "back hyperextension",
+   "45 degree back extension",
+   "hypers"
+  ]
+ },
+ {
+  "id": "rack-pull",
+  "name": "Rack Pull",
+  "primary_muscle": "lower_back",
+  "secondary_muscles": [
+   "glutes",
+   "hamstrings",
+   "traps",
+   "forearms"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Set a barbell in a rack at about knee height.",
+   "Stand close to the bar and grip it just outside your legs.",
+   "Keep your back flat and stand up by driving your hips forward.",
+   "Lower the bar back to the pins under control."
+  ],
+  "aliases": [
+   "rack pulls",
+   "block pull"
+  ]
+ },
+ {
+  "id": "rope-climb",
+  "name": "Rope Climb",
+  "primary_muscle": "lats",
+  "secondary_muscles": [
+   "biceps",
+   "forearms"
+  ],
+  "equipment": "other",
+  "steps": [
+   "Grip the rope high with both hands and wrap it around one leg or between your feet.",
+   "Pull with your arms while pinching the rope with your feet.",
+   "Stand up on your feet, reach higher and repeat until you reach the top.",
+   "Climb back down hand over hand under control."
+  ],
+  "aliases": [
+   "rope climbs"
+  ]
+ },
+ {
+  "id": "barbell-back-squat",
+  "name": "Barbell Back Squat",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "adductors",
+   "lower_back"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Set the bar on your upper back and unrack it with your feet about shoulder-width apart.",
+   "Brace your core and sit down and back, keeping your chest up.",
+   "Lower until your thighs are at least parallel to the floor.",
+   "Drive through your whole foot to stand back up."
+  ],
+  "aliases": [
+   "back squat",
+   "squat",
+   "barbell squat",
+   "high bar squat"
+  ]
+ },
+ {
+  "id": "front-squat",
+  "name": "Front Squat",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "abs",
+   "upper_back"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Rest the bar on the front of your shoulders with your elbows high.",
+   "Stand with your feet about shoulder-width apart and brace your core.",
+   "Squat down while keeping your torso upright and elbows up.",
+   "Drive back up to standing."
+  ],
+  "aliases": [
+   "barbell front squat"
+  ]
+ },
+ {
+  "id": "box-squat",
+  "name": "Box Squat",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "hamstrings"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Set a box behind you at about knee height and place the bar on your upper back.",
+   "Sit back onto the box under control, keeping your shins near vertical.",
+   "Pause briefly without relaxing, then drive back up to standing."
+  ],
+  "aliases": [
+   "barbell box squat"
+  ]
+ },
+ {
+  "id": "zercher-squat",
+  "name": "Zercher Squat",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "abs",
+   "biceps"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Hold the bar in the crook of your elbows, close to your body.",
+   "Stand with your feet about shoulder-width apart and brace your core.",
+   "Squat down while keeping your torso upright.",
+   "Drive back up to standing."
+  ],
+  "aliases": [
+   "zercher"
+  ]
+ },
+ {
+  "id": "goblet-squat",
+  "name": "Goblet Squat",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "adductors"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Hold a dumbbell or kettlebell vertically against your chest.",
+   "Stand with your feet slightly wider than shoulder-width.",
+   "Squat down between your knees, keeping your chest up and elbows inside your knees.",
+   "Drive back up to standing."
+  ],
+  "aliases": [
+   "dumbbell goblet squat",
+   "kettlebell goblet squat",
+   "db goblet squat"
+  ]
+ },
+ {
+  "id": "bodyweight-squat",
+  "name": "Bodyweight Squat",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Stand with your feet about shoulder-width apart and arms in front of you.",
+   "Sit down and back, keeping your chest up.",
+   "Lower until your thighs are about parallel to the floor.",
+   "Stand back up."
+  ],
+  "aliases": [
+   "air squat",
+   "air squats"
+  ]
+ },
+ {
+  "id": "jump-squat",
+  "name": "Jump Squat",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "calves"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Stand with your feet about shoulder-width apart.",
+   "Squat down to about parallel.",
+   "Jump explosively, extending your hips and knees.",
+   "Land softly and go straight into the next squat."
+  ],
+  "aliases": [
+   "squat jump",
+   "jumping squat"
+  ]
+ },
+ {
+  "id": "hack-squat",
+  "name": "Hack Squat",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes"
+  ],
+  "equipment": "machine",
+  "steps": [
+   "Stand on the platform with your back against the pad and shoulders under the pads.",
+   "Release the safety handles.",
+   "Lower yourself until your thighs are at least parallel to the platform.",
+   "Press back up without locking your knees hard."
+  ],
+  "aliases": [
+   "machine hack squat",
+   "hack squat machine"
+  ]
+ },
+ {
+  "id": "smith-machine-squat",
+  "name": "Smith Machine Squat",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes"
+  ],
+  "equipment": "smith_machine",
+  "steps": [
+   "Set the bar on your upper back and place your feet slightly in front of the bar.",
+   "Unhook the bar and squat down until your thighs are about parallel.",
+   "Drive back up and re-hook the bar when you finish."
+  ],
+  "aliases": [
+   "smith squat"
+  ]
+ },
+ {
+  "id": "leg-press",
+  "name": "Leg Press",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "hamstrings"
+  ],
+  "equipment": "machine",
+  "steps": [
+   "Sit in the machine and place your feet shoulder-width apart on the platform.",
+   "Release the safety handles.",
+   "Lower the platform until your knees are at about 90 degrees.",
+   "Press it back up without locking your knees hard."
+  ],
+  "aliases": [
+   "leg press machine",
+   "45 degree leg press",
+   "sled leg press"
+  ]
+ },
+ {
+  "id": "single-leg-press",
+  "name": "Single-Leg Press",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes"
+  ],
+  "equipment": "machine",
+  "steps": [
+   "Sit in the leg press and place one foot in the middle of the platform.",
+   "Release the safety handles.",
+   "Lower the platform under control, then press it back up.",
+   "Switch legs after your set."
+  ],
+  "aliases": [
+   "one leg press",
+   "single leg leg press"
+  ]
+ },
+ {
+  "id": "leg-extension",
+  "name": "Leg Extension",
+  "primary_muscle": "quads",
+  "secondary_muscles": [],
+  "equipment": "machine",
+  "steps": [
+   "Sit in the machine with the pad on your lower shins.",
+   "Hold the handles and straighten your legs until they are fully extended.",
+   "Lower the weight slowly."
+  ],
+  "aliases": [
+   "leg extensions",
+   "quad extension",
+   "knee extension"
+  ]
+ },
+ {
+  "id": "bulgarian-split-squat",
+  "name": "Bulgarian Split Squat",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "hamstrings"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Stand a stride in front of a bench and rest the top of your back foot on it.",
+   "Hold dumbbells at your sides.",
+   "Lower until your front thigh is about parallel to the floor.",
+   "Drive through your front foot to stand back up, then switch legs."
+  ],
+  "aliases": [
+   "bss",
+   "rear foot elevated split squat",
+   "rfess",
+   "dumbbell bulgarian split squat"
+  ]
+ },
+ {
+  "id": "split-squat",
+  "name": "Split Squat",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Stand in a long staggered stance holding dumbbells at your sides.",
+   "Lower straight down until your back knee nearly touches the floor.",
+   "Drive back up through your front foot, then switch legs after your set."
+  ],
+  "aliases": [
+   "dumbbell split squat",
+   "static lunge"
+  ]
+ },
+ {
+  "id": "dumbbell-lunge",
+  "name": "Dumbbell Lunge",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "hamstrings"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Stand holding a dumbbell in each hand.",
+   "Step forward and lower until both knees are bent about 90 degrees.",
+   "Push back to the start and alternate legs."
+  ],
+  "aliases": [
+   "db lunge",
+   "dumbbell lunges",
+   "dumbbell forward lunge"
+  ]
+ },
+ {
+  "id": "walking-lunge",
+  "name": "Walking Lunge",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "hamstrings"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Stand tall with your hands on your hips or at your sides.",
+   "Step forward and lower until both knees are bent about 90 degrees.",
+   "Push off your back foot and step straight into the next lunge."
+  ],
+  "aliases": [
+   "walking lunges",
+   "bodyweight walking lunge"
+  ]
+ },
+ {
+  "id": "barbell-walking-lunge",
+  "name": "Barbell Walking Lunge",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "hamstrings"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Set a barbell on your upper back.",
+   "Step forward and lower until both knees are bent about 90 degrees.",
+   "Push off your back foot and step straight into the next lunge."
+  ],
+  "aliases": [
+   "barbell lunge",
+   "barbell lunges"
+  ]
+ },
+ {
+  "id": "reverse-lunge",
+  "name": "Reverse Lunge",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "hamstrings"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Stand tall with your feet hip-width apart.",
+   "Step back with one foot and lower until both knees are bent about 90 degrees.",
+   "Push through your front foot to return, then alternate legs."
+  ],
+  "aliases": [
+   "backward lunge",
+   "rear lunge"
+  ]
+ },
+ {
+  "id": "dumbbell-reverse-lunge",
+  "name": "Dumbbell Reverse Lunge",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "hamstrings"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Stand holding a dumbbell in each hand.",
+   "Step back with one foot and lower until both knees are bent about 90 degrees.",
+   "Push through your front foot to return, then alternate legs."
+  ],
+  "aliases": [
+   "db reverse lunge"
+  ]
+ },
+ {
+  "id": "lateral-lunge",
+  "name": "Lateral Lunge",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "adductors",
+   "glutes"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Stand with your feet together.",
+   "Step wide to one side and sit your hips back over that leg, keeping the other leg straight.",
+   "Push back to the start and alternate sides."
+  ],
+  "aliases": [
+   "side lunge",
+   "side lunges"
+  ]
+ },
+ {
+  "id": "curtsy-lunge",
+  "name": "Curtsy Lunge",
+  "primary_muscle": "glutes",
+  "secondary_muscles": [
+   "quads",
+   "adductors"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Stand with your feet hip-width apart.",
+   "Step one foot diagonally behind the other and lower into a lunge.",
+   "Push back to the start and alternate sides."
+  ],
+  "aliases": [
+   "curtsy lunges"
+  ]
+ },
+ {
+  "id": "step-up",
+  "name": "Step-Up",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "hamstrings"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Stand facing a box or bench holding dumbbells at your sides.",
+   "Place one foot on the box and drive through it to stand on top.",
+   "Step back down under control and alternate legs."
+  ],
+  "aliases": [
+   "dumbbell step-up",
+   "step ups",
+   "box step-up"
+  ]
+ },
+ {
+  "id": "pistol-squat",
+  "name": "Pistol Squat",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "abs"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Stand on one leg with the other leg held straight in front of you.",
+   "Squat down on the standing leg as low as you can while keeping your heel down.",
+   "Stand back up, then switch legs after your set."
+  ],
+  "aliases": [
+   "single-leg squat",
+   "one leg squat"
+  ]
+ },
+ {
+  "id": "sissy-squat",
+  "name": "Sissy Squat",
+  "primary_muscle": "quads",
+  "secondary_muscles": [],
+  "equipment": "bodyweight",
+  "steps": [
+   "Stand holding a support with your feet hip-width apart.",
+   "Rise onto your toes and lean back as you bend your knees forward.",
+   "Lower as far as is comfortable, keeping your hips and torso in line.",
+   "Push back up to standing."
+  ],
+  "aliases": [
+   "sissy squats"
+  ]
+ },
+ {
+  "id": "wall-sit",
+  "name": "Wall Sit",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Stand with your back against a wall.",
+   "Slide down until your thighs are parallel to the floor and knees at 90 degrees.",
+   "Hold the position for the set time."
+  ],
+  "aliases": [
+   "wall squat",
+   "wall sits"
+  ]
+ },
+ {
+  "id": "barbell-deadlift",
+  "name": "Barbell Deadlift",
+  "primary_muscle": "hamstrings",
+  "secondary_muscles": [
+   "glutes",
+   "lower_back",
+   "quads",
+   "traps",
+   "forearms"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Stand with your feet hip-width apart and the bar over your mid-foot.",
+   "Hinge down and grip the bar just outside your legs, back flat.",
+   "Brace and push the floor away to stand up, keeping the bar close.",
+   "Lower the bar back to the floor under control."
+  ],
+  "aliases": [
+   "deadlift",
+   "conventional deadlift",
+   "deads",
+   "dl"
+  ]
+ },
+ {
+  "id": "sumo-deadlift",
+  "name": "Sumo Deadlift",
+  "primary_muscle": "glutes",
+  "secondary_muscles": [
+   "hamstrings",
+   "adductors",
+   "quads",
+   "lower_back"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Take a wide stance with your toes pointed out and the bar over your mid-foot.",
+   "Grip the bar inside your legs with your back flat and chest up.",
+   "Push your knees out and stand up, keeping the bar close.",
+   "Lower the bar back to the floor under control."
+  ],
+  "aliases": [
+   "sumo dl",
+   "sumo"
+  ]
+ },
+ {
+  "id": "romanian-deadlift",
+  "name": "Romanian Deadlift",
+  "primary_muscle": "hamstrings",
+  "secondary_muscles": [
+   "glutes",
+   "lower_back"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Stand holding a barbell in front of your thighs with a shoulder-width grip.",
+   "With a slight knee bend, push your hips back and lower the bar along your legs.",
+   "Stop when you feel a strong hamstring stretch, keeping your back flat.",
+   "Drive your hips forward to stand back up."
+  ],
+  "aliases": [
+   "rdl",
+   "romanian dl",
+   "barbell rdl"
+  ]
+ },
+ {
+  "id": "dumbbell-romanian-deadlift",
+  "name": "Dumbbell Romanian Deadlift",
+  "primary_muscle": "hamstrings",
+  "secondary_muscles": [
+   "glutes",
+   "lower_back"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Stand holding dumbbells in front of your thighs.",
+   "With a slight knee bend, push your hips back and lower the dumbbells along your legs.",
+   "Stop at a strong hamstring stretch, then drive your hips forward to stand."
+  ],
+  "aliases": [
+   "db rdl",
+   "dumbbell rdl"
+  ]
+ },
+ {
+  "id": "stiff-legged-deadlift",
+  "name": "Stiff-Legged Deadlift",
+  "primary_muscle": "hamstrings",
+  "secondary_muscles": [
+   "glutes",
+   "lower_back"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Stand holding a barbell with your legs nearly straight.",
+   "Hinge at the hips and lower the bar toward the floor, keeping your back flat.",
+   "Stand back up by squeezing your hamstrings and glutes."
+  ],
+  "aliases": [
+   "sldl",
+   "stiff leg deadlift",
+   "straight leg deadlift"
+  ]
+ },
+ {
+  "id": "single-leg-romanian-deadlift",
+  "name": "Single-Leg Romanian Deadlift",
+  "primary_muscle": "hamstrings",
+  "secondary_muscles": [
+   "glutes",
+   "lower_back"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Stand on one leg holding a dumbbell in the opposite hand.",
+   "Hinge forward and let your free leg extend behind you.",
+   "Lower until your torso is near parallel, keeping your hips square.",
+   "Return to standing, then switch legs after your set."
+  ],
+  "aliases": [
+   "single leg rdl",
+   "one leg rdl",
+   "sl rdl",
+   "single-leg deadlift"
+  ]
+ },
+ {
+  "id": "trap-bar-deadlift",
+  "name": "Trap Bar Deadlift",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "hamstrings",
+   "lower_back",
+   "traps"
+  ],
+  "equipment": "trap_bar",
+  "steps": [
+   "Stand inside the trap bar with your feet hip-width apart.",
+   "Squat down and grip the handles, back flat.",
+   "Push through your feet to stand up.",
+   "Lower the bar back to the floor under control."
+  ],
+  "aliases": [
+   "hex bar deadlift",
+   "hex-bar deadlift",
+   "trap bar dl"
+  ]
+ },
+ {
+  "id": "deficit-deadlift",
+  "name": "Deficit Deadlift",
+  "primary_muscle": "hamstrings",
+  "secondary_muscles": [
+   "glutes",
+   "lower_back",
+   "quads"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Stand on a low platform or plate with the bar over your mid-foot.",
+   "Hinge down and grip the bar, back flat.",
+   "Push the floor away to stand up, keeping the bar close.",
+   "Lower the bar back down under control."
+  ],
+  "aliases": [
+   "deficit pull"
+  ]
+ },
+ {
+  "id": "good-morning",
+  "name": "Good Morning",
+  "primary_muscle": "hamstrings",
+  "secondary_muscles": [
+   "lower_back",
+   "glutes"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Set a barbell on your upper back with your feet shoulder-width apart.",
+   "With a slight knee bend, push your hips back and lower your torso.",
+   "Stop near parallel or at a strong hamstring stretch, back flat.",
+   "Drive your hips forward to stand back up."
+  ],
+  "aliases": [
+   "barbell good morning",
+   "good mornings"
+  ]
+ },
+ {
+  "id": "lying-leg-curl",
+  "name": "Lying Leg Curl",
+  "primary_muscle": "hamstrings",
+  "secondary_muscles": [
+   "calves"
+  ],
+  "equipment": "machine",
+  "steps": [
+   "Lie face down on the machine with the pad just above your heels.",
+   "Curl your heels toward your glutes.",
+   "Lower the weight slowly until your legs are straight."
+  ],
+  "aliases": [
+   "leg curl",
+   "hamstring curl",
+   "prone leg curl",
+   "lying hamstring curl"
+  ]
+ },
+ {
+  "id": "seated-leg-curl",
+  "name": "Seated Leg Curl",
+  "primary_muscle": "hamstrings",
+  "secondary_muscles": [],
+  "equipment": "machine",
+  "steps": [
+   "Sit in the machine with the pad behind your lower calves and the thigh pad secured.",
+   "Curl your heels down and back as far as you can.",
+   "Return slowly until your legs are straight."
+  ],
+  "aliases": [
+   "seated hamstring curl"
+  ]
+ },
+ {
+  "id": "nordic-hamstring-curl",
+  "name": "Nordic Hamstring Curl",
+  "primary_muscle": "hamstrings",
+  "secondary_muscles": [
+   "glutes",
+   "calves"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Kneel with your ankles anchored under a pad or held by a partner.",
+   "Keep your body straight from knees to head.",
+   "Lower yourself forward as slowly as you can.",
+   "Catch yourself with your hands and push back up."
+  ],
+  "aliases": [
+   "nordic curl",
+   "nordics",
+   "natural glute ham raise"
+  ]
+ },
+ {
+  "id": "glute-ham-raise",
+  "name": "Glute-Ham Raise",
+  "primary_muscle": "hamstrings",
+  "secondary_muscles": [
+   "glutes",
+   "calves"
+  ],
+  "equipment": "machine",
+  "steps": [
+   "Set your feet in the GHR with your knees just behind the pad.",
+   "Start with your torso upright.",
+   "Lower your body forward until it is parallel to the floor.",
+   "Curl yourself back up using your hamstrings."
+  ],
+  "aliases": [
+   "ghr",
+   "glute ham raise"
+  ]
+ },
+ {
+  "id": "stability-ball-leg-curl",
+  "name": "Stability Ball Leg Curl",
+  "primary_muscle": "hamstrings",
+  "secondary_muscles": [
+   "glutes"
+  ],
+  "equipment": "other",
+  "steps": [
+   "Lie on your back with your heels on a stability ball.",
+   "Lift your hips into a bridge.",
+   "Curl the ball toward your glutes, keeping your hips up.",
+   "Roll it back out slowly."
+  ],
+  "aliases": [
+   "swiss ball leg curl",
+   "ball leg curl",
+   "exercise ball leg curl"
+  ]
+ },
+ {
+  "id": "kettlebell-swing",
+  "name": "Kettlebell Swing",
+  "primary_muscle": "glutes",
+  "secondary_muscles": [
+   "hamstrings",
+   "lower_back",
+   "abs"
+  ],
+  "equipment": "kettlebell",
+  "steps": [
+   "Stand with your feet a bit wider than shoulder-width, a kettlebell on the floor in front of you.",
+   "Hike the kettlebell back between your legs.",
+   "Snap your hips forward to swing it to chest height.",
+   "Let it fall back between your legs and repeat."
+  ],
+  "aliases": [
+   "kb swing",
+   "russian swing",
+   "kettlebell swings"
+  ]
+ },
+ {
+  "id": "barbell-hip-thrust",
+  "name": "Barbell Hip Thrust",
+  "primary_muscle": "glutes",
+  "secondary_muscles": [
+   "hamstrings",
+   "quads"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Sit with your upper back against a bench and a padded barbell over your hips.",
+   "Plant your feet about hip-width apart.",
+   "Drive your hips up until your body is straight from shoulders to knees.",
+   "Squeeze your glutes, then lower under control."
+  ],
+  "aliases": [
+   "hip thrust",
+   "hip thrusts",
+   "bb hip thrust"
+  ]
+ },
+ {
+  "id": "barbell-glute-bridge",
+  "name": "Barbell Glute Bridge",
+  "primary_muscle": "glutes",
+  "secondary_muscles": [
+   "hamstrings"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Lie on your back with a padded barbell over your hips and knees bent.",
+   "Drive your hips up, squeezing your glutes.",
+   "Lower under control."
+  ],
+  "aliases": [
+   "weighted glute bridge"
+  ]
+ },
+ {
+  "id": "glute-bridge",
+  "name": "Glute Bridge",
+  "primary_muscle": "glutes",
+  "secondary_muscles": [
+   "hamstrings"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Lie on your back with your knees bent and feet flat.",
+   "Drive your hips up until your body is straight from shoulders to knees.",
+   "Squeeze your glutes, then lower slowly."
+  ],
+  "aliases": [
+   "hip bridge",
+   "bodyweight glute bridge"
+  ]
+ },
+ {
+  "id": "single-leg-glute-bridge",
+  "name": "Single-Leg Glute Bridge",
+  "primary_muscle": "glutes",
+  "secondary_muscles": [
+   "hamstrings"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Lie on your back with one knee bent and the other leg extended.",
+   "Drive through the planted foot to lift your hips.",
+   "Lower slowly, then switch legs after your set."
+  ],
+  "aliases": [
+   "one leg glute bridge",
+   "single leg hip bridge"
+  ]
+ },
+ {
+  "id": "cable-glute-kickback",
+  "name": "Cable Glute Kickback",
+  "primary_muscle": "glutes",
+  "secondary_muscles": [
+   "hamstrings"
+  ],
+  "equipment": "cable",
+  "steps": [
+   "Attach an ankle strap to a low pulley and face the machine.",
+   "Holding on for support, kick your strapped leg straight back.",
+   "Squeeze your glute at the top, then return slowly.",
+   "Switch legs after your set."
+  ],
+  "aliases": [
+   "cable kickback",
+   "cable kickbacks"
+  ]
+ },
+ {
+  "id": "glute-kickback",
+  "name": "Glute Kickback",
+  "primary_muscle": "glutes",
+  "secondary_muscles": [
+   "hamstrings"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Start on your hands and knees.",
+   "Kick one leg back and up, keeping your knee bent.",
+   "Squeeze your glute at the top, then lower.",
+   "Switch legs after your set."
+  ],
+  "aliases": [
+   "donkey kick",
+   "donkey kicks",
+   "quadruped kickback"
+  ]
+ },
+ {
+  "id": "cable-pull-through",
+  "name": "Cable Pull-Through",
+  "primary_muscle": "glutes",
+  "secondary_muscles": [
+   "hamstrings",
+   "lower_back"
+  ],
+  "equipment": "cable",
+  "steps": [
+   "Face away from a low pulley holding a rope between your legs.",
+   "Step forward and hinge at the hips, letting the rope pull back through your legs.",
+   "Drive your hips forward to stand up tall."
+  ],
+  "aliases": [
+   "pull through",
+   "pull-through"
+  ]
+ },
+ {
+  "id": "machine-hip-abduction",
+  "name": "Machine Hip Abduction",
+  "primary_muscle": "abductors",
+  "secondary_muscles": [
+   "glutes"
+  ],
+  "equipment": "machine",
+  "steps": [
+   "Sit in the machine with the pads against the outside of your knees.",
+   "Push your knees outward as far as you can.",
+   "Return slowly."
+  ],
+  "aliases": [
+   "hip abduction",
+   "abductor machine",
+   "thigh abductor",
+   "outer thigh machine"
+  ]
+ },
+ {
+  "id": "machine-hip-adduction",
+  "name": "Machine Hip Adduction",
+  "primary_muscle": "adductors",
+  "secondary_muscles": [],
+  "equipment": "machine",
+  "steps": [
+   "Sit in the machine with the pads against the inside of your knees.",
+   "Squeeze your legs together.",
+   "Return slowly to the start."
+  ],
+  "aliases": [
+   "hip adduction",
+   "adductor machine",
+   "thigh adductor",
+   "inner thigh machine"
+  ]
+ },
+ {
+  "id": "fire-hydrant",
+  "name": "Fire Hydrant",
+  "primary_muscle": "glutes",
+  "secondary_muscles": [
+   "abductors"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Start on your hands and knees.",
+   "Lift one knee out to the side, keeping it bent.",
+   "Lower it back down, then switch sides after your set."
+  ],
+  "aliases": [
+   "fire hydrants"
+  ]
+ },
+ {
+  "id": "standing-calf-raise",
+  "name": "Standing Calf Raise",
+  "primary_muscle": "calves",
+  "secondary_muscles": [],
+  "equipment": "machine",
+  "steps": [
+   "Stand with the balls of your feet on the platform and shoulders under the pads.",
+   "Lower your heels as far as you can.",
+   "Rise onto your toes as high as you can, then lower slowly."
+  ],
+  "aliases": [
+   "calf raise",
+   "calf raises",
+   "standing calf raises",
+   "machine calf raise"
+  ]
+ },
+ {
+  "id": "seated-calf-raise",
+  "name": "Seated Calf Raise",
+  "primary_muscle": "calves",
+  "secondary_muscles": [],
+  "equipment": "machine",
+  "steps": [
+   "Sit with the balls of your feet on the platform and the pad on your lower thighs.",
+   "Release the safety and lower your heels.",
+   "Press up onto your toes as high as you can, then lower slowly."
+  ],
+  "aliases": [
+   "seated calf raises"
+  ]
+ },
+ {
+  "id": "smith-machine-calf-raise",
+  "name": "Smith Machine Calf Raise",
+  "primary_muscle": "calves",
+  "secondary_muscles": [],
+  "equipment": "smith_machine",
+  "steps": [
+   "Stand on a step under the Smith bar with the bar on your upper back.",
+   "Unhook the bar and lower your heels.",
+   "Rise onto your toes as high as you can, then lower slowly."
+  ],
+  "aliases": [
+   "smith calf raise"
+  ]
+ },
+ {
+  "id": "leg-press-calf-raise",
+  "name": "Leg Press Calf Raise",
+  "primary_muscle": "calves",
+  "secondary_muscles": [],
+  "equipment": "machine",
+  "steps": [
+   "Sit in the leg press with the balls of your feet on the bottom edge of the platform.",
+   "Straighten your legs without locking your knees.",
+   "Push the platform with your toes as far as you can, then let it return slowly."
+  ],
+  "aliases": [
+   "calf press",
+   "calf press on leg press"
+  ]
+ },
+ {
+  "id": "overhead-press",
+  "name": "Overhead Press",
+  "primary_muscle": "front_delts",
+  "secondary_muscles": [
+   "side_delts",
+   "triceps",
+   "traps",
+   "abs"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Hold the bar at your shoulders with a grip just outside shoulder-width.",
+   "Brace your core and glutes.",
+   "Press the bar overhead, moving your head back slightly to clear it.",
+   "Lower it back to your shoulders under control."
+  ],
+  "aliases": [
+   "ohp",
+   "military press",
+   "standing barbell press",
+   "barbell overhead press"
+  ]
+ },
+ {
+  "id": "seated-barbell-shoulder-press",
+  "name": "Seated Barbell Shoulder Press",
+  "primary_muscle": "front_delts",
+  "secondary_muscles": [
+   "side_delts",
+   "triceps"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Sit on an upright bench and unrack the bar at shoulder height.",
+   "Press the bar overhead until your arms are straight.",
+   "Lower it back to your upper chest under control."
+  ],
+  "aliases": [
+   "seated military press",
+   "seated barbell press",
+   "seated ohp"
+  ]
+ },
+ {
+  "id": "push-press",
+  "name": "Push Press",
+  "primary_muscle": "front_delts",
+  "secondary_muscles": [
+   "side_delts",
+   "triceps",
+   "quads",
+   "glutes"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Hold the bar at your shoulders with a grip just outside shoulder-width.",
+   "Dip slightly at the knees.",
+   "Drive up through your legs and press the bar overhead.",
+   "Lower it back to your shoulders."
+  ],
+  "aliases": [
+   "barbell push press"
+  ]
+ },
+ {
+  "id": "behind-the-neck-press",
+  "name": "Behind-the-Neck Press",
+  "primary_muscle": "front_delts",
+  "secondary_muscles": [
+   "side_delts",
+   "triceps",
+   "traps"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Unrack the bar and set it on your upper back with a wide grip.",
+   "Press the bar overhead until your arms are straight.",
+   "Lower it back behind your neck under control."
+  ],
+  "aliases": [
+   "btn press",
+   "behind the neck press"
+  ]
+ },
+ {
+  "id": "dumbbell-shoulder-press",
+  "name": "Dumbbell Shoulder Press",
+  "primary_muscle": "front_delts",
+  "secondary_muscles": [
+   "side_delts",
+   "triceps"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Sit or stand holding dumbbells at shoulder height, palms facing forward.",
+   "Press the dumbbells overhead until your arms are straight.",
+   "Lower them back to shoulder height."
+  ],
+  "aliases": [
+   "db shoulder press",
+   "dumbbell overhead press",
+   "seated dumbbell press",
+   "db ohp"
+  ]
+ },
+ {
+  "id": "arnold-press",
+  "name": "Arnold Press",
+  "primary_muscle": "front_delts",
+  "secondary_muscles": [
+   "side_delts",
+   "triceps"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Hold dumbbells in front of your shoulders with your palms facing you.",
+   "Press them overhead while rotating your palms to face forward.",
+   "Reverse the motion on the way down."
+  ],
+  "aliases": [
+   "arnold dumbbell press"
+  ]
+ },
+ {
+  "id": "machine-shoulder-press",
+  "name": "Machine Shoulder Press",
+  "primary_muscle": "front_delts",
+  "secondary_muscles": [
+   "side_delts",
+   "triceps"
+  ],
+  "equipment": "machine",
+  "steps": [
+   "Adjust the seat so the handles are at shoulder height.",
+   "Press the handles overhead until your arms are straight.",
+   "Lower them slowly."
+  ],
+  "aliases": [
+   "shoulder press machine",
+   "seated machine press"
+  ]
+ },
+ {
+  "id": "smith-machine-shoulder-press",
+  "name": "Smith Machine Shoulder Press",
+  "primary_muscle": "front_delts",
+  "secondary_muscles": [
+   "side_delts",
+   "triceps"
+  ],
+  "equipment": "smith_machine",
+  "steps": [
+   "Set a bench upright under the Smith machine so the bar lines up in front of your face.",
+   "Unhook the bar at shoulder height.",
+   "Press it overhead, then lower it back to your upper chest."
+  ],
+  "aliases": [
+   "smith shoulder press",
+   "smith overhead press"
+  ]
+ },
+ {
+  "id": "landmine-press",
+  "name": "Landmine Press",
+  "primary_muscle": "front_delts",
+  "secondary_muscles": [
+   "chest",
+   "triceps"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Anchor a barbell in a landmine and hold the free end at shoulder height.",
+   "Stand in a staggered stance.",
+   "Press the bar up and forward until your arm is straight.",
+   "Lower it back to your shoulder."
+  ],
+  "aliases": [
+   "landmine shoulder press",
+   "single arm landmine press"
+  ]
+ },
+ {
+  "id": "kettlebell-press",
+  "name": "Kettlebell Press",
+  "primary_muscle": "front_delts",
+  "secondary_muscles": [
+   "side_delts",
+   "triceps"
+  ],
+  "equipment": "kettlebell",
+  "steps": [
+   "Hold a kettlebell in the rack position at your shoulder.",
+   "Brace your core and press it overhead until your arm is straight.",
+   "Lower it back to the rack position."
+  ],
+  "aliases": [
+   "kb press",
+   "kettlebell overhead press",
+   "kettlebell military press"
+  ]
+ },
+ {
+  "id": "lateral-raise",
+  "name": "Lateral Raise",
+  "primary_muscle": "side_delts",
+  "secondary_muscles": [
+   "traps"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Stand holding dumbbells at your sides.",
+   "With a slight bend in your elbows, raise your arms out to the sides to shoulder height.",
+   "Lower them slowly."
+  ],
+  "aliases": [
+   "side lateral raise",
+   "dumbbell lateral raise",
+   "db lateral raise",
+   "lat raise",
+   "side raise",
+   "lateral raises"
+  ]
+ },
+ {
+  "id": "cable-lateral-raise",
+  "name": "Cable Lateral Raise",
+  "primary_muscle": "side_delts",
+  "secondary_muscles": [],
+  "equipment": "cable",
+  "steps": [
+   "Stand side-on to a low pulley and hold the handle in your far hand.",
+   "Raise your arm out to the side to shoulder height.",
+   "Lower it slowly, then switch sides after your set."
+  ],
+  "aliases": [
+   "cable side raise",
+   "single arm cable lateral raise"
+  ]
+ },
+ {
+  "id": "front-raise",
+  "name": "Front Raise",
+  "primary_muscle": "front_delts",
+  "secondary_muscles": [
+   "side_delts"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Stand holding dumbbells in front of your thighs.",
+   "Raise them straight in front of you to shoulder height.",
+   "Lower them slowly."
+  ],
+  "aliases": [
+   "dumbbell front raise",
+   "db front raise",
+   "front raises"
+  ]
+ },
+ {
+  "id": "plate-front-raise",
+  "name": "Plate Front Raise",
+  "primary_muscle": "front_delts",
+  "secondary_muscles": [
+   "side_delts"
+  ],
+  "equipment": "other",
+  "steps": [
+   "Hold a weight plate with both hands in front of your thighs.",
+   "Raise it straight in front of you to shoulder height.",
+   "Lower it slowly."
+  ],
+  "aliases": [
+   "plate raise",
+   "front plate raise"
+  ]
+ },
+ {
+  "id": "rear-delt-fly",
+  "name": "Rear Delt Fly",
+  "primary_muscle": "rear_delts",
+  "secondary_muscles": [
+   "upper_back",
+   "traps"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Hinge forward at the hips holding dumbbells under your chest.",
+   "With a slight bend in your elbows, raise your arms out to the sides.",
+   "Squeeze your rear shoulders, then lower slowly."
+  ],
+  "aliases": [
+   "reverse fly",
+   "reverse dumbbell fly",
+   "bent over reverse fly",
+   "rear delt raise",
+   "rear lateral raise",
+   "bent-over lateral raise"
+  ]
+ },
+ {
+  "id": "reverse-pec-deck",
+  "name": "Reverse Pec Deck",
+  "primary_muscle": "rear_delts",
+  "secondary_muscles": [
+   "upper_back"
+  ],
+  "equipment": "machine",
+  "steps": [
+   "Sit facing the pec deck with your chest against the pad.",
+   "Grip the handles with your arms straight in front of you.",
+   "Pull the handles back and out to your sides.",
+   "Return slowly."
+  ],
+  "aliases": [
+   "reverse machine fly",
+   "reverse fly machine",
+   "rear delt machine",
+   "reverse pec fly"
+  ]
+ },
+ {
+  "id": "cable-rear-delt-fly",
+  "name": "Cable Rear Delt Fly",
+  "primary_muscle": "rear_delts",
+  "secondary_muscles": [
+   "upper_back"
+  ],
+  "equipment": "cable",
+  "steps": [
+   "Set both pulleys at shoulder height and cross the cables, holding the left cable in your right hand and the right in your left.",
+   "Pull your arms out and back to your sides.",
+   "Return slowly to the start."
+  ],
+  "aliases": [
+   "cable reverse fly",
+   "crossed cable rear delt fly"
+  ]
+ },
+ {
+  "id": "band-pull-apart",
+  "name": "Band Pull-Apart",
+  "primary_muscle": "rear_delts",
+  "secondary_muscles": [
+   "upper_back",
+   "traps"
+  ],
+  "equipment": "resistance_band",
+  "steps": [
+   "Hold a resistance band in front of your chest with straight arms.",
+   "Pull the band apart by moving your hands out to your sides.",
+   "Squeeze your shoulder blades, then return slowly."
+  ],
+  "aliases": [
+   "band pull apart",
+   "band pull aparts",
+   "pull-aparts"
+  ]
+ },
+ {
+  "id": "upright-row",
+  "name": "Upright Row",
+  "primary_muscle": "side_delts",
+  "secondary_muscles": [
+   "traps",
+   "front_delts",
+   "biceps"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Hold a barbell in front of your thighs with a grip about shoulder-width apart.",
+   "Pull the bar up along your body to chest height, leading with your elbows.",
+   "Lower it slowly."
+  ],
+  "aliases": [
+   "barbell upright row"
+  ]
+ },
+ {
+  "id": "handstand-push-up",
+  "name": "Handstand Push-Up",
+  "primary_muscle": "front_delts",
+  "secondary_muscles": [
+   "triceps",
+   "side_delts",
+   "traps"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Kick up into a handstand against a wall with your hands shoulder-width apart.",
+   "Lower your head toward the floor under control.",
+   "Press back up until your arms are straight."
+  ],
+  "aliases": [
+   "hspu",
+   "handstand pushup"
+  ]
+ },
+ {
+  "id": "barbell-shrug",
+  "name": "Barbell Shrug",
+  "primary_muscle": "traps",
+  "secondary_muscles": [
+   "forearms"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Stand holding a barbell in front of your thighs.",
+   "Lift your shoulders straight up toward your ears.",
+   "Hold briefly, then lower slowly."
+  ],
+  "aliases": [
+   "shrugs",
+   "shrug",
+   "bb shrug",
+   "barbell shrugs"
+  ]
+ },
+ {
+  "id": "dumbbell-shrug",
+  "name": "Dumbbell Shrug",
+  "primary_muscle": "traps",
+  "secondary_muscles": [
+   "forearms"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Stand holding dumbbells at your sides.",
+   "Lift your shoulders straight up toward your ears.",
+   "Hold briefly, then lower slowly."
+  ],
+  "aliases": [
+   "db shrug",
+   "dumbbell shrugs"
+  ]
+ },
+ {
+  "id": "smith-machine-shrug",
+  "name": "Smith Machine Shrug",
+  "primary_muscle": "traps",
+  "secondary_muscles": [],
+  "equipment": "smith_machine",
+  "steps": [
+   "Stand holding the Smith bar in front of your thighs and unhook it.",
+   "Lift your shoulders straight up toward your ears.",
+   "Hold briefly, then lower slowly."
+  ],
+  "aliases": [
+   "smith shrug"
+  ]
+ },
+ {
+  "id": "barbell-curl",
+  "name": "Barbell Curl",
+  "primary_muscle": "biceps",
+  "secondary_muscles": [
+   "forearms"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Stand holding a barbell with an underhand grip about shoulder-width apart.",
+   "Keep your elbows at your sides and curl the bar up to your shoulders.",
+   "Lower it slowly until your arms are straight."
+  ],
+  "aliases": [
+   "bb curl",
+   "standing barbell curl",
+   "barbell bicep curl",
+   "straight bar curl"
+  ]
+ },
+ {
+  "id": "ez-bar-curl",
+  "name": "EZ-Bar Curl",
+  "primary_muscle": "biceps",
+  "secondary_muscles": [
+   "forearms"
+  ],
+  "equipment": "ez_bar",
+  "steps": [
+   "Stand holding an EZ bar on the angled grips, palms facing up.",
+   "Keep your elbows at your sides and curl the bar up.",
+   "Lower it slowly."
+  ],
+  "aliases": [
+   "ez curl",
+   "ez bar bicep curl",
+   "easy bar curl"
+  ]
+ },
+ {
+  "id": "dumbbell-curl",
+  "name": "Dumbbell Curl",
+  "primary_muscle": "biceps",
+  "secondary_muscles": [
+   "forearms"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Stand holding dumbbells at your sides, palms facing forward.",
+   "Keep your elbows at your sides and curl the dumbbells up.",
+   "Lower them slowly, together or one arm at a time."
+  ],
+  "aliases": [
+   "bicep curl",
+   "biceps curl",
+   "db curl",
+   "dumbbell bicep curl",
+   "alternating dumbbell curl"
+  ]
+ },
+ {
+  "id": "hammer-curl",
+  "name": "Hammer Curl",
+  "primary_muscle": "biceps",
+  "secondary_muscles": [
+   "forearms"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Stand holding dumbbells at your sides with your palms facing each other.",
+   "Keep your elbows at your sides and curl the dumbbells up.",
+   "Lower them slowly."
+  ],
+  "aliases": [
+   "hammer curls",
+   "dumbbell hammer curl",
+   "neutral grip curl"
+  ]
+ },
+ {
+  "id": "cross-body-hammer-curl",
+  "name": "Cross-Body Hammer Curl",
+  "primary_muscle": "biceps",
+  "secondary_muscles": [
+   "forearms"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Stand holding dumbbells at your sides with your palms facing in.",
+   "Curl one dumbbell across your body toward the opposite shoulder.",
+   "Lower it slowly and alternate arms."
+  ],
+  "aliases": [
+   "cross body curl",
+   "pinwheel curl"
+  ]
+ },
+ {
+  "id": "incline-dumbbell-curl",
+  "name": "Incline Dumbbell Curl",
+  "primary_muscle": "biceps",
+  "secondary_muscles": [
+   "forearms"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Sit back on a 45-60 degree incline bench, arms hanging straight down with dumbbells.",
+   "Curl the dumbbells up, keeping your upper arms still.",
+   "Lower them slowly to a full stretch."
+  ],
+  "aliases": [
+   "incline curl",
+   "incline bicep curl"
+  ]
+ },
+ {
+  "id": "concentration-curl",
+  "name": "Concentration Curl",
+  "primary_muscle": "biceps",
+  "secondary_muscles": [],
+  "equipment": "dumbbell",
+  "steps": [
+   "Sit on a bench and rest the back of your upper arm on your inner thigh, holding a dumbbell.",
+   "Curl the dumbbell up toward your shoulder.",
+   "Lower it slowly, then switch arms after your set."
+  ],
+  "aliases": [
+   "seated concentration curl",
+   "concentration curls"
+  ]
+ },
+ {
+  "id": "preacher-curl",
+  "name": "Preacher Curl",
+  "primary_muscle": "biceps",
+  "secondary_muscles": [
+   "forearms"
+  ],
+  "equipment": "ez_bar",
+  "steps": [
+   "Sit at a preacher bench with your upper arms on the pad, holding an EZ bar.",
+   "Curl the bar up toward your shoulders.",
+   "Lower it slowly until your arms are almost straight."
+  ],
+  "aliases": [
+   "ez bar preacher curl",
+   "barbell preacher curl",
+   "scott curl"
+  ]
+ },
+ {
+  "id": "dumbbell-preacher-curl",
+  "name": "Dumbbell Preacher Curl",
+  "primary_muscle": "biceps",
+  "secondary_muscles": [],
+  "equipment": "dumbbell",
+  "steps": [
+   "Rest one upper arm on the preacher pad holding a dumbbell.",
+   "Curl the dumbbell up toward your shoulder.",
+   "Lower it slowly, then switch arms after your set."
+  ],
+  "aliases": [
+   "db preacher curl",
+   "single arm preacher curl"
+  ]
+ },
+ {
+  "id": "machine-preacher-curl",
+  "name": "Machine Preacher Curl",
+  "primary_muscle": "biceps",
+  "secondary_muscles": [],
+  "equipment": "machine",
+  "steps": [
+   "Adjust the seat so your upper arms rest flat on the pad.",
+   "Grip the handles and curl them up.",
+   "Lower them slowly."
+  ],
+  "aliases": [
+   "preacher curl machine",
+   "machine bicep curl",
+   "bicep curl machine"
+  ]
+ },
+ {
+  "id": "spider-curl",
+  "name": "Spider Curl",
+  "primary_muscle": "biceps",
+  "secondary_muscles": [],
+  "equipment": "ez_bar",
+  "steps": [
+   "Lie chest-down on an incline bench with your arms hanging straight down, holding an EZ bar.",
+   "Curl the bar up, keeping your upper arms still.",
+   "Lower it slowly."
+  ],
+  "aliases": [
+   "ez bar spider curl",
+   "prone incline curl"
+  ]
+ },
+ {
+  "id": "cable-curl",
+  "name": "Cable Curl",
+  "primary_muscle": "biceps",
+  "secondary_muscles": [
+   "forearms"
+  ],
+  "equipment": "cable",
+  "steps": [
+   "Stand facing a low pulley holding a straight bar with an underhand grip.",
+   "Keep your elbows at your sides and curl the bar up.",
+   "Lower it slowly."
+  ],
+  "aliases": [
+   "cable bicep curl",
+   "standing cable curl",
+   "straight bar cable curl"
+  ]
+ },
+ {
+  "id": "rope-hammer-curl",
+  "name": "Rope Hammer Curl",
+  "primary_muscle": "biceps",
+  "secondary_muscles": [
+   "forearms"
+  ],
+  "equipment": "cable",
+  "steps": [
+   "Stand facing a low pulley holding a rope with your palms facing each other.",
+   "Keep your elbows at your sides and curl the rope up.",
+   "Lower it slowly."
+  ],
+  "aliases": [
+   "cable hammer curl",
+   "cable rope hammer curl"
+  ]
+ },
+ {
+  "id": "overhead-cable-curl",
+  "name": "Overhead Cable Curl",
+  "primary_muscle": "biceps",
+  "secondary_muscles": [],
+  "equipment": "cable",
+  "steps": [
+   "Stand between two high pulleys holding a handle in each hand, arms out to the sides.",
+   "Curl the handles toward your head, keeping your upper arms still.",
+   "Return slowly."
+  ],
+  "aliases": [
+   "high cable curl",
+   "double biceps cable curl"
+  ]
+ },
+ {
+  "id": "drag-curl",
+  "name": "Drag Curl",
+  "primary_muscle": "biceps",
+  "secondary_muscles": [],
+  "equipment": "barbell",
+  "steps": [
+   "Stand holding a barbell with an underhand grip.",
+   "Pull your elbows back and drag the bar up along your body.",
+   "Lower it slowly along the same path."
+  ],
+  "aliases": [
+   "barbell drag curl"
+  ]
+ },
+ {
+  "id": "reverse-curl",
+  "name": "Reverse Curl",
+  "primary_muscle": "forearms",
+  "secondary_muscles": [
+   "biceps"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Stand holding a barbell with an overhand grip about shoulder-width apart.",
+   "Keep your elbows at your sides and curl the bar up.",
+   "Lower it slowly."
+  ],
+  "aliases": [
+   "reverse barbell curl",
+   "reverse grip curl",
+   "overhand curl"
+  ]
+ },
+ {
+  "id": "wrist-curl",
+  "name": "Wrist Curl",
+  "primary_muscle": "forearms",
+  "secondary_muscles": [],
+  "equipment": "barbell",
+  "steps": [
+   "Sit with your forearms on your thighs or a bench, palms up, holding a barbell.",
+   "Let the bar roll down toward your fingertips.",
+   "Curl your wrists up as high as you can, then lower slowly."
+  ],
+  "aliases": [
+   "barbell wrist curl",
+   "palms-up wrist curl",
+   "wrist curls"
+  ]
+ },
+ {
+  "id": "reverse-wrist-curl",
+  "name": "Reverse Wrist Curl",
+  "primary_muscle": "forearms",
+  "secondary_muscles": [],
+  "equipment": "barbell",
+  "steps": [
+   "Sit with your forearms on your thighs or a bench, palms down, holding a barbell.",
+   "Lower your knuckles toward the floor.",
+   "Raise the back of your hands as high as you can, then lower slowly."
+  ],
+  "aliases": [
+   "palms-down wrist curl",
+   "wrist extension"
+  ]
+ },
+ {
+  "id": "wrist-roller",
+  "name": "Wrist Roller",
+  "primary_muscle": "forearms",
+  "secondary_muscles": [],
+  "equipment": "other",
+  "steps": [
+   "Hold a wrist roller at shoulder height with straight arms.",
+   "Roll the handle to wind the weight up.",
+   "Unwind it slowly back down."
+  ],
+  "aliases": [
+   "forearm roller"
+  ]
+ },
+ {
+  "id": "plate-pinch",
+  "name": "Plate Pinch",
+  "primary_muscle": "forearms",
+  "secondary_muscles": [],
+  "equipment": "other",
+  "steps": [
+   "Pinch two weight plates together with smooth sides facing out.",
+   "Lift them and hold at your side for the set time.",
+   "Set them down and switch hands."
+  ],
+  "aliases": [
+   "plate pinches",
+   "pinch grip hold"
+  ]
+ },
+ {
+  "id": "close-grip-bench-press",
+  "name": "Close-Grip Bench Press",
+  "primary_muscle": "triceps",
+  "secondary_muscles": [
+   "chest",
+   "front_delts"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Lie on a flat bench and grip the bar about shoulder-width apart.",
+   "Unrack the bar and lower it to your lower chest, keeping your elbows close.",
+   "Press it back up until your arms are straight."
+  ],
+  "aliases": [
+   "cgbp",
+   "close grip bench",
+   "narrow grip bench press"
+  ]
+ },
+ {
+  "id": "triceps-pushdown",
+  "name": "Triceps Pushdown",
+  "primary_muscle": "triceps",
+  "secondary_muscles": [],
+  "equipment": "cable",
+  "steps": [
+   "Stand facing a high pulley holding a straight bar with an overhand grip.",
+   "Keep your elbows at your sides and push the bar down until your arms are straight.",
+   "Let it rise slowly to about chest height."
+  ],
+  "aliases": [
+   "tricep pushdown",
+   "cable pushdown",
+   "tricep pressdown",
+   "straight bar pushdown"
+  ]
+ },
+ {
+  "id": "rope-triceps-pushdown",
+  "name": "Rope Triceps Pushdown",
+  "primary_muscle": "triceps",
+  "secondary_muscles": [],
+  "equipment": "cable",
+  "steps": [
+   "Stand facing a high pulley holding a rope.",
+   "Keep your elbows at your sides and push the rope down, spreading the ends at the bottom.",
+   "Let it rise slowly."
+  ],
+  "aliases": [
+   "rope pushdown",
+   "tricep rope pushdown",
+   "rope pressdown"
+  ]
+ },
+ {
+  "id": "v-bar-pushdown",
+  "name": "V-Bar Pushdown",
+  "primary_muscle": "triceps",
+  "secondary_muscles": [],
+  "equipment": "cable",
+  "steps": [
+   "Stand facing a high pulley holding a V-bar.",
+   "Keep your elbows at your sides and push the bar down until your arms are straight.",
+   "Let it rise slowly."
+  ],
+  "aliases": [
+   "v bar pushdown",
+   "v-bar push-down"
+  ]
+ },
+ {
+  "id": "reverse-grip-triceps-pushdown",
+  "name": "Reverse-Grip Triceps Pushdown",
+  "primary_muscle": "triceps",
+  "secondary_muscles": [],
+  "equipment": "cable",
+  "steps": [
+   "Stand facing a high pulley holding a straight bar with an underhand grip.",
+   "Keep your elbows at your sides and push the bar down until your arms are straight.",
+   "Let it rise slowly."
+  ],
+  "aliases": [
+   "underhand pushdown",
+   "reverse grip pushdown"
+  ]
+ },
+ {
+  "id": "overhead-cable-triceps-extension",
+  "name": "Overhead Cable Triceps Extension",
+  "primary_muscle": "triceps",
+  "secondary_muscles": [],
+  "equipment": "cable",
+  "steps": [
+   "Face away from a pulley holding a rope behind your head.",
+   "Step forward into a staggered stance with your elbows pointing forward.",
+   "Extend your arms overhead until straight.",
+   "Return slowly behind your head."
+  ],
+  "aliases": [
+   "cable overhead extension",
+   "overhead rope extension",
+   "rope overhead tricep extension"
+  ]
+ },
+ {
+  "id": "skull-crusher",
+  "name": "Skull Crusher",
+  "primary_muscle": "triceps",
+  "secondary_muscles": [],
+  "equipment": "ez_bar",
+  "steps": [
+   "Lie on a flat bench holding an EZ bar over your chest with arms straight.",
+   "Bend at the elbows to lower the bar toward your forehead.",
+   "Extend your arms to press the bar back up."
+  ],
+  "aliases": [
+   "skull crushers",
+   "skullcrusher",
+   "skullcrushers",
+   "lying triceps extension",
+   "lying tricep extension",
+   "ez bar skullcrusher",
+   "french press"
+  ]
+ },
+ {
+  "id": "dumbbell-skull-crusher",
+  "name": "Dumbbell Skull Crusher",
+  "primary_muscle": "triceps",
+  "secondary_muscles": [],
+  "equipment": "dumbbell",
+  "steps": [
+   "Lie on a flat bench holding dumbbells over your chest with palms facing each other.",
+   "Bend at the elbows to lower the dumbbells beside your head.",
+   "Extend your arms to press them back up."
+  ],
+  "aliases": [
+   "db skull crusher",
+   "dumbbell lying triceps extension"
+  ]
+ },
+ {
+  "id": "overhead-dumbbell-triceps-extension",
+  "name": "Overhead Dumbbell Triceps Extension",
+  "primary_muscle": "triceps",
+  "secondary_muscles": [],
+  "equipment": "dumbbell",
+  "steps": [
+   "Sit or stand holding one dumbbell overhead with both hands.",
+   "Lower it behind your head by bending your elbows.",
+   "Extend your arms to raise it back up."
+  ],
+  "aliases": [
+   "dumbbell overhead extension",
+   "overhead tricep extension",
+   "db overhead extension",
+   "seated triceps press"
+  ]
+ },
+ {
+  "id": "triceps-kickback",
+  "name": "Triceps Kickback",
+  "primary_muscle": "triceps",
+  "secondary_muscles": [],
+  "equipment": "dumbbell",
+  "steps": [
+   "Hinge forward holding a dumbbell with your upper arm against your side.",
+   "Extend your arm straight back.",
+   "Return slowly, then switch arms after your set."
+  ],
+  "aliases": [
+   "tricep kickback",
+   "dumbbell kickback",
+   "db kickback",
+   "kickbacks"
+  ]
+ },
+ {
+  "id": "triceps-dip",
+  "name": "Triceps Dip",
+  "primary_muscle": "triceps",
+  "secondary_muscles": [
+   "chest",
+   "front_delts"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Grip the dip bars and lift yourself up with straight arms.",
+   "Keep your torso upright and elbows close.",
+   "Lower until your elbows are at about 90 degrees.",
+   "Press back up to straight arms."
+  ],
+  "aliases": [
+   "dips",
+   "dip",
+   "tricep dips",
+   "parallel bar dips"
+  ]
+ },
+ {
+  "id": "bench-dip",
+  "name": "Bench Dip",
+  "primary_muscle": "triceps",
+  "secondary_muscles": [
+   "chest",
+   "front_delts"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Sit on the edge of a bench with your hands beside your hips.",
+   "Slide off the bench with your legs extended in front of you.",
+   "Lower yourself until your elbows are at about 90 degrees.",
+   "Press back up."
+  ],
+  "aliases": [
+   "bench dips",
+   "chair dip"
+  ]
+ },
+ {
+  "id": "ring-dip",
+  "name": "Ring Dip",
+  "primary_muscle": "triceps",
+  "secondary_muscles": [
+   "chest",
+   "front_delts"
+  ],
+  "equipment": "other",
+  "steps": [
+   "Support yourself on gymnastic rings with straight arms.",
+   "Lower until your elbows are at about 90 degrees, keeping the rings close.",
+   "Press back up to straight arms."
+  ],
+  "aliases": [
+   "ring dips"
+  ]
+ },
+ {
+  "id": "seated-dip-machine",
+  "name": "Seated Dip Machine",
+  "primary_muscle": "triceps",
+  "secondary_muscles": [
+   "chest"
+  ],
+  "equipment": "machine",
+  "steps": [
+   "Sit in the machine and grip the handles at your sides.",
+   "Push the handles down until your arms are straight.",
+   "Return slowly."
+  ],
+  "aliases": [
+   "dip machine",
+   "tricep dip machine"
+  ]
+ },
+ {
+  "id": "close-grip-push-up",
+  "name": "Close-Grip Push-Up",
+  "primary_muscle": "triceps",
+  "secondary_muscles": [
+   "chest",
+   "front_delts"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Start in a high plank with your hands close together under your chest.",
+   "Lower your chest toward your hands, keeping your elbows close.",
+   "Push back up."
+  ],
+  "aliases": [
+   "diamond push-up",
+   "diamond pushups",
+   "triangle push-up",
+   "close grip pushup"
+  ]
+ },
+ {
+  "id": "tate-press",
+  "name": "Tate Press",
+  "primary_muscle": "triceps",
+  "secondary_muscles": [],
+  "equipment": "dumbbell",
+  "steps": [
+   "Lie on a flat bench holding dumbbells over your chest, palms facing your feet.",
+   "Bend your elbows out to the sides, lowering the dumbbells to your chest.",
+   "Extend your arms back up."
+  ],
+  "aliases": [
+   "elbows out extension"
+  ]
+ },
+ {
+  "id": "plank",
+  "name": "Plank",
+  "primary_muscle": "abs",
+  "secondary_muscles": [
+   "obliques",
+   "front_delts"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Rest on your forearms and toes with your elbows under your shoulders.",
+   "Keep your body in a straight line from head to heels.",
+   "Brace your core and hold for the set time."
+  ],
+  "aliases": [
+   "front plank",
+   "elbow plank",
+   "forearm plank"
+  ]
+ },
+ {
+  "id": "side-plank",
+  "name": "Side Plank",
+  "primary_muscle": "obliques",
+  "secondary_muscles": [
+   "abs",
+   "abductors"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Lie on your side and prop yourself up on one forearm.",
+   "Lift your hips so your body forms a straight line.",
+   "Hold for the set time, then switch sides."
+  ],
+  "aliases": [
+   "side bridge"
+  ]
+ },
+ {
+  "id": "crunch",
+  "name": "Crunch",
+  "primary_muscle": "abs",
+  "secondary_muscles": [],
+  "equipment": "bodyweight",
+  "steps": [
+   "Lie on your back with your knees bent and feet flat.",
+   "Curl your shoulders off the floor toward your hips.",
+   "Lower slowly."
+  ],
+  "aliases": [
+   "crunches",
+   "ab crunch"
+  ]
+ },
+ {
+  "id": "sit-up",
+  "name": "Sit-Up",
+  "primary_muscle": "abs",
+  "secondary_muscles": [
+   "hip_flexors"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Lie on your back with your knees bent and feet anchored.",
+   "Sit all the way up to your knees.",
+   "Lower back down under control."
+  ],
+  "aliases": [
+   "situp",
+   "sit ups"
+  ]
+ },
+ {
+  "id": "decline-crunch",
+  "name": "Decline Crunch",
+  "primary_muscle": "abs",
+  "secondary_muscles": [],
+  "equipment": "bodyweight",
+  "steps": [
+   "Lie on a decline bench with your feet secured.",
+   "Curl your shoulders up toward your hips.",
+   "Lower slowly."
+  ],
+  "aliases": [
+   "decline bench crunch"
+  ]
+ },
+ {
+  "id": "reverse-crunch",
+  "name": "Reverse Crunch",
+  "primary_muscle": "abs",
+  "secondary_muscles": [
+   "hip_flexors"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Lie on your back with your knees bent and lifted.",
+   "Curl your hips off the floor, bringing your knees toward your chest.",
+   "Lower slowly."
+  ],
+  "aliases": [
+   "reverse crunches"
+  ]
+ },
+ {
+  "id": "bicycle-crunch",
+  "name": "Bicycle Crunch",
+  "primary_muscle": "abs",
+  "secondary_muscles": [
+   "obliques"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Lie on your back with your hands behind your head and legs lifted.",
+   "Bring one elbow toward the opposite knee while extending the other leg.",
+   "Switch sides in a pedaling motion."
+  ],
+  "aliases": [
+   "ab bicycle",
+   "bicycles",
+   "bicycle kicks"
+  ]
+ },
+ {
+  "id": "russian-twist",
+  "name": "Russian Twist",
+  "primary_muscle": "obliques",
+  "secondary_muscles": [
+   "abs"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Sit with your knees bent and lean back slightly, feet on or off the floor.",
+   "Rotate your torso to one side, then the other.",
+   "Hold a weight to make it harder."
+  ],
+  "aliases": [
+   "russian twists",
+   "seated twist"
+  ]
+ },
+ {
+  "id": "hanging-leg-raise",
+  "name": "Hanging Leg Raise",
+  "primary_muscle": "abs",
+  "secondary_muscles": [
+   "hip_flexors",
+   "obliques",
+   "forearms"
+  ],
+  "equipment": "pull_up_bar",
+  "steps": [
+   "Hang from a pull-up bar with straight arms.",
+   "Raise your legs straight in front of you to at least hip height.",
+   "Lower slowly without swinging."
+  ],
+  "aliases": [
+   "hanging leg raises",
+   "hlr"
+  ]
+ },
+ {
+  "id": "hanging-knee-raise",
+  "name": "Hanging Knee Raise",
+  "primary_muscle": "abs",
+  "secondary_muscles": [
+   "hip_flexors"
+  ],
+  "equipment": "pull_up_bar",
+  "steps": [
+   "Hang from a pull-up bar with straight arms.",
+   "Raise your knees toward your chest.",
+   "Lower slowly without swinging."
+  ],
+  "aliases": [
+   "hanging knee raises",
+   "hanging knee tuck"
+  ]
+ },
+ {
+  "id": "captains-chair-knee-raise",
+  "name": "Captain's Chair Knee Raise",
+  "primary_muscle": "abs",
+  "secondary_muscles": [
+   "hip_flexors"
+  ],
+  "equipment": "machine",
+  "steps": [
+   "Support yourself on the forearm pads with your back against the pad.",
+   "Raise your knees toward your chest.",
+   "Lower slowly."
+  ],
+  "aliases": [
+   "captain's chair",
+   "vertical knee raise",
+   "roman chair knee raise"
+  ]
+ },
+ {
+  "id": "toes-to-bar",
+  "name": "Toes-to-Bar",
+  "primary_muscle": "abs",
+  "secondary_muscles": [
+   "hip_flexors",
+   "lats",
+   "forearms"
+  ],
+  "equipment": "pull_up_bar",
+  "steps": [
+   "Hang from a pull-up bar with straight arms.",
+   "Raise your feet up to touch the bar.",
+   "Lower under control."
+  ],
+  "aliases": [
+   "ttb",
+   "t2b",
+   "toes to bar"
+  ]
+ },
+ {
+  "id": "lying-leg-raise",
+  "name": "Lying Leg Raise",
+  "primary_muscle": "abs",
+  "secondary_muscles": [
+   "hip_flexors"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Lie on your back with your legs straight and hands under your hips or at your sides.",
+   "Raise your legs to vertical.",
+   "Lower them slowly without touching the floor."
+  ],
+  "aliases": [
+   "leg raises",
+   "lying leg raises",
+   "flat bench leg raise"
+  ]
+ },
+ {
+  "id": "v-up",
+  "name": "V-Up",
+  "primary_muscle": "abs",
+  "secondary_muscles": [
+   "hip_flexors"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Lie on your back with your arms overhead and legs straight.",
+   "Lift your arms and legs at the same time to meet over your hips.",
+   "Lower slowly."
+  ],
+  "aliases": [
+   "v ups",
+   "v-sit up",
+   "jackknife sit-up"
+  ]
+ },
+ {
+  "id": "dead-bug",
+  "name": "Dead Bug",
+  "primary_muscle": "abs",
+  "secondary_muscles": [
+   "hip_flexors"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Lie on your back with your arms pointing up and knees bent at 90 degrees above your hips.",
+   "Lower the opposite arm and leg toward the floor while keeping your lower back flat.",
+   "Return and switch sides."
+  ],
+  "aliases": [
+   "dead bugs"
+  ]
+ },
+ {
+  "id": "bird-dog",
+  "name": "Bird Dog",
+  "primary_muscle": "lower_back",
+  "secondary_muscles": [
+   "glutes",
+   "abs"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Start on your hands and knees.",
+   "Extend the opposite arm and leg until they are straight.",
+   "Return and switch sides."
+  ],
+  "aliases": [
+   "bird dogs"
+  ]
+ },
+ {
+  "id": "mountain-climber",
+  "name": "Mountain Climber",
+  "primary_muscle": "abs",
+  "secondary_muscles": [
+   "hip_flexors",
+   "front_delts",
+   "quads"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Start in a high plank.",
+   "Drive one knee toward your chest.",
+   "Switch legs quickly, as if running in place."
+  ],
+  "aliases": [
+   "mountain climbers"
+  ]
+ },
+ {
+  "id": "ab-wheel-rollout",
+  "name": "Ab Wheel Rollout",
+  "primary_muscle": "abs",
+  "secondary_muscles": [
+   "lats",
+   "front_delts"
+  ],
+  "equipment": "other",
+  "steps": [
+   "Kneel holding an ab wheel on the floor in front of you.",
+   "Roll the wheel forward as far as you can while keeping your back flat.",
+   "Pull it back to the start using your abs."
+  ],
+  "aliases": [
+   "ab wheel",
+   "ab roller",
+   "ab rollout",
+   "rollouts"
+  ]
+ },
+ {
+  "id": "barbell-rollout",
+  "name": "Barbell Rollout",
+  "primary_muscle": "abs",
+  "secondary_muscles": [
+   "lats",
+   "front_delts"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Kneel holding a loaded barbell on the floor in front of you.",
+   "Roll the bar forward as far as you can while keeping your back flat.",
+   "Pull it back to the start using your abs."
+  ],
+  "aliases": [
+   "barbell ab rollout",
+   "barbell roll-out"
+  ]
+ },
+ {
+  "id": "cable-crunch",
+  "name": "Cable Crunch",
+  "primary_muscle": "abs",
+  "secondary_muscles": [
+   "obliques"
+  ],
+  "equipment": "cable",
+  "steps": [
+   "Kneel in front of a high pulley holding a rope beside your head.",
+   "Crunch down toward your knees, rounding your spine.",
+   "Return slowly."
+  ],
+  "aliases": [
+   "kneeling cable crunch",
+   "rope crunch"
+  ]
+ },
+ {
+  "id": "cable-woodchopper",
+  "name": "Cable Woodchopper",
+  "primary_muscle": "obliques",
+  "secondary_muscles": [
+   "abs",
+   "front_delts"
+  ],
+  "equipment": "cable",
+  "steps": [
+   "Stand side-on to a high pulley and hold the handle with both hands.",
+   "Pull the handle down and across your body to the opposite hip, rotating your torso.",
+   "Return slowly, then switch sides after your set."
+  ],
+  "aliases": [
+   "wood chop",
+   "woodchop",
+   "woodchopper",
+   "cable wood chop"
+  ]
+ },
+ {
+  "id": "pallof-press",
+  "name": "Pallof Press",
+  "primary_muscle": "obliques",
+  "secondary_muscles": [
+   "abs"
+  ],
+  "equipment": "cable",
+  "steps": [
+   "Stand side-on to a cable at chest height, holding the handle at your chest.",
+   "Press the handle straight out in front of you without letting your torso rotate.",
+   "Bring it back to your chest, then switch sides after your set."
+  ],
+  "aliases": [
+   "anti-rotation press",
+   "cable pallof press"
+  ]
+ },
+ {
+  "id": "machine-crunch",
+  "name": "Machine Crunch",
+  "primary_muscle": "abs",
+  "secondary_muscles": [],
+  "equipment": "machine",
+  "steps": [
+   "Sit in the machine and grip the handles or place your arms on the pads.",
+   "Crunch forward by curling your torso.",
+   "Return slowly."
+  ],
+  "aliases": [
+   "ab crunch machine",
+   "crunch machine"
+  ]
+ },
+ {
+  "id": "dumbbell-side-bend",
+  "name": "Dumbbell Side Bend",
+  "primary_muscle": "obliques",
+  "secondary_muscles": [
+   "abs"
+  ],
+  "equipment": "dumbbell",
+  "steps": [
+   "Stand holding a dumbbell in one hand at your side.",
+   "Bend sideways toward the dumbbell.",
+   "Return upright using your opposite side, then switch sides after your set."
+  ],
+  "aliases": [
+   "side bend",
+   "side bends",
+   "db side bend"
+  ]
+ },
+ {
+  "id": "kettlebell-windmill",
+  "name": "Kettlebell Windmill",
+  "primary_muscle": "obliques",
+  "secondary_muscles": [
+   "abs",
+   "front_delts",
+   "hamstrings"
+  ],
+  "equipment": "kettlebell",
+  "steps": [
+   "Press a kettlebell overhead with one arm and turn your feet away from it.",
+   "Hinge your hips out toward the kettlebell side and reach your free hand down your leg.",
+   "Keep your eyes on the kettlebell, then return to standing."
+  ],
+  "aliases": [
+   "windmill"
+  ]
+ },
+ {
+  "id": "stability-ball-crunch",
+  "name": "Stability Ball Crunch",
+  "primary_muscle": "abs",
+  "secondary_muscles": [],
+  "equipment": "other",
+  "steps": [
+   "Sit on a stability ball and walk your feet forward until your lower back rests on it.",
+   "Crunch your shoulders up toward your hips.",
+   "Lower slowly over the ball."
+  ],
+  "aliases": [
+   "exercise ball crunch",
+   "swiss ball crunch"
+  ]
+ },
+ {
+  "id": "power-clean",
+  "name": "Power Clean",
+  "primary_muscle": "glutes",
+  "secondary_muscles": [
+   "hamstrings",
+   "quads",
+   "traps",
+   "lower_back"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Start as in a deadlift with the bar over your mid-foot.",
+   "Pull the bar from the floor, then extend your hips explosively.",
+   "Pull yourself under the bar and catch it on your shoulders in a partial squat.",
+   "Stand up, then lower the bar."
+  ],
+  "aliases": [
+   "power cleans"
+  ]
+ },
+ {
+  "id": "hang-clean",
+  "name": "Hang Clean",
+  "primary_muscle": "glutes",
+  "secondary_muscles": [
+   "hamstrings",
+   "quads",
+   "traps"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Hold the bar just above your knees (or at yourmid thighs) and hinge slightly.",
+   "Extend your hips explosively and pull yourself under the bar.",
+   "Catch the bar on your shoulders in a squat and stand up."
+  ],
+  "aliases": [
+   "hang cleans"
+  ]
+ },
+ {
+  "id": "clean-and-jerk",
+  "name": "Clean and Jerk",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "hamstrings",
+   "front_delts",
+   "triceps",
+   "traps"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Clean the bar from the floor to your shoulders and stand up.",
+   "Dip slightly at the knees.",
+   "Drive the bar overhead, splitting or pushing your feet under it.",
+   "Recover with your feet together, then lower the bar."
+  ],
+  "aliases": [
+   "c&j",
+   "clean & jerk"
+  ]
+ },
+ {
+  "id": "power-snatch",
+  "name": "Power Snatch",
+  "primary_muscle": "glutes",
+  "secondary_muscles": [
+   "hamstrings",
+   "quads",
+   "traps",
+   "front_delts"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Start with a wide grip and the bar over your mid-foot.",
+   "Pull the bar from the floor and extend your hips explosively.",
+   "Pull yourself under and catch the bar overhead in a partial squat.",
+   "Stand up, then lower the bar."
+  ],
+  "aliases": [
+   "barbell snatch",
+   "power snatches"
+  ]
+ },
+ {
+  "id": "clean-and-press",
+  "name": "Clean and Press",
+  "primary_muscle": "front_delts",
+  "secondary_muscles": [
+   "quads",
+   "glutes",
+   "hamstrings",
+   "traps",
+   "triceps"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Clean the bar from the floor to your shoulders.",
+   "Stand tall and brace your core.",
+   "Press the bar overhead without using your legs.",
+   "Lower it to your shoulders, then to the floor."
+  ],
+  "aliases": [
+   "clean & press"
+  ]
+ },
+ {
+  "id": "push-jerk",
+  "name": "Push Jerk",
+  "primary_muscle": "front_delts",
+  "secondary_muscles": [
+   "triceps",
+   "quads",
+   "glutes"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Hold the bar at your shoulders.",
+   "Dip at the knees and drive the bar up explosively.",
+   "Push yourself under it and catch it overhead with bent knees.",
+   "Stand up fully, then lower the bar."
+  ],
+  "aliases": [
+   "barbell push jerk"
+  ]
+ },
+ {
+  "id": "split-jerk",
+  "name": "Split Jerk",
+  "primary_muscle": "front_delts",
+  "secondary_muscles": [
+   "triceps",
+   "quads",
+   "glutes"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Hold the bar at your shoulders.",
+   "Dip at the knees and drive the bar up explosively.",
+   "Split your feet front and back and catch the bar overhead.",
+   "Bring your feet together, then lower the bar."
+  ],
+  "aliases": [
+   "barbell split jerk"
+  ]
+ },
+ {
+  "id": "barbell-thruster",
+  "name": "Barbell Thruster",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "front_delts",
+   "triceps"
+  ],
+  "equipment": "barbell",
+  "steps": [
+   "Hold the bar at your shoulders in a front squat position.",
+   "Squat down to at least parallel.",
+   "Drive up and use that momentum to press the bar overhead.",
+   "Lower the bar to your shoulders as you go into the next squat."
+  ],
+  "aliases": [
+   "thruster",
+   "thrusters"
+  ]
+ },
+ {
+  "id": "burpee",
+  "name": "Burpee",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "chest",
+   "front_delts",
+   "abs",
+   "glutes"
+  ],
+  "equipment": "bodyweight",
+  "steps": [
+   "Squat down and place your hands on the floor.",
+   "Jump your feet back into a plank and do a push-up.",
+   "Jump your feet back to your hands.",
+   "Jump up with your arms overhead."
+  ],
+  "aliases": [
+   "burpees"
+  ]
+ },
+ {
+  "id": "box-jump",
+  "name": "Box Jump",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "calves",
+   "hamstrings"
+  ],
+  "equipment": "other",
+  "steps": [
+   "Stand facing a sturdy box.",
+   "Swing your arms and jump onto the box, landing softly.",
+   "Stand up fully, then step back down."
+  ],
+  "aliases": [
+   "box jumps"
+  ]
+ },
+ {
+  "id": "battle-ropes",
+  "name": "Battle Ropes",
+  "primary_muscle": "front_delts",
+  "secondary_muscles": [
+   "side_delts",
+   "abs",
+   "forearms"
+  ],
+  "equipment": "other",
+  "steps": [
+   "Hold one end of the rope in each hand with your knees bent.",
+   "Whip your arms up and down to make waves.",
+   "Keep a steady pace for the set time."
+  ],
+  "aliases": [
+   "battle rope",
+   "battle rope waves",
+   "rope waves"
+  ]
+ },
+ {
+  "id": "sled-push",
+  "name": "Sled Push",
+  "primary_muscle": "quads",
+  "secondary_muscles": [
+   "glutes",
+   "calves",
+   "hamstrings"
+  ],
+  "equipment": "other",
+  "steps": [
+   "Grip the sled handles and lean into it with straight or bent arms.",
+   "Drive with short, powerful steps.",
+   "Push it for the set distance."
+  ],
+  "aliases": [
+   "prowler push",
+   "sled pushes"
+  ]
+ }
+]$json$::jsonb AS j;
+
+INSERT INTO exercises (id, name, primary_muscle, secondary_muscles, equipment, steps)
+SELECT e->>'id',
+       e->>'name',
+       e->>'primary_muscle',
+       ARRAY(SELECT jsonb_array_elements_text(e->'secondary_muscles')),
+       e->>'equipment',
+       ARRAY(SELECT jsonb_array_elements_text(e->'steps'))
+FROM exercise_seed, jsonb_array_elements(exercise_seed.j) AS e;
+
+INSERT INTO exercise_aliases (alias, exercise_id)
+SELECT a, e->>'id'
+FROM exercise_seed,
+     jsonb_array_elements(exercise_seed.j) AS e,
+     jsonb_array_elements_text(e->'aliases') AS a;
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+-- Aliases are removed by ON DELETE CASCADE.
+DELETE FROM exercises WHERE id IN (
+    'barbell-bench-press',
+    'incline-barbell-bench-press',
+    'decline-barbell-bench-press',
+    'dumbbell-bench-press',
+    'incline-dumbbell-bench-press',
+    'decline-dumbbell-bench-press',
+    'dumbbell-fly',
+    'incline-dumbbell-fly',
+    'cable-crossover',
+    'low-to-high-cable-fly',
+    'pec-deck',
+    'machine-chest-press',
+    'smith-machine-bench-press',
+    'smith-machine-incline-bench-press',
+    'push-up',
+    'incline-push-up',
+    'decline-push-up',
+    'chest-dip',
+    'dumbbell-pullover',
+    'dumbbell-floor-press',
+    'barbell-floor-press',
+    'pull-up',
+    'chin-up',
+    'neutral-grip-pull-up',
+    'weighted-pull-up',
+    'assisted-pull-up',
+    'band-assisted-pull-up',
+    'muscle-up',
+    'lat-pulldown',
+    'close-grip-lat-pulldown',
+    'reverse-grip-lat-pulldown',
+    'straight-arm-pulldown',
+    'seated-cable-row',
+    'single-arm-cable-row',
+    'machine-seated-row',
+    'barbell-row',
+    'pendlay-row',
+    'yates-row',
+    't-bar-row',
+    'one-arm-dumbbell-row',
+    'chest-supported-dumbbell-row',
+    'inverted-row',
+    'renegade-row',
+    'face-pull',
+    'back-extension',
+    'rack-pull',
+    'rope-climb',
+    'barbell-back-squat',
+    'front-squat',
+    'box-squat',
+    'zercher-squat',
+    'goblet-squat',
+    'bodyweight-squat',
+    'jump-squat',
+    'hack-squat',
+    'smith-machine-squat',
+    'leg-press',
+    'single-leg-press',
+    'leg-extension',
+    'bulgarian-split-squat',
+    'split-squat',
+    'dumbbell-lunge',
+    'walking-lunge',
+    'barbell-walking-lunge',
+    'reverse-lunge',
+    'dumbbell-reverse-lunge',
+    'lateral-lunge',
+    'curtsy-lunge',
+    'step-up',
+    'pistol-squat',
+    'sissy-squat',
+    'wall-sit',
+    'barbell-deadlift',
+    'sumo-deadlift',
+    'romanian-deadlift',
+    'dumbbell-romanian-deadlift',
+    'stiff-legged-deadlift',
+    'single-leg-romanian-deadlift',
+    'trap-bar-deadlift',
+    'deficit-deadlift',
+    'good-morning',
+    'lying-leg-curl',
+    'seated-leg-curl',
+    'nordic-hamstring-curl',
+    'glute-ham-raise',
+    'stability-ball-leg-curl',
+    'kettlebell-swing',
+    'barbell-hip-thrust',
+    'barbell-glute-bridge',
+    'glute-bridge',
+    'single-leg-glute-bridge',
+    'cable-glute-kickback',
+    'glute-kickback',
+    'cable-pull-through',
+    'machine-hip-abduction',
+    'machine-hip-adduction',
+    'fire-hydrant',
+    'standing-calf-raise',
+    'seated-calf-raise',
+    'smith-machine-calf-raise',
+    'leg-press-calf-raise',
+    'overhead-press',
+    'seated-barbell-shoulder-press',
+    'push-press',
+    'behind-the-neck-press',
+    'dumbbell-shoulder-press',
+    'arnold-press',
+    'machine-shoulder-press',
+    'smith-machine-shoulder-press',
+    'landmine-press',
+    'kettlebell-press',
+    'lateral-raise',
+    'cable-lateral-raise',
+    'front-raise',
+    'plate-front-raise',
+    'rear-delt-fly',
+    'reverse-pec-deck',
+    'cable-rear-delt-fly',
+    'band-pull-apart',
+    'upright-row',
+    'handstand-push-up',
+    'barbell-shrug',
+    'dumbbell-shrug',
+    'smith-machine-shrug',
+    'barbell-curl',
+    'ez-bar-curl',
+    'dumbbell-curl',
+    'hammer-curl',
+    'cross-body-hammer-curl',
+    'incline-dumbbell-curl',
+    'concentration-curl',
+    'preacher-curl',
+    'dumbbell-preacher-curl',
+    'machine-preacher-curl',
+    'spider-curl',
+    'cable-curl',
+    'rope-hammer-curl',
+    'overhead-cable-curl',
+    'drag-curl',
+    'reverse-curl',
+    'wrist-curl',
+    'reverse-wrist-curl',
+    'wrist-roller',
+    'plate-pinch',
+    'close-grip-bench-press',
+    'triceps-pushdown',
+    'rope-triceps-pushdown',
+    'v-bar-pushdown',
+    'reverse-grip-triceps-pushdown',
+    'overhead-cable-triceps-extension',
+    'skull-crusher',
+    'dumbbell-skull-crusher',
+    'overhead-dumbbell-triceps-extension',
+    'triceps-kickback',
+    'triceps-dip',
+    'bench-dip',
+    'ring-dip',
+    'seated-dip-machine',
+    'close-grip-push-up',
+    'tate-press',
+    'plank',
+    'side-plank',
+    'crunch',
+    'sit-up',
+    'decline-crunch',
+    'reverse-crunch',
+    'bicycle-crunch',
+    'russian-twist',
+    'hanging-leg-raise',
+    'hanging-knee-raise',
+    'captains-chair-knee-raise',
+    'toes-to-bar',
+    'lying-leg-raise',
+    'v-up',
+    'dead-bug',
+    'bird-dog',
+    'mountain-climber',
+    'ab-wheel-rollout',
+    'barbell-rollout',
+    'cable-crunch',
+    'cable-woodchopper',
+    'pallof-press',
+    'machine-crunch',
+    'dumbbell-side-bend',
+    'kettlebell-windmill',
+    'stability-ball-crunch',
+    'power-clean',
+    'hang-clean',
+    'clean-and-jerk',
+    'power-snatch',
+    'clean-and-press',
+    'push-jerk',
+    'split-jerk',
+    'barbell-thruster',
+    'burpee',
+    'box-jump',
+    'battle-ropes',
+    'sled-push'
+);
+-- +goose StatementEnd
