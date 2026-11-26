@@ -94,7 +94,6 @@ func TestSearchExercisesBadRequest(t *testing.T) {
 		{"one character after trimming", "  a  ", 20, "q"},
 		{"too long", strings.Repeat("a", 51), 20, "q"},
 		{"too long in characters, not bytes", strings.Repeat("é", 51), 20, "q"},
-		{"zero limit", "bench", 0, "limit"},
 		{"negative limit", "bench", -1, "limit"},
 	}
 	for _, tc := range tests {

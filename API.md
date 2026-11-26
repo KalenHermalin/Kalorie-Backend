@@ -699,7 +699,7 @@ weaker matches (e.g. Lateral Raise for `calf raise`); these always come after th
 | Name | Required | Description |
 |------|----------|-------------|
 | `q` | yes | The search text, **2 to 50 characters** after trimming whitespace. `%` and `_` are matched literally. |
-| `limit` | no | Maximum number of results. Default `20`. Values above `50` are treated as `50`. Must be at least `1`. |
+| `limit` | no | Maximum number of results. Default `20`. Values above `50` are treated as `50`. `0` or a missing value uses the default. Negative values are rejected. |
 
 **Success (200 OK):**
 ```JSON
@@ -717,7 +717,7 @@ Ties are broken by how similar the text is, then by name. Each exercise appears 
 **Errors:**
 | Status | Code | When |
 |--------|------|------|
-| 400 | `ERR_INVALID_REQUEST` | `q` is shorter than 2 or longer than 50 characters (`fields[0].field` = `"q"`), or `limit` is not an integer or is less than 1 (`fields[0].field` = `"limit"`) |
+| 400 | `ERR_INVALID_REQUEST` | `q` is shorter than 2 or longer than 50 characters (`fields[0].field` = `"q"`), or `limit` is not an integer or is negative (`fields[0].field` = `"limit"`) |
 | 4xx | see [Auth errors](#auth-errors-any-authenticated-endpoint) | Missing or invalid token |
 | 500 | `ERR_INTERNAL_SERVER` | Server error |
 
