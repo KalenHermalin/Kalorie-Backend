@@ -464,7 +464,7 @@ func (us *postgressUserRepo) getUserExerciseSetsByLogId(ctx context.Context, tx 
     SELECT id, log_id, set_number, weight, reps, updated_at, deleted_at
     FROM exercise_sets WHERE log_id = $1
 `
-	var sets []*models.ExerciseSet
+	sets := make([]*models.ExerciseSet, 0)
 	rows, err := tx.QueryContext(ctx, queryExerciseSet, logId)
 	if err != nil {
 		return nil, fmt.Errorf("get exercise set by log %s: %w", logId, err)
@@ -718,7 +718,7 @@ func (us *postgressUserRepo) getUserFoodLogEntriesByLogId(ctx context.Context, t
     SELECT id, log_id, food_id, food_name, serving_id, quantity, unit, cal, fat, carbs, protein, updated_at, deleted_at
     FROM food_log_items WHERE log_id = $1
 `
-	var entries []*models.FoodLogEntry
+	entries := make([]*models.FoodLogEntry, 0)
 	rows, err := tx.QueryContext(ctx, queryFoodLogEntries, logId)
 	if err != nil {
 		return nil, fmt.Errorf("get food log entry for log %s: %w", logId, err)

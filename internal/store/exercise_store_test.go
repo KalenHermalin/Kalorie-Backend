@@ -132,6 +132,33 @@ func TestSearchExercisesLimit(t *testing.T) {
 	assert.Equal(t, "barbell-back-squat", ids[0])
 }
 
+func TestSearchExercisesFewerMatchesThanLimit(t *testing.T) {
+	ids := searchIDs(t, "zercher", 50)
+	assert.Equal(t, []string{"zercher-squat"}, ids)
+}
+
+func TestSearchExercisesNameAndAliasMatchSameExercise(t *testing.T) {
+	// "skull crusher" is the name of one exercise and an alias of the same one; it must appear once, first.
+	ids := searchIDs(t, "skull crusher", 50)
+	require.NotEmpty(t, ids)
+	assert.Equal(t, "skull-crusher", ids[0])
+	count := 0
+	for _, id := range ids {
+		if id == "skull-crusher" {
+			count++
+		}
+	}
+	assert.Equal(t, 1, count)
+}
+
+func TestSearchExercisesCancelledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	results, err := NewPostgressExerciseStore(testDB).SearchExercises(ctx, "bench", 20)
+	assert.Error(t, err)
+	assert.Nil(t, results)
+}
+
 func TestSearchExercisesSkipsDeleted(t *testing.T) {
 	_, err := testDB.Exec(`UPDATE exercises SET deleted_at = now() WHERE id = 'romanian-deadlift'`)
 	require.NoError(t, err)
